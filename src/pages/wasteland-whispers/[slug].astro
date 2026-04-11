@@ -46,6 +46,9 @@ function renderBody(body: any): string {
 
 const bodyHtml = renderBody(post.body);
 ---
+
+<Layout title={`${post.title} — Wasteland Whispers`} description={post.excerpt ?? ''}>
+
 import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
 import Newsletter from '../../components/Newsletter.astro';
