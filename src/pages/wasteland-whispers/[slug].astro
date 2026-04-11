@@ -46,56 +46,6 @@ function renderBody(body: any): string {
 
 const bodyHtml = renderBody(post.body);
 ---
-
-<Layout title={`${post.title} — Wasteland Whispers`} description={post.excerpt ?? ''}>
-
-import Nav from '../../components/Nav.astro';
-import Footer from '../../components/Footer.astro';
-import Newsletter from '../../components/Newsletter.astro';
-import { getAllBlogPosts, getBlogPostBySlug } from '../../lib/sanity';
-
-export async function getStaticPaths() {
-  const posts = await getAllBlogPosts();
-  return posts.map((post: any) => ({
-    params: { slug: post.slug },
-  }));
-}
-
-const { slug } = Astro.params;
-const post = await getBlogPostBySlug(slug!);
-if (!post) return Astro.redirect('/wasteland-whispers');
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function renderBody(body: any): string {
-  if (!body) return '';
-  if (typeof body === 'string') return `<p>${body.replace(/\n/g, '</p><p>')}</p>`;
-  if (!Array.isArray(body)) return '';
-
-  return body.map((block: any) => {
-    if (block._type !== 'block') return '';
-    const text = (block.children ?? []).map((span: any) => {
-      let t = span.text ?? '';
-      if (span.marks?.includes('strong')) t = `<strong>${t}</strong>`;
-      if (span.marks?.includes('em')) t = `<em>${t}</em>`;
-      return t;
-    }).join('');
-
-    const style = block.style ?? 'normal';
-    if (style === 'h2') return `<h2>${text}</h2>`;
-    if (style === 'h3') return `<h3>${text}</h3>`;
-    if (style === 'h4') return `<h4>${text}</h4>`;
-    if (style === 'blockquote') return `<blockquote>${text}</blockquote>`;
-    return `<p>${text}</p>`;
-  }).join('');
-}
-
-const bodyHtml = renderBody(post.body);
----
-
 <Layout title={`${post.title} — Wasteland Whispers`} description={post.excerpt ?? ''}>
   <Nav />
 
