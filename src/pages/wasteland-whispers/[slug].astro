@@ -1,0 +1,281 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import Newsletter from '../../components/Newsletter.astro';
+import { getAllBlogPosts, getBlogPostBySlug } from '../../lib/sanity';
+
+export async function getStaticPaths() {
+  const posts = await getAllBlogPosts();
+  return posts.map((post: any) => ({
+    params: { slug: post.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+const post = await getBlogPostBySlug(slug!);
+if (!post) return Astro.redirect('/wasteland-whispers');
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function renderBody(body: any): string {
+  if (!body) return '';
+  if (typeof body === 'string') return `<p>${body.replace(/\n/g, '</p><p>')}</p>`;
+  if (!Array.isArray(body)) return '';
+
+  return body.map((block: any) => {
+    if (block._type !== 'block') return '';
+    const text = (block.children ?? []).map((span: any) => {
+      let t = span.text ?? '';
+      if (span.marks?.includes('strong')) t = `<strong>${t}</strong>`;
+      if (span.marks?.includes('em')) t = `<em>${t}</em>`;
+      return t;
+    }).join('');
+
+    const style = block.style ?? 'normal';
+    if (style === 'h2') return `<h2>${text}</h2>`;
+    if (style === 'h3') return `<h3>${text}</h3>`;
+    if (style === 'h4') return `<h4>${text}</h4>`;
+    if (style === 'blockquote') return `<blockquote>${text}</blockquote>`;
+    return `<p>${text}</p>`;
+  }).join('');
+}
+
+const bodyHtml = renderBody(post.body);
+---
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import Newsletter from '../../components/Newsletter.astro';
+import { getAllBlogPosts, getBlogPostBySlug } from '../../lib/sanity';
+
+export async function getStaticPaths() {
+  const posts = await getAllBlogPosts();
+  return posts.map((post: any) => ({
+    params: { slug: post.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+const post = await getBlogPostBySlug(slug!);
+if (!post) return Astro.redirect('/wasteland-whispers');
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function renderBody(body: any): string {
+  if (!body) return '';
+  if (typeof body === 'string') return `<p>${body.replace(/\n/g, '</p><p>')}</p>`;
+  if (!Array.isArray(body)) return '';
+
+  return body.map((block: any) => {
+    if (block._type !== 'block') return '';
+    const text = (block.children ?? []).map((span: any) => {
+      let t = span.text ?? '';
+      if (span.marks?.includes('strong')) t = `<strong>${t}</strong>`;
+      if (span.marks?.includes('em')) t = `<em>${t}</em>`;
+      return t;
+    }).join('');
+
+    const style = block.style ?? 'normal';
+    if (style === 'h2') return `<h2>${text}</h2>`;
+    if (style === 'h3') return `<h3>${text}</h3>`;
+    if (style === 'h4') return `<h4>${text}</h4>`;
+    if (style === 'blockquote') return `<blockquote>${text}</blockquote>`;
+    return `<p>${text}</p>`;
+  }).join('');
+}
+
+const bodyHtml = renderBody(post.body);
+
+<Layout title={`${post.title} — Wasteland Whispers`} description={post.excerpt ?? ''}>
+  <Nav />
+
+  <main>
+    <section class="post-hero">
+      <div class="container">
+        <a href="/wasteland-whispers" class="back-link">&larr; Back to Wasteland Whispers</a>
+
+        <div class="post-header">
+          <div class="post-meta-row">
+            {post.publishedAt && (
+              <span class="post-date">{formatDate(post.publishedAt)}</span>
+            )}
+            {post.category && (
+              <span class="post-category">{post.category}</span>
+            )}
+          </div>
+          <h1 class="post-title">{post.title}</h1>
+        </div>
+
+        {post.featuredImage && (
+          <div class="post-cover">
+            <img src={post.featuredImage} alt={post.title} class="post-cover-img" />
+          </div>
+        )}
+
+        {bodyHtml ? (
+          <div class="post-body" set:html={bodyHtml} />
+        ) : post.excerpt ? (
+          <div class="post-body">
+            <p>{post.excerpt}</p>
+          </div>
+        ) : null}
+      </div>
+    </section>
+
+    <Newsletter />
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .post-hero {
+    background: #263F44;
+    padding: 120px 0 80px;
+  }
+
+  .back-link {
+    display: inline-block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #99132F;
+    text-decoration: none;
+    margin-bottom: 40px;
+    transition: color 0.2s;
+  }
+
+  .back-link:hover {
+    color: #b3162e;
+  }
+
+  .post-header {
+    max-width: 800px;
+    margin-bottom: 32px;
+  }
+
+  .post-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .post-date {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .post-category {
+    display: inline-block;
+    background: rgba(153,19,47,0.15);
+    color: #99132F;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(153,19,47,0.3);
+  }
+
+  .post-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2rem, 4vw, 3rem);
+    text-transform: uppercase;
+    color: #fff;
+    line-height: 1.05;
+  }
+
+  .post-cover {
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 48px;
+  }
+
+  .post-cover-img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .post-body {
+    max-width: 760px;
+  }
+
+  .post-body :global(p) {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    color: rgba(255,255,255,0.72);
+    line-height: 1.75;
+    margin-bottom: 24px;
+  }
+
+  .post-body :global(h2) {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.8rem;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 48px 0 16px;
+    line-height: 1.1;
+  }
+
+  .post-body :global(h3) {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.4rem;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 40px 0 12px;
+    line-height: 1.1;
+  }
+
+  .post-body :global(h4) {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 32px 0 8px;
+  }
+
+  .post-body :global(blockquote) {
+    border-left: 3px solid #99132F;
+    padding-left: 24px;
+    margin: 32px 0;
+    font-style: italic;
+    color: rgba(255,255,255,0.55);
+  }
+
+  .post-body :global(strong) {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .post-body :global(em) {
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    .post-hero {
+      padding: 100px 0 60px;
+    }
+  }
+</style>

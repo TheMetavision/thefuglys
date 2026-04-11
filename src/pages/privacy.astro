@@ -1,0 +1,131 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import Newsletter from '../components/Newsletter.astro';
+---
+
+<Layout title="Privacy Policy — The Fuglys" description="Privacy Policy for The Fuglys website.">
+  <Nav />
+
+  <main>
+    <section class="page-hero">
+      <div class="page-hero-bg">
+        <img
+          src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=1440,h=756,fit=crop,f=jpeg/Y4LxzG2RBzt2zBlj/the-fuglyslandscape1-m5KLqVWDZJIqg70p.jpg"
+          alt=""
+          class="page-hero-img"
+          fetchpriority="high"
+        />
+        <div class="page-hero-overlay"></div>
+      </div>
+      <div class="container">
+        <div class="page-hero-content">
+          <h1 class="page-title">Privacy Policy</h1>
+          <div class="heading-rule"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section content-section">
+      <div class="container">
+        <div class="content-body">
+          <p>This page is being updated. For any questions, contact <a href="mailto:chaos@thefuglys.com">chaos@thefuglys.com</a></p>
+        </div>
+      </div>
+    </section>
+
+    <Newsletter />
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .page-hero {
+    position: relative;
+    min-height: 45vh;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+
+  .page-hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .page-hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .page-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(38, 63, 68, 0.3) 0%,
+      rgba(38, 63, 68, 0.75) 60%,
+      rgba(38, 63, 68, 0.98) 100%
+    );
+  }
+
+  .page-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    padding: 120px 0 64px;
+  }
+
+  .page-title {
+    font-size: clamp(2rem, 5vw, 4.5rem);
+    color: var(--color-text);
+    margin-bottom: 20px;
+  }
+
+  .heading-rule {
+    width: 56px;
+    height: 3px;
+    background: var(--color-primary);
+    margin-bottom: 0;
+  }
+
+  .content-section {
+    background: #263F44;
+  }
+
+  .content-body {
+    max-width: 760px;
+  }
+
+  .content-body p {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.75;
+  }
+
+  .content-body a {
+    color: #99132F;
+    text-decoration: underline;
+    text-decoration-color: rgba(153, 19, 47, 0.4);
+    text-underline-offset: 3px;
+    transition: color 0.2s, text-decoration-color 0.2s;
+  }
+
+  .content-body a:hover {
+    color: #b3162e;
+    text-decoration-color: #b3162e;
+  }
+
+  @media (max-width: 768px) {
+    .page-hero-content {
+      padding: 80px 1rem 40px;
+    }
+  }
+</style>

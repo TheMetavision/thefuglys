@@ -1,0 +1,69 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="404 — The Fuglys" description="Page not found.">
+  <Nav />
+
+  <main>
+    <section class="not-found-section">
+      <div class="container">
+        <div class="not-found-inner">
+          <p class="not-found-code">404</p>
+          <h1 class="not-found-heading">Lost in the Wasteland</h1>
+          <p class="not-found-body">Whatever you were looking for, it ain't here. Might've been scavenged.</p>
+          <a href="/" class="btn btn-primary">Back to Camp &rarr;</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .not-found-section {
+    background: #263F44;
+    min-height: calc(100vh - 96px);
+    display: flex;
+    align-items: center;
+  }
+
+  .not-found-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 80px 0;
+  }
+
+  .not-found-code {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(6rem, 12vw, 10rem);
+    color: #99132F;
+    opacity: 0.3;
+    line-height: 1;
+    margin: 0 0 16px;
+    user-select: none;
+  }
+
+  .not-found-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 2rem;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0 0 16px;
+  }
+
+  .not-found-body {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin: 0 0 32px;
+    max-width: 400px;
+  }
+</style>

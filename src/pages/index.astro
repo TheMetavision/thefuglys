@@ -1,0 +1,1437 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import Newsletter from '../components/Newsletter.astro';
+import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage } from '../lib/sanity';
+
+const coreSix = await getCoreSixCharacters();
+const carouselCharacters = coreSix.map((c: any) => ({
+  name: c.name,
+  role: c.role,
+  quote: c.quote,
+  image: getCharacterImageLarge(c),
+}));
+
+const nonCore = await getNonCoreCharacters(6);
+const rosterCharacters = nonCore.map((c: any) => ({
+  name: c.name,
+  role: c.role,
+  quote: c.quote ?? c.bio?.substring(0, 80) + '...',
+  image: getCharacterImage(c),
+  type: c.characterType,
+}));
+---
+
+<Layout title="The Fuglys" description="Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild, post-apocalyptic adventures.">
+  <Nav />
+
+  <main>
+    <section class="hero" id="hero">
+      <div class="hero-tagline-bar">
+        <span class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</span>
+      </div>
+
+      <div class="hero-body">
+        <div class="hero-image-col">
+          {carouselCharacters.map((char, i) => (
+            <img
+              class={`hero-char-img${i === 0 ? ' is-active' : ''}`}
+              src={char.image}
+              alt={char.name}
+              data-index={i}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={i === 0 ? 'high' : undefined}
+            />
+          ))}
+          <div class="hero-image-gradient"></div>
+        </div>
+
+        <div class="hero-info-col">
+          <div class="hero-char-panel">
+            {carouselCharacters.map((char, i) => (
+              <div class={`hero-char-info${i === 0 ? ' is-active' : ''}`} data-index={i} aria-hidden={i !== 0 ? 'true' : 'false'}>
+                <span class="char-role">{char.role}</span>
+                <h2 class="char-name">{char.name}</h2>
+                <p class="char-quote">"{char.quote}"</p>
+              </div>
+            ))}
+          </div>
+
+          <div class="hero-dots-row" id="carousel-dots" role="tablist">
+            {carouselCharacters.map((char, i) => (
+              <button
+                class={`carousel-dot${i === 0 ? ' is-active' : ''}`}
+                data-index={i}
+                aria-label={`Go to ${char.name}`}
+                role="tab"
+                aria-selected={i === 0 ? 'true' : 'false'}
+              ></button>
+            ))}
+          </div>
+
+          <div class="hero-ctas">
+            <a href="https://www.youtube.com/shorts/XgwfSjIJre4" target="_blank" rel="noopener noreferrer" class="hero-cta hero-cta--solid">WATCH OUR TRAILER</a>
+            <a href="/media" class="hero-cta hero-cta--outline">EXPLORE MEDIA</a>
+          </div>
+        </div>
+      </div>
+
+      <button class="carousel-arrow carousel-arrow--prev" id="carousel-prev" aria-label="Previous character">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <button class="carousel-arrow carousel-arrow--next" id="carousel-next" aria-label="Next character">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+
+      <div class="hero-stats-strip">
+        <div class="hero-stats-inner">
+          <span class="hero-stat">30+ Characters</span>
+          <span class="hero-stat-divider"></span>
+          <span class="hero-stat">Post-Apocalyptic</span>
+          <span class="hero-stat-divider"></span>
+          <span class="hero-stat">Dark Comedy</span>
+          <span class="hero-stat-divider"></span>
+          <span class="hero-stat">Zero Filter</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-cards-section">
+      <div class="container">
+        <div class="content-cards-grid">
+          <div class="content-card">
+            <span class="card-label">Watch</span>
+            <h3 class="card-heading">Watch the Series</h3>
+            <p class="card-body">The Fuglys are live on YouTube. New episodes dropping — subscribe so you don't miss the chaos.</p>
+            <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="card-cta">Watch Now &rarr;</a>
+          </div>
+          <div class="content-card">
+            <span class="card-label">Read</span>
+            <h3 class="card-heading">Read the Books</h3>
+            <p class="card-body">Gritty. Unpredictable. Packed with wasteland madness. The Fuglys book series — get your copy.</p>
+            <a href="https://www.amazon.com" target="_blank" rel="noopener noreferrer" class="card-cta">Get the Books &rarr;</a>
+          </div>
+          <div class="content-card">
+            <span class="card-label">Rep</span>
+            <h3 class="card-heading">Rep the Wasteland</h3>
+            <p class="card-body">Character apparel, enamel pins, art prints. The official Fuglys merch store is coming — get on the list.</p>
+            <a href="/merch" class="card-cta">See What's Coming &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section the-pits-section">
+      <div class="container">
+        <div class="pits-header">
+          <div class="section-eyebrow">The World</div>
+          <h2 class="pits-heading">Welcome to The Pits</h2>
+          <div class="pits-rule"></div>
+          <p class="pits-body">
+            The Pits. Best trailer park in the badlands — probably the only trailer park in the badlands. We got walls. Most of 'em still standing. We got people who look out for each other. Mostly.
+          </p>
+        </div>
+
+        <div class="pits-location-grid">
+          <div class="location-card">
+            <span class="location-card-marker">+</span>
+            <div class="location-card-content">
+              <span class="location-card-name">Big Ma's Clinic</span>
+              <span class="location-card-tagline">Patching up the broken, one rag at a time</span>
+            </div>
+          </div>
+          <div class="location-card">
+            <span class="location-card-marker">+</span>
+            <div class="location-card-content">
+              <span class="location-card-name">Cletus's Shed</span>
+              <span class="location-card-tagline">Where moonshine meets mechanical genius</span>
+            </div>
+          </div>
+          <div class="location-card">
+            <span class="location-card-marker">+</span>
+            <div class="location-card-content">
+              <span class="location-card-name">The Perimeter</span>
+              <span class="location-card-tagline">Last line of defense against the wasteland</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section split-section">
+      <div class="container">
+        <div class="split-grid">
+          <div class="split-text">
+            <h2 class="section-heading">Chaos, Survival, and.... a Whole Lotta Trouble!</h2>
+            <div class="heading-rule"></div>
+            <p>
+              Dive into the world of <em>The Fuglys</em>, a ragtag crew of misfits making their way
+              through the wasteland with grit, humor, and just the right amount of madness.
+              Packed with unpredictable twists, bizarre encounters, and unforgettable characters,
+              this book series is a wild ride through a post-apocalyptic world where only the weird survive!
+            </p>
+            <div class="genre-tags">
+              <span class="genre-tag">Dark Comedy</span>
+              <span class="genre-tag">Post-Apocalyptic</span>
+              <span class="genre-tag">Ages 14+</span>
+              <span class="genre-tag">Gritty Humour</span>
+            </div>
+            <a href="/media" class="btn btn-teal mt-btn">Check Out Our Series</a>
+          </div>
+          <div class="split-image">
+            <img
+              src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=768,h=1057,fit=crop/Y4LxzG2RBzt2zBlj/25f82315-5ff7-4611-85c5-3fc7850bd8b9-mnlqD17p95tx7E7D.png"
+              alt="The Fuglys book series"
+              class="section-img book-cover-img"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section series-teaser-section">
+      <div class="container">
+        <div class="series-teaser-grid">
+          <div class="series-thumb-col">
+            <div class="series-thumb-wrap" id="seriesThumb">
+              <img
+                src="https://img.youtube.com/vi/XgwfSjIJre4/hqdefault.jpg"
+                alt="The Fuglys Animated Series — Watch on YouTube"
+                class="series-thumb-img"
+              />
+              <div class="series-scanlines" aria-hidden="true"></div>
+              <button class="series-play-btn" aria-label="Play trailer">
+                <svg viewBox="0 0 24 24" fill="white" width="28" height="28"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="series-text-col">
+            <div class="series-eyebrow">Now Streaming</div>
+            <h2 class="series-heading">The Animated Series</h2>
+            <div class="series-rule"></div>
+            <p class="series-body">
+              The Fuglys are causing chaos on YouTube. New episodes dropping from the wasteland — subscribe so you're first to see what trouble they get into next.
+            </p>
+            <div class="series-ctas">
+              <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="btn btn-primary-red">Watch on YouTube</a>
+              <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="btn btn-outline-red">Subscribe &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      (function () {
+        const wrap = document.getElementById('seriesThumb');
+        if (!wrap) return;
+        wrap.addEventListener('click', function () {
+          wrap.innerHTML = '<iframe src="https://www.youtube.com/embed/XgwfSjIJre4?autoplay=1&rel=0" frameborder="0" allowfullscreen allow="autoplay" style="position:absolute;inset:0;width:100%;height:100%;border-radius:4px;"></iframe>';
+        });
+      })();
+    </script>
+
+    <section class="section misfits-section">
+      <div class="container">
+        <div class="misfits-header">
+          <p class="section-eyebrow">The Wider Crew</p>
+          <h2 class="section-heading">Survivors, Creatures &amp; Villains</h2>
+          <div class="heading-rule"></div>
+        </div>
+
+        <div class="character-grid">
+          {rosterCharacters.map((char) => {
+            const badgeClass = char.type === 'villain' ? 'badge--villain' : char.type === 'creature' ? 'badge--creature' : 'badge--survivor';
+            const badgeLabel = char.type === 'villain' ? 'Villain' : char.type === 'creature' ? 'Creature' : 'Survivor';
+            return (
+              <a href="/meet-the-misfits" class="character-card">
+                <div class="character-card-img-wrap">
+                  <img
+                    src={char.image}
+                    alt={char.name}
+                    class="character-card-img"
+                    loading="lazy"
+                  />
+                </div>
+                <div class="character-card-body">
+                  <span class={`character-card-badge ${badgeClass}`}>{badgeLabel}</span>
+                  <p class="character-card-role">{char.role}</p>
+                  <p class="character-card-name">{char.name}</p>
+                  <p class="character-card-quote">{char.quote}</p>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+
+        <p class="misfits-footnote">That's just the start — 30+ misfits, creatures, and villains in the wasteland.</p>
+        <div class="misfits-cta">
+          <a href="/meet-the-misfits" class="btn btn-primary">Meet the Full Crew &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    <Newsletter />
+  </main>
+
+  <Footer />
+</Layout>
+
+<script>
+  const charImgs = document.querySelectorAll<HTMLElement>('.hero-char-img');
+  const charInfos = document.querySelectorAll<HTMLElement>('.hero-char-info');
+  const dots = document.querySelectorAll<HTMLButtonElement>('.carousel-dot');
+  const prevBtn = document.getElementById('carousel-prev');
+  const nextBtn = document.getElementById('carousel-next');
+  const total = charImgs.length;
+  let current = 0;
+  let timer: ReturnType<typeof setInterval> | null = null;
+
+  function goTo(index: number) {
+    charImgs[current].classList.remove('is-active');
+    charInfos[current].classList.remove('is-active');
+    charInfos[current].setAttribute('aria-hidden', 'true');
+    dots[current].classList.remove('is-active');
+    dots[current].setAttribute('aria-selected', 'false');
+
+    current = (index + total) % total;
+
+    charImgs[current].classList.add('is-active');
+    charInfos[current].classList.add('is-active');
+    charInfos[current].setAttribute('aria-hidden', 'false');
+    dots[current].classList.add('is-active');
+    dots[current].setAttribute('aria-selected', 'true');
+  }
+
+  function startTimer() {
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => goTo(current + 1), 5000);
+  }
+
+  prevBtn?.addEventListener('click', () => { goTo(current - 1); startTimer(); });
+  nextBtn?.addEventListener('click', () => { goTo(current + 1); startTimer(); });
+
+  dots.forEach((dot) => {
+    dot.addEventListener('click', () => {
+      goTo(Number(dot.dataset.index));
+      startTimer();
+    });
+  });
+
+  startTimer();
+</script>
+
+<style>
+  main {
+    padding-top: 0;
+  }
+
+  .hero {
+    position: relative;
+    margin-top: 100px;
+    height: calc(100vh - 100px);
+    min-height: 600px;
+    background-color: #263F44;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hero-tagline-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 24px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    z-index: 2;
+  }
+
+  .hero-tagline {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(0.85rem, 1.8vw, 1.1rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #fff;
+    text-align: center;
+  }
+
+  .hero-tagline-accent {
+    color: #99132F;
+  }
+
+  .hero-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 60% 40%;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .hero-image-col {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-char-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+    opacity: 0;
+    transition: opacity 0.85s ease;
+    will-change: opacity;
+  }
+
+  .hero-char-img.is-active {
+    opacity: 1;
+    z-index: 1;
+  }
+
+  .hero-image-gradient {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30%;
+    background: linear-gradient(to bottom, transparent, rgba(38, 63, 68, 0.75));
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .hero-info-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 48px 52px 48px 48px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-char-panel {
+    position: relative;
+    min-height: 160px;
+    margin-bottom: 28px;
+  }
+
+  .hero-char-info {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.7s ease;
+    will-change: opacity;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hero-char-info.is-active {
+    opacity: 1;
+    position: relative;
+  }
+
+  .char-role {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #99132F;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .char-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.8rem, 5vw, 4.5rem);
+    text-transform: uppercase;
+    color: #fff;
+    line-height: 0.95;
+    margin: 0 0 16px 0;
+    letter-spacing: 0.01em;
+  }
+
+  .char-quote {
+    font-family: 'Barlow', sans-serif;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .hero-dots-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 32px;
+  }
+
+  .carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.25s ease, transform 0.2s ease, width 0.25s ease;
+  }
+
+  .carousel-dot.is-active {
+    background: #99132F;
+    width: 24px;
+    border-radius: 4px;
+    transform: none;
+  }
+
+  .carousel-dot:hover:not(.is-active) {
+    background: rgba(255, 255, 255, 0.65);
+    transform: scale(1.2);
+  }
+
+  .hero-ctas {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 260px;
+  }
+
+  .hero-cta {
+    display: block;
+    padding: 14px 24px;
+    text-align: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  }
+
+  .hero-cta--solid {
+    background: #99132F;
+    color: #fff;
+  }
+
+  .hero-cta--solid:hover {
+    background: #b5163a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(153, 19, 47, 0.45);
+  }
+
+  .hero-cta--outline {
+    border: 2px solid #99132F;
+    color: #fff;
+    background: transparent;
+  }
+
+  .hero-cta--outline:hover {
+    background: rgba(153, 19, 47, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: rgba(38, 63, 68, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    backdrop-filter: blur(6px);
+  }
+
+  .carousel-arrow:hover {
+    background: rgba(153, 19, 47, 0.75);
+    border-color: #99132F;
+  }
+
+  .carousel-arrow:active {
+    transform: translateY(-50%) scale(0.94);
+  }
+
+  .carousel-arrow--prev {
+    left: 24px;
+  }
+
+  .carousel-arrow--next {
+    right: 24px;
+  }
+
+  .split-section {
+    background: #99132F;
+  }
+
+  .btn-teal {
+    background-color: #263F44;
+    color: #fff;
+  }
+
+  .btn-teal:hover {
+    background-color: #1D3035;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .misfits-section {
+    background: var(--color-bg-card);
+  }
+
+  .misfits-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .misfits-header .heading-rule {
+    margin: 0 auto;
+  }
+
+  .character-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .character-card {
+    background: #1e3238;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  .character-card:hover {
+    border-color: #99132F;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .character-card-img-wrap {
+    aspect-ratio: 3 / 5;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .character-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+
+  .character-card:hover .character-card-img {
+    transform: scale(1.03);
+  }
+
+  .character-card-body {
+    padding: 20px;
+  }
+
+  .character-card-role {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #99132F;
+    margin-bottom: 6px;
+  }
+
+  .character-card-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.4rem;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin-bottom: 8px;
+  }
+
+  .character-card-quote {
+    font-family: 'Barlow', sans-serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .misfits-footnote {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 1rem;
+    text-align: center;
+    margin-top: 40px;
+  }
+
+  .character-card-badge {
+    display: inline-block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+  }
+
+  .badge--survivor {
+    background: rgba(153, 19, 47, 0.15);
+    color: #99132F;
+    border: 1px solid rgba(153, 19, 47, 0.3);
+  }
+
+  .badge--creature {
+    background: rgba(242, 158, 66, 0.15);
+    color: #f29e42;
+    border: 1px solid rgba(242, 158, 66, 0.3);
+  }
+
+  .badge--villain {
+    background: rgba(127, 119, 221, 0.15);
+    color: #7F77DD;
+    border: 1px solid rgba(127, 119, 221, 0.3);
+  }
+
+  .misfits-cta {
+    text-align: center;
+    margin-top: 24px;
+  }
+
+  @media (max-width: 1024px) and (min-width: 768px) {
+    .character-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .character-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .split-grid-reverse {
+    direction: rtl;
+  }
+
+  .split-grid-reverse > * {
+    direction: ltr;
+  }
+
+  .section-heading {
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: var(--color-text);
+    margin-bottom: 16px;
+  }
+
+  .heading-rule {
+    width: 56px;
+    height: 3px;
+    background: var(--color-primary);
+    margin-bottom: 24px;
+  }
+
+  .split-text p {
+    color: var(--color-text-muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+  }
+
+  .split-text p em {
+    color: var(--color-text);
+    font-style: italic;
+  }
+
+  .mt-btn {
+    margin-top: 32px;
+  }
+
+  .section-img {
+    width: 100%;
+    border-radius: 4px;
+    object-fit: cover;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .book-cover-img {
+    transform: rotate(-2deg);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  .book-cover-img:hover {
+    transform: rotate(0deg);
+    box-shadow: 0 16px 56px rgba(0, 0, 0, 0.55);
+  }
+
+  .genre-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .genre-tag {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(153, 19, 47, 0.15);
+    border: 1px solid rgba(153, 19, 47, 0.4);
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #99132F;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .genre-tag:hover {
+    background: rgba(153, 19, 47, 0.25);
+    border-color: #99132F;
+  }
+
+  .multi-image {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .section-img-secondary {
+    margin-top: 32px;
+  }
+
+  @media (max-width: 900px) {
+    .split-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .split-grid-reverse {
+      direction: ltr;
+    }
+
+    .multi-image {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero {
+      margin-top: 72px;
+      height: auto;
+      min-height: unset;
+    }
+
+    .hero-body {
+      grid-template-columns: 1fr;
+      grid-template-rows: 40vh auto;
+    }
+
+    .hero-image-col {
+      height: 40vh;
+    }
+
+    .hero-info-col {
+      padding: 32px 24px 36px;
+    }
+
+    .hero-char-panel {
+      min-height: 140px;
+    }
+
+    .hero-dots-row {
+      justify-content: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .carousel-arrow {
+      top: calc(40vh / 2 + 44px);
+    }
+
+    .carousel-arrow--prev {
+      left: 12px;
+    }
+
+    .carousel-arrow--next {
+      right: 12px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .multi-image {
+      grid-template-columns: 1fr;
+    }
+
+    .section-img-secondary {
+      display: none;
+    }
+
+    .carousel-arrow {
+      width: 38px;
+      height: 38px;
+    }
+
+    .hero-ctas {
+      max-width: 100%;
+    }
+  }
+
+  .the-pits-section {
+    background: #263F44;
+    padding: 96px 0;
+    border-top: 1px solid rgba(153, 19, 47, 0.2);
+    border-bottom: 1px solid rgba(153, 19, 47, 0.2);
+  }
+
+  .pits-header {
+    max-width: 640px;
+    margin-bottom: 56px;
+  }
+
+  .section-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #99132F;
+    margin-bottom: 10px;
+  }
+
+  .pits-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: clamp(2.2rem, 4vw, 3.4rem);
+    color: var(--color-text);
+    letter-spacing: 0.02em;
+    line-height: 1.0;
+    margin-bottom: 16px;
+  }
+
+  .pits-rule {
+    width: 48px;
+    height: 3px;
+    background: #99132F;
+    margin-bottom: 28px;
+  }
+
+  .pits-body {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 1rem;
+    line-height: 1.72;
+    margin: 0;
+  }
+
+  .pits-location-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .location-card {
+    position: relative;
+    background: #1e3238;
+    border: 1px dashed rgba(153, 19, 47, 0.35);
+    border-radius: 3px;
+    padding: 36px 28px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 200px;
+    overflow: hidden;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .location-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(153, 19, 47, 0.04) 0%,
+      transparent 60%
+    );
+    pointer-events: none;
+  }
+
+  .location-card:hover {
+    border-color: #99132F;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .location-card-marker {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.4rem;
+    color: rgba(153, 19, 47, 0.35);
+    line-height: 1;
+    transition: color 0.25s ease;
+    user-select: none;
+  }
+
+  .location-card:hover .location-card-marker {
+    color: rgba(153, 19, 47, 0.65);
+  }
+
+  .location-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .location-card-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    line-height: 1.1;
+  }
+
+  .location-card-tagline {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.45;
+  }
+
+  @media (max-width: 900px) {
+    .pits-location-grid {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .location-card {
+      min-height: 140px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .the-pits-section {
+      padding: 64px 0;
+    }
+
+    .pits-header {
+      margin-bottom: 40px;
+    }
+  }
+
+  .hero-stats-strip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .hero-stats-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .hero-stat {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.82);
+    white-space: nowrap;
+    padding: 0 28px;
+  }
+
+  .hero-stat-divider {
+    width: 1px;
+    height: 16px;
+    background: #99132F;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 600px) {
+    .hero-stats-inner {
+      padding: 0 16px;
+      gap: 0;
+    }
+
+    .hero-stat {
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      padding: 0 14px;
+    }
+
+    .hero-stat-divider {
+      height: 12px;
+    }
+  }
+
+  .content-cards-section {
+    background: #99132F;
+    padding: 72px 0;
+    border-bottom: 1px solid rgba(153, 19, 47, 0.2);
+  }
+
+  .content-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .content-card {
+    background: #1D3035;
+    border-radius: 4px;
+    padding: 36px 32px 32px;
+    border-top: 3px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .content-card:hover {
+    border-top-color: #99132F;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .card-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-variant: small-caps;
+    color: rgba(255, 255, 255, 0.4);
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  .card-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.5rem, 2.2vw, 1.9rem);
+    text-transform: uppercase;
+    color: #fff;
+    letter-spacing: 0.03em;
+    line-height: 1.05;
+    margin-bottom: 14px;
+  }
+
+  .card-body {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
+    line-height: 1.68;
+    flex: 1;
+    margin-bottom: 24px;
+  }
+
+  .card-cta {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #99132F;
+    transition: color 0.2s ease, letter-spacing 0.2s ease;
+    align-self: flex-start;
+  }
+
+  .card-cta:hover {
+    color: #bf1a3d;
+    letter-spacing: 0.16em;
+  }
+
+  @media (max-width: 900px) {
+    .content-cards-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .content-cards-section {
+      padding: 56px 0;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero-stats-strip {
+      position: relative;
+    }
+
+    .hero-stats-inner {
+      height: auto;
+      padding: 12px 16px;
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      align-items: center;
+      justify-items: center;
+    }
+
+    .hero-stat {
+      font-size: 0.75rem;
+      padding: 8px 12px;
+      white-space: normal;
+      text-align: center;
+    }
+
+    .hero-stat-divider {
+      display: none;
+    }
+
+    .content-cards-grid {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .content-card {
+      margin-bottom: 1.5rem;
+    }
+
+    .content-cards-section {
+      padding: 40px 0;
+    }
+
+    .section-heading {
+      font-size: 1.5rem;
+    }
+
+    .pits-heading {
+      font-size: 1.8rem;
+    }
+  }
+
+  /* ── Series Teaser Section ─────────────────────────────── */
+
+  .series-teaser-section {
+    background: #1e3238;
+  }
+
+  .series-teaser-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .series-thumb-col {
+    width: 100%;
+  }
+
+  .series-thumb-wrap {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    background: #000;
+  }
+
+  .series-thumb-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease, filter 0.3s ease;
+  }
+
+  .series-thumb-wrap:hover .series-thumb-img {
+    transform: scale(1.03);
+    filter: brightness(0.8);
+  }
+
+  .series-scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.15) 2px,
+      rgba(0, 0, 0, 0.15) 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .series-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+    padding: 0;
+  }
+
+  .series-play-btn svg {
+    margin-left: 4px;
+  }
+
+  .series-thumb-wrap:hover .series-play-btn {
+    background: rgba(153, 19, 47, 0.85);
+    border-color: #fff;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+
+  .series-text-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .series-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #99132F;
+    margin-bottom: 10px;
+  }
+
+  .series-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #fff;
+    letter-spacing: 0.02em;
+    line-height: 1.0;
+    margin-bottom: 16px;
+  }
+
+  .series-rule {
+    width: 48px;
+    height: 3px;
+    background: #99132F;
+    margin-bottom: 28px;
+  }
+
+  .series-body {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 1rem;
+    line-height: 1.72;
+    margin-bottom: 36px;
+  }
+
+  .series-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .btn-primary-red {
+    background: #99132F;
+    color: #fff;
+    border: 2px solid #99132F;
+    padding: 12px 28px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .btn-primary-red:hover {
+    background: #b3162f;
+    border-color: #b3162f;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(153, 19, 47, 0.45);
+  }
+
+  .btn-outline-red {
+    background: transparent;
+    color: #fff;
+    border: 2px solid #99132F;
+    padding: 12px 28px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .btn-outline-red:hover {
+    background: rgba(153, 19, 47, 0.15);
+    border-color: #b3162f;
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 768px) {
+    .series-teaser-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .series-teaser-section {
+      padding: 64px 0;
+    }
+  }
+
+</style>

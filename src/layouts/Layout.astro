@@ -1,0 +1,123 @@
+---
+import { organizationSchema, websiteSchema } from '../lib/schema';
+
+interface Props {
+  title?: string;
+  description?: string;
+  jsonLd?: Record<string, any> | Record<string, any>[];
+  noIndex?: boolean;
+}
+
+const {
+  title = "The Fuglys",
+  description = "Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild post-apocalyptic adventures.",
+  jsonLd,
+  noIndex = false,
+} = Astro.props;
+
+const allSchemas = [organizationSchema(), websiteSchema()];
+if (jsonLd) {
+  if (Array.isArray(jsonLd)) {
+    allSchemas.push(...jsonLd);
+  } else {
+    allSchemas.push(jsonLd);
+  }
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    {noIndex && <meta name="robots" content="noindex, nofollow" />}
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="canonical" href={Astro.url.href} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet" />
+    <title>{title} | Post-Apocalyptic Animation Series</title>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={`${title} | The Fuglys`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={Astro.url.href} />
+    <meta property="og:site_name" content="The Fuglys" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@TheFuglysMedia" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    <!-- JSON-LD Structured Data -->
+    {allSchemas.map((schema) => (
+      <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+    ))}
+  </head>
+  <body>
+    <slot />
+
+    <!-- Cart Drawer (React island) -->
+    <div id="cart-root">
+      <script>
+        // Cart drawer loads as a React island
+      </script>
+    </div>
+  </body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --fg-bg-primary: #263F44; --fg-accent: #99132F; --fg-text-primary: #FFFFFF;
+    --color-bg: var(--fg-bg-primary); --color-bg-card: #1e3238; --color-bg-card-hover: #223b42;
+    --color-surface: #1e3238; --color-primary: var(--fg-accent); --color-primary-hover: #b3162e;
+    --color-primary-dark: #7a0f24; --color-accent: #99132F; --color-text: var(--fg-text-primary);
+    --color-text-muted: rgba(255, 255, 255, 0.72); --color-text-subtle: rgba(255, 255, 255, 0.45);
+    --color-border: rgba(255, 255, 255, 0.12); --font-display: 'Bebas Neue', sans-serif;
+    --font-condensed: 'Barlow Condensed', sans-serif; --font-body: 'Barlow', sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body { background-color: var(--color-bg); color: var(--color-text); font-family: 'Barlow', sans-serif; font-weight: 400; font-size: 1rem; line-height: 1.65; -webkit-font-smoothing: antialiased; position: relative; }
+  body::before { content: ''; position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.04; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); background-size: 256px 256px; background-repeat: repeat; }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: inherit; text-decoration: none; }
+  h1, h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; text-transform: uppercase; line-height: 1.05; letter-spacing: 0.03em; }
+  h3, h4, h5, h6 { font-family: var(--font-display); line-height: 1.1; letter-spacing: 0.03em; }
+  .label, .badge, .section-eyebrow, .section-label, .newsletter-eyebrow, .episode-season-ep, .core-card-role, .char-role-tag, .merch-tag, .post-tag, .post-date, .filter-tab, .stamp-text, .location-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; }
+  main { padding-top: 96px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  .btn { display: inline-block; font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.1em; padding: 14px 36px; border-radius: 2px; cursor: pointer; transition: all 0.3s ease; text-align: center; border: none; }
+  .btn-primary { background-color: var(--color-primary); color: #fff; }
+  .btn-primary:hover { background-color: var(--color-primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+  .btn-outline { background-color: transparent; color: var(--color-text); border: 2px solid var(--color-primary); }
+  .btn-outline:hover { background-color: var(--color-primary); color: #fff; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+  .section { padding: 88px 0; }
+  .section-sm { padding: 56px 0; }
+  @media (max-width: 768px) {
+    .section { padding: 56px 0; } .section-sm { padding: 40px 0; } .container { padding: 0 1rem; }
+    h1 { font-size: 2rem; } h2 { font-size: 1.5rem; } h3 { font-size: 1.2rem; }
+    body { font-size: 1rem; } .btn { font-size: 1rem; padding: 12px 24px; }
+  }
+  .page-hero { background: #1e3238; padding: 120px 0 80px; border-bottom: 1px solid rgba(153, 19, 47, 0.2); }
+  .page-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .page-hero-text { display: flex; flex-direction: column; }
+  .page-hero-visual { display: flex; align-items: center; justify-content: center; }
+  .page-hero-placeholder { width: 100%; aspect-ratio: 4 / 3; background: rgba(255, 255, 255, 0.03); border: 2px dashed rgba(153, 19, 47, 0.25); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .page-title { font-size: clamp(2rem, 5vw, 4rem); color: var(--color-text); margin-bottom: 20px; }
+  .heading-rule { width: 56px; height: 3px; background: var(--color-primary); margin-bottom: 24px; }
+  .page-intro { color: var(--color-text-muted); font-size: 1.05rem; line-height: 1.7; max-width: 560px; margin: 0; }
+  .page-intro em { color: var(--color-text); font-style: italic; }
+  @media (max-width: 768px) {
+    .page-hero { padding: 96px 0 56px; }
+    .page-hero-grid { grid-template-columns: 1fr; gap: 40px; }
+    .page-hero-placeholder { aspect-ratio: 16 / 9; }
+    .page-title { font-size: 2rem; }
+  }
+</style>

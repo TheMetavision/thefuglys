@@ -1,0 +1,415 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import Newsletter from '../components/Newsletter.astro';
+
+const categories = [
+  {
+    label: "Apparel",
+    items: [
+      { name: "Fuglys Crew Tee", desc: "Worn-out wasteland style. 100% cotton, screen-printed crew neck.", status: "coming-soon", price: null },
+      { name: "Outlaw Hoodie", desc: "Heavy-duty fleece with the Fuglys crest on the back. Built for the cold nights.", status: "coming-soon", price: null },
+      { name: "Scavenger Cap", desc: "Distressed 5-panel cap. Keep the wasteland sun out of your eyes.", status: "coming-soon", price: null },
+    ],
+  },
+  {
+    label: "Collectibles",
+    items: [
+      { name: "Character Sticker Pack", desc: "12 individual die-cut stickers featuring the full Fuglys roster.", status: "coming-soon", price: null },
+      { name: "Blister Enamel Pin", desc: "Limited-run hard enamel pin. The possum you never wanted, now on your jacket.", status: "coming-soon", price: null },
+      { name: "Wasteland Poster Set", desc: "Set of 3 A3 art prints, each featuring a different crew member.", status: "coming-soon", price: null },
+    ],
+  },
+  {
+    label: "Accessories",
+    items: [
+      { name: "Dog-Tag Keychain", desc: "Stamped metal keychain with the Fuglys motto on one side.", status: "coming-soon", price: null },
+      { name: "Crew Patch Set", desc: "Embroidered iron-on patches. Rep the wasteland wherever you go.", status: "coming-soon", price: null },
+      { name: "Scrap Metal Mug", desc: "Ceramic mug with a distressed Fuglys print. 11oz.", status: "coming-soon", price: null },
+    ],
+  },
+];
+
+function getBadgeLabel(status: string) {
+  if (status === 'available') return 'Available';
+  if (status === 'sold-out') return 'Sold Out';
+  return 'Coming Soon';
+}
+---
+
+<Layout title="Merch — The Fuglys" description="Bring the wasteland home. Official Fuglys merch featuring gritty character designs, rebellious apparel, collectibles, and accessories.">
+  <Nav />
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="page-hero-grid">
+          <div class="page-hero-text">
+            <div class="section-eyebrow">Official Merch</div>
+            <h1 class="page-title">Gear Up for the Wasteland</h1>
+            <div class="heading-rule"></div>
+            <p class="page-intro">Bring the chaos home. Official Fuglys merch featuring gritty character designs, rebellious apparel, and must-have accessories.</p>
+          </div>
+          <div class="page-hero-visual">
+            <div class="page-hero-placeholder">
+              <img
+                src="/FuglysAnimals.png"
+                alt="The Fuglys character surrounded by mutant animals"
+                class="hero-merch-img"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section merch-section">
+      <div class="container">
+        {categories.map(cat => (
+          <div class="merch-category">
+            <div class="category-header">
+              <h2 class="category-title">{cat.label}</h2>
+              <div class="category-rule"></div>
+            </div>
+            <div class="merch-grid">
+              {cat.items.map(item => (
+                <article class="merch-card">
+                  <div class="merch-img-panel">
+                    <div class="merch-img-noise"></div>
+                    <span class="merch-img-label">{item.name}</span>
+                    <div class="merch-img-accent"></div>
+                    <span class={`status-badge status-badge--${item.status}`}>{getBadgeLabel(item.status)}</span>
+                  </div>
+                  <div class="merch-card-inner">
+                    <h3 class="merch-name">{item.name}</h3>
+                    {item.price
+                      ? <p class="merch-price">{item.price}</p>
+                      : <p class="merch-price merch-price--tba">Price TBA</p>
+                    }
+                    <p class="merch-desc">{item.desc}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="section store-banner-section">
+      <div class="container">
+        <div class="store-banner-inner">
+          <p class="store-banner-eyebrow">Merch Drop Incoming</p>
+          <h2 class="store-banner-heading">The Wasteland Store is Almost Open</h2>
+          <div class="store-banner-rule"></div>
+          <p class="store-banner-body">Character apparel. Enamel pins. Art prints. Get on the list — don't get left outside the fence.</p>
+          <a href="#newsletter" class="btn btn-dark">Notify Me</a>
+        </div>
+      </div>
+    </section>
+
+    <div id="newsletter">
+      <Newsletter />
+    </div>
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .page-hero-placeholder {
+    padding: 0;
+    background: none;
+    border: none;
+    min-height: unset;
+    display: block;
+  }
+
+  .hero-merch-img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    object-fit: cover;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+
+  /* Merch section */
+  .merch-section {
+    background: #99132F;
+  }
+
+  .merch-category {
+    margin-bottom: 64px;
+  }
+
+  .merch-category:last-of-type {
+    margin-bottom: 0;
+  }
+
+  .category-header {
+    margin-bottom: 32px;
+  }
+
+  .category-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+
+  .category-rule {
+    width: 100%;
+    height: 1px;
+    background: rgba(153, 19, 47, 0.3);
+  }
+
+  /* Product grid */
+  .merch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .merch-card {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .merch-card:hover {
+    border-color: #99132F;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .merch-img-panel {
+    position: relative;
+    background: #1D3035;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .merch-img-noise {
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        rgba(255,255,255,0.015) 0px,
+        rgba(255,255,255,0.015) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+    pointer-events: none;
+    transition: transform 0.4s ease;
+  }
+
+  .merch-card:hover .merch-img-noise {
+    transform: scale(1.05);
+  }
+
+  .merch-img-accent {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #99132F;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+
+  .merch-card:hover .merch-img-accent {
+    opacity: 1;
+  }
+
+  .merch-img-label {
+    position: relative;
+    z-index: 1;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1rem, 2vw, 1.3rem);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #ffffff;
+    text-align: center;
+    padding: 0 20px;
+    line-height: 1.25;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Status badges */
+  .status-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border-radius: 2px;
+  }
+
+  .status-badge--available {
+    background: rgba(153, 19, 47, 0.85);
+    color: #fff;
+  }
+
+  .status-badge--coming-soon {
+    background: rgba(242, 158, 66, 0.15);
+    color: #f29e42;
+    border: 1px solid rgba(242, 158, 66, 0.3);
+  }
+
+  .status-badge--sold-out {
+    background: rgba(226, 75, 74, 0.15);
+    color: #e24b4a;
+    border: 1px solid rgba(226, 75, 74, 0.3);
+  }
+
+  /* Card body */
+  .merch-card-inner {
+    padding: 24px 28px 28px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .merch-name {
+    font-size: 1.2rem;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .merch-price {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+
+  .merch-price--tba {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .merch-desc {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.6;
+  }
+
+  /* Store coming soon banner */
+  .store-banner-section {
+    background: #99132F;
+    padding: 80px 0;
+  }
+
+  .store-banner-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .store-banner-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 12px;
+  }
+
+  .store-banner-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 20px;
+    line-height: 1.1;
+  }
+
+  .store-banner-rule {
+    width: 48px;
+    height: 3px;
+    background: #fff;
+    margin: 0 auto 24px;
+  }
+
+  .store-banner-body {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .btn-dark {
+    display: inline-block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 14px 32px;
+    border-radius: 2px;
+    text-decoration: none;
+    background: #263F44;
+    color: #fff;
+    border: 1px solid #263F44;
+    transition: all 0.3s ease;
+  }
+
+  .btn-dark:hover {
+    background: #1e3238;
+    border-color: #1e3238;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    .category-title {
+      font-size: 1.3rem;
+    }
+
+    .merch-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .merch-card {
+      margin-bottom: 0;
+    }
+
+    .store-banner-section {
+      padding: 56px 0;
+    }
+
+    .store-banner-heading {
+      font-size: 1.6rem;
+    }
+  }
+</style>

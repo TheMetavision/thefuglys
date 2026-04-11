@@ -1,0 +1,544 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import Newsletter from '../components/Newsletter.astro';
+import { getAllEpisodes, FALLBACK_EPISODES, urlFor } from '../lib/sanity';
+
+const rawEpisodes = await getAllEpisodes();
+
+let episodes: any[];
+if (!rawEpisodes || rawEpisodes.length === 0) {
+  episodes = FALLBACK_EPISODES;
+} else {
+  // Map Sanity field names to what the template expects
+  episodes = rawEpisodes.map((ep: any, i: number) => ({
+    title: ep.title,
+    description: ep.description,
+    season: ep.season ?? 1,
+    episode: ep.episodeNumber ?? (i + 1),
+    status: ep.youtubeId ? 'LIVE' : 'COMING SOON',
+    image: ep.thumbnail?.asset
+      ? urlFor(ep.thumbnail).width(600).height(400).fit('crop').auto('format').url()
+      : ep.youtubeId
+        ? `https://img.youtube.com/vi/${ep.youtubeId}/hqdefault.jpg`
+        : 'https://images.pexels.com/photos/3617500/pexels-photo-3617500.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
+  }));
+}
+---
+
+<Layout title="Media — The Fuglys" description="Chaos, Mayhem and Mutant Madness – Watch It All Unfold! Exclusive videos, behind-the-scenes chaos, and explosive action from The Fuglys.">
+  <Nav />
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="page-hero-grid">
+          <div class="page-hero-text">
+            <div class="section-eyebrow">Media</div>
+            <h1 class="page-title">Chaos, Mayhem &amp; Mutant Madness</h1>
+            <div class="heading-rule"></div>
+            <p class="page-intro">Step into the wild world of The Fuglys with exclusive videos, behind-the-scenes chaos, and explosive action.</p>
+          </div>
+          <div class="page-hero-visual">
+            <img
+              src="/Default_The_uploaded_character_is_holding_a_flamethrower_with__0.jpg"
+              alt="The Fuglys character with flamethrower — Coming Soon"
+              class="hero-media-img"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section trailer-section">
+      <div class="container">
+        <div class="trailer-header">
+          <div class="section-eyebrow">Official Trailer</div>
+          <h2 class="trailer-heading">Watch the Madness Begin</h2>
+          <div class="trailer-rule"></div>
+        </div>
+        <div class="trailer-embed-wrap">
+          <div class="trailer-embed" id="trailer-embed">
+            <div class="trailer-thumbnail" id="trailer-thumbnail">
+              <img
+                src="https://img.youtube.com/vi/XgwfSjIJre4/maxresdefault.jpg"
+                alt="The Fuglys Official Trailer thumbnail"
+                class="trailer-thumb-img"
+              />
+              <button class="play-btn" id="play-btn" aria-label="Play trailer">
+                <span class="play-circle">
+                  <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="18" cy="18" r="18" fill="rgba(0,0,0,0.55)"/>
+                    <polygon points="14,11 28,18 14,25" fill="white"/>
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </div>
+          <div class="trailer-glow"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section episodes-section">
+      <div class="container">
+        <div class="episodes-header">
+          <div class="section-eyebrow">Season 01</div>
+          <h2 class="episodes-title">Episodes</h2>
+          <div class="trailer-rule"></div>
+        </div>
+        <div class="episodes-grid">
+          {episodes.map((ep, i) => {
+            const seasonNum = ep.season ?? 1;
+            const epNum = ep.episode ?? (i + 1);
+            const seasonLabel = `S${String(seasonNum).padStart(2, '0')} · E${String(epNum).padStart(2, '0')}`;
+            const isLive = ep.status?.toUpperCase() === 'LIVE';
+            return (
+              <article class="episode-card">
+                <div class="episode-img-wrap">
+                  <img src={ep.image} alt={ep.title} class="episode-img" loading="lazy" />
+                  <div class="episode-img-overlay"></div>
+                  <span class="badge-season-ep">{seasonLabel}</span>
+                  <span class={`badge-status ${isLive ? 'badge-live' : 'badge-coming-soon'}`}>
+                    {isLive ? 'Live' : 'Coming Soon'}
+                  </span>
+                </div>
+                <div class="episode-body">
+                  <h3 class="episode-title">"{ep.title}"</h3>
+                  <p class="episode-desc">{ep.description}</p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+
+    <section class="section book-section">
+      <div class="container">
+        <div class="split-grid">
+          <div class="split-image">
+            <img
+              src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=768,h=1152,fit=crop/Y4LxzG2RBzt2zBlj/09154fac-2e31-47aa-9b16-86c805fe36ca-dJo5MjGaenFqQVWx.png"
+              alt="The Fuglys book"
+              class="book-img"
+              loading="lazy"
+            />
+          </div>
+          <div class="split-text">
+            <h2 class="section-heading">Survival's Messy, But....Their Story's Wilder!</h2>
+            <div class="heading-rule"></div>
+            <p>
+              Dive into <em>The Fuglys</em> book series—gritty, unpredictable, and packed with chaos!
+              Follow the misfit crew as they navigate the wasteland, face bizarre dangers, and somehow
+              stick together through it all. Get your copy and embrace the madness!
+            </p>
+            <div class="genre-tags">
+              <span class="genre-tag">Dark Comedy</span>
+              <span class="genre-tag">Post-Apocalyptic</span>
+              <span class="genre-tag">Ages 14+</span>
+              <span class="genre-tag">Gritty Humour</span>
+            </div>
+            <a
+              href="https://www.amazon.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-primary mt-btn"
+            >
+              Get Your Copy
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <Newsletter />
+  </main>
+
+  <Footer />
+</Layout>
+
+<script>
+  const thumbnail = document.getElementById('trailer-thumbnail');
+  const playBtn = document.getElementById('play-btn');
+  const embedWrap = document.getElementById('trailer-embed');
+
+  function loadTrailer() {
+    if (!embedWrap) return;
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://www.youtube.com/embed/XgwfSjIJre4?autoplay=1&rel=0';
+    iframe.title = 'The Fuglys Official Trailer';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+    embedWrap.innerHTML = '';
+    embedWrap.appendChild(iframe);
+  }
+
+  thumbnail?.addEventListener('click', loadTrailer);
+  playBtn?.addEventListener('click', loadTrailer);
+</script>
+
+<style>
+
+  .hero-media-img {
+    width: 100%;
+    border-radius: 4px;
+    display: block;
+    object-fit: cover;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  /* Trailer */
+  .trailer-section {
+    background: #99132F;
+    padding: 80px 0 96px;
+  }
+
+  .section-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 10px;
+  }
+
+  .trailer-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .trailer-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #fff;
+    letter-spacing: 0.02em;
+    margin-bottom: 16px;
+  }
+
+  .trailer-rule {
+    width: 48px;
+    height: 3px;
+    background: #99132F;
+    margin: 0 auto;
+  }
+
+  .trailer-embed-wrap {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .trailer-glow {
+    position: absolute;
+    inset: -24px;
+    border-radius: 8px;
+    background: radial-gradient(ellipse at center, rgba(153, 19, 47, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .trailer-embed {
+    position: relative;
+    z-index: 1;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+    aspect-ratio: 16/9;
+    background: #000;
+  }
+
+  .trailer-thumbnail {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .trailer-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .play-btn {
+    position: absolute;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.2s;
+  }
+
+  .play-btn:hover {
+    transform: scale(1.1);
+  }
+
+  .play-circle svg {
+    width: 80px;
+    height: 80px;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  }
+
+  /* Episodes */
+  .episodes-section {
+    background: #263F44;
+    padding: 80px 0 96px;
+  }
+
+  .episodes-header {
+    margin-bottom: 48px;
+  }
+
+  .episodes-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #fff;
+    margin-bottom: 16px;
+  }
+
+  .episodes-header .trailer-rule {
+    margin: 0;
+  }
+
+  .episodes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .episode-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .episode-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,0.35);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .episode-img-wrap {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .episode-img {
+    width: 100%;
+    display: block;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    filter: saturate(0.5) contrast(1.1);
+    transition: transform 0.5s ease, filter 0.4s ease;
+  }
+
+  .episode-card:hover .episode-img {
+    transform: scale(1.04);
+    filter: saturate(0.7) contrast(1.05);
+  }
+
+  .episode-img-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 30%,
+      rgba(20, 30, 32, 0.72) 100%
+    );
+  }
+
+  .badge-season-ep {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(153, 19, 47, 0.85);
+    backdrop-filter: blur(4px);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .badge-status {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border-radius: 2px;
+    backdrop-filter: blur(4px);
+  }
+
+  .badge-coming-soon {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .badge-live {
+    background: rgba(153, 19, 47, 0.85);
+    color: #fff;
+  }
+
+  .episode-body {
+    padding: 24px 24px 28px;
+  }
+
+  .episode-title {
+    font-size: 1.25rem;
+    color: #fff;
+    margin-bottom: 12px;
+    font-family: var(--font-display);
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+  }
+
+  .episode-desc {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+
+  /* Book */
+  .book-section {
+    background: #99132F;
+  }
+
+  .split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .split-image {
+    perspective: 800px;
+  }
+
+  .book-img {
+    width: 100%;
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.3);
+    transform: rotate(-2deg);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+    display: block;
+  }
+
+  .book-img:hover {
+    transform: rotate(0deg);
+    box-shadow: 0 28px 72px rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  .section-heading {
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #fff;
+    margin-bottom: 16px;
+  }
+
+  .split-text p {
+    color: rgba(255,255,255,0.8);
+    font-size: 1.05rem;
+    line-height: 1.7;
+  }
+
+  .split-text p em {
+    color: #fff;
+    font-style: italic;
+  }
+
+  .genre-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 32px;
+    margin-top: 20px;
+  }
+
+  .genre-tag {
+    background: rgba(153, 19, 47, 0.15);
+    border: 1px solid rgba(153, 19, 47, 0.4);
+    border-radius: 999px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: #99132F;
+    padding: 6px 16px;
+  }
+
+  .mt-btn {
+    display: inline-block;
+  }
+
+  .book-section .btn-primary {
+    background: #263F44;
+    border: 2px solid #263F44;
+    color: #fff;
+  }
+
+  .book-section .btn-primary:hover {
+    background: #1D3035;
+    border-color: #1D3035;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  @media (max-width: 900px) {
+    .episodes-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .split-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .episode-body {
+      padding: 20px 18px 24px;
+    }
+
+    .play-circle svg {
+      width: 60px;
+      height: 60px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .section-heading {
+      font-size: 1.5rem;
+    }
+
+    .episodes-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .episode-card {
+      margin-bottom: 0;
+    }
+
+    .book-section {
+      padding: 48px 0;
+    }
+  }
+</style>

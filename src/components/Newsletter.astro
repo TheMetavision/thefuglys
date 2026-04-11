@@ -1,0 +1,158 @@
+---
+---
+
+<section class="newsletter-section" id="newsletter">
+  <div class="container">
+    <div class="newsletter-inner">
+      <p class="newsletter-eyebrow">Join the Crew</p>
+      <h2 class="newsletter-headline">Wasteland Whispers</h2>
+      <p class="newsletter-sub">Stay Weird. Stay Wild. Stay in the Loop.</p>
+
+      <form
+        class="newsletter-form"
+        name="newsletter"
+        method="POST"
+        data-netlify="true"
+        netlify-honeypot="bot-field"
+      >
+        <div style="display:none">
+          <input name="bot-field" />
+        </div>
+        <div class="form-row">
+          <input
+            type="email"
+            name="email"
+            placeholder="Your email, survivor..."
+            required
+            class="newsletter-input"
+            aria-label="Email address"
+          />
+          <button type="submit" class="newsletter-btn">I'm In</button>
+        </div>
+      </form>
+
+      <p class="newsletter-disclaimer">No spam. Just chaos, merch drops, and wasteland dispatches.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .newsletter-section {
+    background: #1e3238;
+    padding: 80px 0;
+    border-top: 1px solid rgba(153, 19, 47, 0.25);
+    border-bottom: 1px solid rgba(153, 19, 47, 0.25);
+  }
+
+  .newsletter-inner {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .newsletter-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #99132F;
+    margin: 0 0 12px 0;
+  }
+
+  .newsletter-headline {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2rem, 4vw, 3rem);
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0 0 8px 0;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+  }
+
+  .newsletter-sub {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin: 0 0 32px 0;
+  }
+
+  .newsletter-form {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 0;
+  }
+
+  .newsletter-input {
+    flex: 1;
+    padding: 14px 20px;
+    background: #263F44;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    color: #fff;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .newsletter-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .newsletter-input:focus {
+    border-color: #99132F;
+  }
+
+  .newsletter-btn {
+    padding: 14px 28px;
+    background: #99132F;
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+
+  .newsletter-btn:hover {
+    background: #b3162e;
+  }
+
+  .newsletter-disclaimer {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin: 16px 0 0 0;
+  }
+
+  @media (max-width: 599px) {
+    .form-row {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .newsletter-input {
+      border-right: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .newsletter-btn {
+      border-radius: 4px;
+      width: 100%;
+    }
+  }
+</style>
