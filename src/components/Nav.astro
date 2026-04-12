@@ -1,4 +1,6 @@
 ---
+import CartButton from './CartButton';
+
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/meet-the-misfits", label: "Meet the Misfits" },
@@ -22,12 +24,6 @@ const currentPath = Astro.url.pathname;
           height="auto"
         />
       </a>
-
-      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
 
       <ul class="nav-links" id="nav-links">
         {navLinks.map(link => (
@@ -68,6 +64,15 @@ const currentPath = Astro.url.pathname;
           </a>
         </li>
       </ul>
+
+      <div class="nav-right-controls">
+        <CartButton client:load />
+        <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
     </nav>
   </div>
 </header>
@@ -132,6 +137,8 @@ const currentPath = Astro.url.pathname;
     list-style: none;
     gap: 2px;
     align-items: center;
+    flex: 1;
+    justify-content: center;
   }
 
   .nav-link {
@@ -167,6 +174,13 @@ const currentPath = Astro.url.pathname;
   .nav-link:hover::after,
   .nav-link.active::after {
     transform: scaleX(1);
+  }
+
+  .nav-right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
   }
 
   .nav-toggle {
