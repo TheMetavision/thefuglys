@@ -1,0 +1,79 @@
+---
+/**
+ * src/pages/order-success.astro
+ *
+ * Post-checkout landing page. Stripe redirects here after payment.
+ * Customise the brand name, colours, and links per brand.
+ *
+ * Replace:
+ *   The Fuglys  → e.g. "Cats On Crack"
+ *   #D4A033      → e.g. "#FF00FF"
+ *   /merch    → e.g. "/shop" or "/merch"
+ *   /    → e.g. "/"
+ */
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Order Confirmed — The Fuglys">
+  <section style={`
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    text-align: center;
+  `}>
+    <div style="max-width: 520px;">
+      <div style={`
+        font-size: 64px;
+        margin-bottom: 24px;
+      `}>&#10003;</div>
+
+      <h1 style={`
+        font-size: 36px;
+        font-weight: 700;
+        color: #D4A033;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        margin: 0 0 16px;
+      `}>Order Confirmed</h1>
+
+      <p style={`
+        font-size: 16px;
+        line-height: 1.7;
+        color: #ccc;
+        margin: 0 0 32px;
+      `}>
+        Thanks for your order! You'll receive a confirmation email shortly.
+        Your items are being prepared and you'll get tracking details once they ship.
+      </p>
+
+      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+        <a href="/merch" style={`
+          display: inline-block;
+          padding: 12px 28px;
+          background: #D4A033;
+          color: #000;
+          text-decoration: none;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          border-radius: 4px;
+          font-size: 14px;
+        `}>Continue Shopping</a>
+
+        <a href="/" style={`
+          display: inline-block;
+          padding: 12px 28px;
+          background: transparent;
+          color: #ccc;
+          text-decoration: none;
+          font-weight: 600;
+          border: 1px solid #333;
+          border-radius: 4px;
+          font-size: 14px;
+        `}>Back to Home</a>
+      </div>
+    </div>
+  </section>
+</Layout>

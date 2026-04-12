@@ -1,4 +1,5 @@
 ---
+import CartDrawer from '../components/CartDrawer';
 import { organizationSchema, websiteSchema } from '../lib/schema';
 
 interface Props {
@@ -64,11 +65,7 @@ if (jsonLd) {
     <slot />
 
     <!-- Cart Drawer (React island) -->
-    <div id="cart-root">
-      <script>
-        // Cart drawer loads as a React island
-      </script>
-    </div>
+    <CartDrawer client:load />
   </body>
 </html>
 

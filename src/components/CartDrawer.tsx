@@ -16,13 +16,13 @@ export default function CartDrawer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: items.map((item) => ({
-            stripePriceId: item.stripePriceId,
-            printfulVariantId: item.printfulVariantId,
-            quantity: item.quantity,
-            name: item.name,
-            size: item.size,
-            colour: item.colour,
-          })),
+  name: item.name,
+  price: item.price,
+  size: item.size,
+  colour: item.colour || '',
+  image: item.image || '',
+  quantity: item.quantity,
+})),
         }),
       });
 
