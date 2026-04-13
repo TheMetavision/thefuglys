@@ -22,7 +22,7 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
       ? urlFor(ep.thumbnail).width(600).height(400).fit('crop').auto('format').url()
       : ep.youtubeId
         ? `https://img.youtube.com/vi/${ep.youtubeId}/hqdefault.jpg`
-        : 'https://images.pexels.com/photos/3617500/pexels-photo-3617500.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
+        : '/images/fuglys-episode-placeholder.webp',
   }));
 }
 ---
