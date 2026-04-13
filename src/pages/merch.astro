@@ -103,6 +103,31 @@ function getBadgeLabel(status: string) {
           <p class="store-banner-eyebrow">Merch Drop Incoming</p>
           <h2 class="store-banner-heading">The Wasteland Store is Almost Open</h2>
           <div class="store-banner-rule"></div>
+
+          <p class="countdown-label">Store opens in</p>
+          <div class="countdown" id="countdown" aria-label="Countdown to merch launch">
+            <div class="countdown-block">
+              <span class="countdown-value" id="cd-days">--</span>
+              <span class="countdown-unit">Days</span>
+            </div>
+            <span class="countdown-sep">:</span>
+            <div class="countdown-block">
+              <span class="countdown-value" id="cd-hours">--</span>
+              <span class="countdown-unit">Hours</span>
+            </div>
+            <span class="countdown-sep">:</span>
+            <div class="countdown-block">
+              <span class="countdown-value" id="cd-mins">--</span>
+              <span class="countdown-unit">Mins</span>
+            </div>
+            <span class="countdown-sep">:</span>
+            <div class="countdown-block">
+              <span class="countdown-value" id="cd-secs">--</span>
+              <span class="countdown-unit">Secs</span>
+            </div>
+          </div>
+          <p class="countdown-note">Early access for subscribers only</p>
+
           <p class="store-banner-body">Character apparel. Enamel pins. Art prints. Get on the list — don't get left outside the fence.</p>
           <a href="#newsletter" class="btn btn-dark">Notify Me</a>
         </div>
@@ -390,7 +415,79 @@ function getBadgeLabel(status: string) {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
+  /* Countdown Timer */
+  .countdown-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 12px;
+  }
+
+  .countdown {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .countdown-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    padding: 10px 12px 8px;
+  }
+
+  .countdown-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    color: #fff;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .countdown-unit {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-top: 4px;
+  }
+
+  .countdown-sep {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.6rem;
+    color: rgba(255,255,255,0.25);
+    line-height: 1;
+    padding-bottom: 14px;
+  }
+
+  .countdown-note {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.35);
+    font-style: italic;
+    margin-bottom: 28px;
+  }
+
   @media (max-width: 768px) {
+    .countdown-block {
+      min-width: 50px;
+      padding: 8px 8px 6px;
+    }
+
     .category-title {
       font-size: 1.3rem;
     }
@@ -413,3 +510,40 @@ function getBadgeLabel(status: string) {
     }
   }
 </style>
+
+<script>
+  const LAUNCH_DATE = new Date("2026-06-12T00:00:00Z");
+
+  function updateCountdown() {
+    const now = new Date();
+    const diff = LAUNCH_DATE.getTime() - now.getTime();
+
+    const daysEl = document.getElementById("cd-days");
+    const hoursEl = document.getElementById("cd-hours");
+    const minsEl = document.getElementById("cd-mins");
+    const secsEl = document.getElementById("cd-secs");
+
+    if (!daysEl || !hoursEl || !minsEl || !secsEl) return;
+
+    if (diff <= 0) {
+      daysEl.textContent = "00";
+      hoursEl.textContent = "00";
+      minsEl.textContent = "00";
+      secsEl.textContent = "00";
+      return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    daysEl.textContent = String(days).padStart(2, "0");
+    hoursEl.textContent = String(hours).padStart(2, "0");
+    minsEl.textContent = String(mins).padStart(2, "0");
+    secsEl.textContent = String(secs).padStart(2, "0");
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+</script>
