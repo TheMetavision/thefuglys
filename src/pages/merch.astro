@@ -64,39 +64,6 @@ function getBadgeLabel(status: string) {
       </div>
     </section>
 
-    <section class="section merch-section">
-      <div class="container">
-        {categories.map(cat => (
-          <div class="merch-category">
-            <div class="category-header">
-              <h2 class="category-title">{cat.label}</h2>
-              <div class="category-rule"></div>
-            </div>
-            <div class="merch-grid">
-              {cat.items.map(item => (
-                <article class="merch-card">
-                  <div class="merch-img-panel">
-                    <div class="merch-img-noise"></div>
-                    <span class="merch-img-label">{item.name}</span>
-                    <div class="merch-img-accent"></div>
-                    <span class={`status-badge status-badge--${item.status}`}>{getBadgeLabel(item.status)}</span>
-                  </div>
-                  <div class="merch-card-inner">
-                    <h3 class="merch-name">{item.name}</h3>
-                    {item.price
-                      ? <p class="merch-price">{item.price}</p>
-                      : <p class="merch-price merch-price--tba">Price TBA</p>
-                    }
-                    <p class="merch-desc">{item.desc}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-
     <section class="section store-banner-section">
       <div class="container">
         <div class="store-banner-inner">
@@ -131,6 +98,39 @@ function getBadgeLabel(status: string) {
           <p class="store-banner-body">Character apparel. Enamel pins. Art prints. Get on the list — don't get left outside the fence.</p>
           <a href="#newsletter" class="btn btn-dark">Notify Me</a>
         </div>
+      </div>
+    </section>
+
+    <section class="section merch-section">
+      <div class="container">
+        {categories.map(cat => (
+          <div class="merch-category">
+            <div class="category-header">
+              <h2 class="category-title">{cat.label}</h2>
+              <div class="category-rule"></div>
+            </div>
+            <div class="merch-grid">
+              {cat.items.map(item => (
+                <article class="merch-card">
+                  <div class="merch-img-panel">
+                    <div class="merch-img-noise"></div>
+                    <span class="merch-img-label">{item.name}</span>
+                    <div class="merch-img-accent"></div>
+                    <span class={`status-badge status-badge--${item.status}`}>{getBadgeLabel(item.status)}</span>
+                  </div>
+                  <div class="merch-card-inner">
+                    <h3 class="merch-name">{item.name}</h3>
+                    {item.price
+                      ? <p class="merch-price">{item.price}</p>
+                      : <p class="merch-price merch-price--tba">Price TBA</p>
+                    }
+                    <p class="merch-desc">{item.desc}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
 
