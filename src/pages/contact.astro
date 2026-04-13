@@ -19,12 +19,11 @@ import Newsletter from '../components/Newsletter.astro';
             <p class="page-intro">Got questions, ideas, or just want to talk wasteland? We want to hear from you.</p>
           </div>
           <div class="page-hero-visual">
-            <div class="page-hero-placeholder">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(153,19,47,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-            </div>
+            <img
+              src="/images/contact-hero.webp"
+              alt="Two Fuglys characters sitting in the dust at The Pits trailer park"
+              class="hero-contact-img"
+            />
           </div>
         </div>
       </div>
@@ -148,6 +147,15 @@ import Newsletter from '../components/Newsletter.astro';
 </script>
 
 <style>
+
+  .hero-contact-img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    object-fit: cover;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
 
   .contact-section {
     background: var(--color-bg, #263F44);
