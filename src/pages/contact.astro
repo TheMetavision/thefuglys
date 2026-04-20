@@ -37,15 +37,13 @@ import Newsletter from '../components/Newsletter.astro';
             <form
               class="contact-form"
               id="contact-form"
-              name="contact"
+              action="https://api.web3forms.com/submit"
               method="POST"
-              data-netlify="true"
               novalidate
             >
-              <input type="hidden" name="form-name" value="contact" />
-              <div style="display:none">
-                <input name="bot-field" />
-              </div>
+              <input type="hidden" name="access_key" value="ae5f8d86-af04-457f-bca3-73d9041cc56c" />
+              <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+              <input type="hidden" name="from_name" value="The Fuglys Contact Form" />
 
               <div class="form-group">
                 <label for="name" class="form-label">Name</label>
@@ -137,11 +135,34 @@ import Newsletter from '../components/Newsletter.astro';
   const form = document.getElementById('contact-form') as HTMLFormElement | null;
   const successMsg = document.getElementById('form-success');
 
-  form?.addEventListener('submit', (e) => {
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (form && successMsg) {
-      form.style.display = 'none';
-      successMsg.style.display = 'block';
+    const btn = form.querySelector('.form-submit') as HTMLButtonElement;
+    const originalText = btn.textContent;
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+
+    try {
+      const formData = new FormData(form);
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        form.style.display = 'none';
+        if (successMsg) successMsg.style.display = 'block';
+      } else {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert('Something went wrong. Please try again or email chaos@thefuglys.com directly.');
+      }
+    } catch (err) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      alert('Failed to send. Please email chaos@thefuglys.com directly.');
     }
   });
 </script>

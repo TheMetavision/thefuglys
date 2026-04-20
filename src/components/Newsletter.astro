@@ -10,14 +10,8 @@
 
       <form
         class="newsletter-form"
-        name="newsletter"
-        method="POST"
-        data-netlify="true"
-        netlify-honeypot="bot-field"
+        id="newsletter-form"
       >
-        <div style="display:none">
-          <input name="bot-field" />
-        </div>
         <div class="form-row">
           <input
             type="email"
@@ -26,15 +20,61 @@
             required
             class="newsletter-input"
             aria-label="Email address"
+            id="newsletter-email"
           />
           <button type="submit" class="newsletter-btn">I'm In</button>
         </div>
       </form>
 
+      <div class="newsletter-success" id="newsletter-success" style="display:none;">
+        <span style="color:#99132F;font-weight:700;">&#10003; You're in. Welcome to the wasteland.</span>
+      </div>
+
       <p class="newsletter-disclaimer">No spam. Just chaos, merch drops, and wasteland dispatches.</p>
     </div>
   </div>
 </section>
+
+<script>
+  const nlForm = document.getElementById('newsletter-form') as HTMLFormElement;
+  const nlSuccess = document.getElementById('newsletter-success');
+  const nlEmail = document.getElementById('newsletter-email') as HTMLInputElement;
+
+  nlForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = nlEmail?.value?.trim();
+    if (!email) return;
+
+    const btn = nlForm.querySelector('.newsletter-btn') as HTMLButtonElement;
+    const originalText = btn.textContent;
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+
+    try {
+      const response = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        nlForm.style.display = 'none';
+        if (nlSuccess) nlSuccess.style.display = 'block';
+      } else {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert(data.error || 'Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      alert('Failed to subscribe. Please try again.');
+    }
+  });
+</script>
 
 <style>
   .newsletter-section {
