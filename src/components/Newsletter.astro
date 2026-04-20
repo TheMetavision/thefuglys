@@ -52,17 +52,28 @@
     btn.disabled = true;
 
     try {
-      const response = await fetch('/api/newsletter', {
+      const response = await fetch('https://connect.mailerlite.com/api/subscribers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI0IiwianRpIjoiMTY2ZGZiYWEzYmFhMzQ2NGE2ZTY4YzgyZTYwNDFjNGZlMjM2MTZkN2YwMmVlNGVlNmQzYmJlY2YxNmMxOWE0N2ZlN2VjZTAwYTEwYzA0OTUiLCJpYXQiOjE3NzU4MjAyNzUuNzQxMTQ1LCJuYmYiOjE3NzU4MjAyNzUuNzQxMTQ3LCJleHAiOjQ5MzE0OTM4NzUuNzM0NDc1LCJzdWIiOiIyMjc4Mzk3Iiwic2NvcGVzIjpbXX0.D_zKiP5yLqx0XKrNeOt146s6arBj9oorzQFkOsmNHAjcpACKTlkEcckUDnaAlPbTZMJKJ2zJKacOmrjKUJURql5F6xako4CYgbLo5EqaMoDH5fznm_GtVDaWDcbm9QCBxgeeqYcamOfPnsvwPHUJThgKz2IZ4Y4Hc8H7IudylESYoktYoz91nBk4osPApnI5G0-PiTXaNvH0EdHdWl_0aNfnq7aLcg0bNjmL4a-xxxON6-t-ApS6EA6Wb87bVU568XlMk7AATxW800qHCEfU47YmoQ2jBLuLXWaFUYmzKgP4hhgzd8ku2GCERPUiJj90ZBevup-WSSgKCpIeRW0AZFmTW7bWRQlxuYzbw03Xw_l9MD__aK47JGLtSf7jZWTKBwrAv-gfe6brflahxjDmfNot0NfK8gYDnZkLOCHyDp8Ky7kNLZK8YCEl-jhQQOVBY_zVz3tu-omxMqHSE7PLX5_mDNt-Lslc6lkdk---Jg6hnLMTSfKnQRrC-awJ4ZYCgjtWUG2g1kQXpEQ8VXg6sdGwYKsf-64nMFQ05laakp-QOWr9vC52ZC1fr9Ctlykl2jUKJui2HY_akqSxjXgCY14apcGzmmMWEtNljC_A6qARuu6U5qcRDEmhCTew3yGrML8JMos4cbxbTTO5fndMbcYktjZ006PZasHlv4zyKX4'
+        },
+        body: JSON.stringify({
+          email: email,
+          groups: ['184360857503794692'],
+          fields: { source: 'fuglys-newsletter' }
+        })
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.ok || response.status === 200 || response.status === 201) {
         nlForm.style.display = 'none';
         if (nlSuccess) nlSuccess.style.display = 'block';
+      } else if (response.status === 422) {
+        nlForm.style.display = 'none';
+        if (nlSuccess) {
+          nlSuccess.innerHTML = '<span style="color:#99132F;font-weight:700;">&#10003; You\'re already in the wasteland.</span>';
+          nlSuccess.style.display = 'block';
+        }
       } else {
         btn.textContent = originalText;
         btn.disabled = false;

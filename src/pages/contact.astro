@@ -144,6 +144,9 @@ import Newsletter from '../components/Newsletter.astro';
 
     try {
       const formData = new FormData(form);
+      const userSubject = formData.get("subject") || "General";
+      formData.delete("subject");
+      formData.append("subject", `The Fuglys - ${userSubject}`);
       const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         body: formData,
