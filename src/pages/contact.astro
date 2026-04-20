@@ -69,7 +69,28 @@ import Newsletter from '../components/Newsletter.astro';
             </form>
 
             <div class="form-success-msg" id="form-success" aria-live="polite">
-              Message sent! We'll get back to you from the wasteland.
+              <div class="transmission">
+                <span class="transmission__tag">// Transmission received</span>
+
+                <div class="transmission__body">
+                  <div class="transmission__badge" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </div>
+                  <div>
+                    <div class="transmission__label">Signal received</div>
+                    <h3 class="transmission__headline">Message got through.</h3>
+                    <p class="transmission__sub">Someone at The Pits will get back to you. Eventually. Probably.</p>
+                  </div>
+                </div>
+
+                <div class="transmission__footer">
+                  <div class="transmission__quote">"Big Ma says if it's urgent, try again. If it ain't, she's busy."</div>
+                  <div class="transmission__actions">
+                    <a class="transmission__btn transmission__btn--ghost" href="/meet-the-misfits">Meet the Crew</a>
+                    <a class="transmission__btn transmission__btn--solid" href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener">Watch the Chaos</a>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -249,12 +270,163 @@ import Newsletter from '../components/Newsletter.astro';
 
   .form-success-msg {
     display: none;
+  }
+
+  /* Transmission confirmation card */
+  .transmission {
+    position: relative;
+    overflow: hidden;
+    background: #1e3238;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 4px solid #99132F;
+    border-radius: 4px;
+    padding: 2.5rem 2rem;
+    text-align: left;
+    animation: confirmSlideIn 0.4s ease-out;
+  }
+
+  @keyframes confirmSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .transmission__tag {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .transmission__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .transmission__badge {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #99132F;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .transmission__label {
     font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 0.688rem;
     color: #99132F;
-    text-align: center;
-    padding: 32px 0;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .transmission__headline {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    color: #fff;
+    margin: 0 0 10px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .transmission__sub {
+    font-family: 'Barlow', sans-serif;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.938rem;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .transmission__footer {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .transmission__quote {
+    font-family: 'Barlow', sans-serif;
+    font-style: italic;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.4;
+    max-width: 55%;
+  }
+
+  .transmission__actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .transmission__btn {
+    padding: 10px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    text-decoration: none;
+    display: inline-block;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .transmission__btn--ghost {
+    background: transparent;
+    color: #fff;
+    border: 1.5px solid #99132F;
+  }
+
+  .transmission__btn--ghost:hover {
+    background: #99132F;
+    transform: translateY(-1px);
+  }
+
+  .transmission__btn--solid {
+    background: #99132F;
+    color: #fff;
+    border: 1.5px solid #99132F;
+  }
+
+  .transmission__btn--solid:hover {
+    background: #b31740;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 520px) {
+    .transmission {
+      padding: 2rem 1.25rem;
+    }
+    .transmission__tag {
+      display: none;
+    }
+    .transmission__footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .transmission__quote {
+      max-width: 100%;
+      text-align: center;
+    }
+    .transmission__actions {
+      justify-content: center;
+    }
   }
 
   /* Info panel */
