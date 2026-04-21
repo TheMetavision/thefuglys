@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
@@ -23,7 +24,7 @@ const rosterCharacters = nonCore.map((c: any) => ({
 }));
 ---
 
-<Layout title="The Fuglys" description="Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild, post-apocalyptic adventures.">
+<Layout title="The Fuglys" description="Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild, post-apocalyptic adventures." jsonLd={tvSeriesSchema()}>
   <Nav />
 
   <main>
