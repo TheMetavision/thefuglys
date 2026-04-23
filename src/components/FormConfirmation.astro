@@ -1,0 +1,274 @@
+---
+/**
+ * FormConfirmation.astro
+ * 
+ * Drop-in confirmation display for The Fuglys forms.
+ * 
+ * Props:
+ *   variant: "transmission" (contact form) | "signal" (newsletter)
+ * 
+ * USAGE:
+ *   This component is NOT rendered directly on the page.
+ *   Instead, it's referenced as an innerHTML replacement
+ *   in your form submission handler.
+ * 
+ *   See INTEGRATION GUIDE below for exact steps.
+ */
+
+interface Props {
+  variant?: 'transmission' | 'signal';
+}
+
+const { variant = 'transmission' } = Astro.props;
+---
+
+{variant === 'transmission' ? (
+  <!-- CONTACT FORM CONFIRMATION -->
+  <div class="fuglys-confirmation fuglys-transmission" role="status" aria-live="polite">
+    <span class="transmission-tag">// Transmission received</span>
+
+    <div class="transmission-body">
+      <div class="confirmation-badge" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="confirmation-label">Signal received</div>
+        <h3 class="confirmation-headline">Message got through.</h3>
+        <p class="confirmation-sub">
+          Someone at The Pits will get back to you. Eventually. Probably.
+        </p>
+      </div>
+    </div>
+
+    <div class="transmission-footer">
+      <div class="transmission-quote">
+        "Big Ma says if it's urgent, try again. If it ain't, she's busy."
+      </div>
+      <div class="transmission-actions">
+        <a class="btn-confirm btn-confirm--ghost" href="/meet-the-misfits">Meet the Crew</a>
+        <a class="btn-confirm btn-confirm--solid" href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener">Watch the Chaos</a>
+      </div>
+    </div>
+  </div>
+) : (
+  <!-- NEWSLETTER CONFIRMATION -->
+  <div class="fuglys-confirmation fuglys-signal" role="status" aria-live="polite">
+    <div class="confirmation-badge confirmation-badge--sm" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="confirmation-label">You're on the list</div>
+      <div class="confirmation-headline confirmation-headline--sm">Welcome to the wasteland, weirdo.</div>
+      <div class="confirmation-sub confirmation-sub--sm">Check your inbox. Or don't. We'll find you either way.</div>
+    </div>
+  </div>
+)}
+
+<style>
+  /* ========================================
+     THE FUGLYS — FORM CONFIRMATION STYLES
+     Uses the site's existing CSS variables
+     and font stack (Bebas Neue / Inter)
+     ======================================== */
+
+  .fuglys-confirmation {
+    animation: confirmFadeIn 0.4s ease-out;
+  }
+
+  @keyframes confirmFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ---------- CONTACT: transmission card ---------- */
+  .fuglys-transmission {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface, #1a1a1a);
+    border: 1px solid var(--border, rgba(228, 228, 210, 0.1));
+    border-left: 4px solid var(--accent, var(--primary, #c4f74a));
+    border-radius: 4px;
+    padding: 2.5rem 2rem;
+    text-align: left;
+  }
+
+  .transmission-tag {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.625rem;
+    color: var(--text-secondary, #9a9486);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+    opacity: 0.6;
+  }
+
+  .transmission-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .confirmation-badge {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent, var(--primary, #c4f74a));
+    color: var(--bg, var(--background, #0a0a0a));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .confirmation-badge--sm {
+    width: 38px;
+    height: 38px;
+  }
+
+  .confirmation-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.688rem;
+    color: var(--accent, var(--primary, #c4f74a));
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .confirmation-headline {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    color: var(--text-primary, #e8e4d9);
+    margin: 0 0 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .confirmation-headline--sm {
+    font-size: 1.1rem;
+    margin-bottom: 0;
+  }
+
+  .confirmation-sub {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-secondary, #9a9486);
+    font-size: 0.938rem;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .confirmation-sub--sm {
+    font-size: 0.75rem;
+    margin-top: 3px;
+  }
+
+  .transmission-footer {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border, rgba(228, 228, 210, 0.1));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .transmission-quote {
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    color: var(--text-secondary, #9a9486);
+    line-height: 1.4;
+    max-width: 55%;
+    opacity: 0.8;
+  }
+
+  .transmission-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn-confirm {
+    padding: 10px 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.875rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    text-decoration: none;
+    display: inline-block;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .btn-confirm--ghost {
+    background: transparent;
+    color: var(--text-primary, #e8e4d9);
+    border: 1.5px solid var(--accent, var(--primary, #c4f74a));
+  }
+
+  .btn-confirm--ghost:hover {
+    background: var(--accent, var(--primary, #c4f74a));
+    color: var(--bg, var(--background, #0a0a0a));
+    transform: translateY(-1px);
+  }
+
+  .btn-confirm--solid {
+    background: var(--accent, var(--primary, #c4f74a));
+    color: var(--bg, var(--background, #0a0a0a));
+    border: 1.5px solid var(--accent, var(--primary, #c4f74a));
+    font-weight: 700;
+  }
+
+  .btn-confirm--solid:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+
+  /* ---------- NEWSLETTER: compact signal ---------- */
+  .fuglys-signal {
+    background: var(--surface, #1a1a1a);
+    border: 1px solid var(--border, rgba(228, 228, 210, 0.1));
+    border-left: 4px solid var(--accent, var(--primary, #c4f74a));
+    border-radius: 4px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 520px) {
+    .fuglys-transmission {
+      padding: 2rem 1.25rem;
+    }
+    .transmission-tag {
+      display: none;
+    }
+    .transmission-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .transmission-quote {
+      max-width: 100%;
+      text-align: center;
+    }
+    .transmission-actions {
+      justify-content: center;
+    }
+  }
+</style>

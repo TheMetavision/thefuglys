@@ -6,6 +6,7 @@ import category from './category';
 import faq from './faq';
 import page from './page';
 import siteSettings from './siteSettings';
+import worldLocation from './worldLocation';
 
 export const schemaTypes = [
   siteSettings,
@@ -16,4 +17,5 @@ export const schemaTypes = [
   category,
   faq,
   page,
+  worldLocation,
 ];

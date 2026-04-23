@@ -325,6 +325,28 @@ export async function getSiteSettings() {
   `);
 }
 
+// ─── World Locations ──────────────────────────────────────────
+export async function getWorldLocations() {
+  return client.fetch(`
+    *[_type == "worldLocation" && featuredOnHomepage == true] | order(order asc) {
+      _id,
+      title,
+      "slug": slug.current,
+      tagline,
+      image,
+      order
+    }
+  `);
+}
+
+/** Returns a resolved image URL for a world location card */
+export function getWorldLocationImage(loc: any, width = 1200, height = 680): string {
+  if (loc.image?.asset) {
+    return urlFor(loc.image).width(width).height(height).fit('crop').auto('format').url();
+  }
+  return '';
+}
+
 // ─── Fallback Data ────────────────────────────────────────
 export const FALLBACK_EPISODES = [
   {

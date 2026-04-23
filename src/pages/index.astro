@@ -4,7 +4,7 @@ import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
-import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage } from '../lib/sanity';
+import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage, getWorldLocations, getWorldLocationImage } from '../lib/sanity';
 
 const coreSix = await getCoreSixCharacters();
 const carouselCharacters = coreSix.map((c: any) => ({
@@ -21,6 +21,14 @@ const rosterCharacters = nonCore.map((c: any) => ({
   quote: c.quote ?? c.bio?.substring(0, 80) + '...',
   image: getCharacterImage(c),
   type: c.characterType,
+}));
+
+const worldLocations = await getWorldLocations();
+const pitsCards = worldLocations.map((loc: any) => ({
+  name: loc.title,
+  tagline: loc.tagline,
+  image: getWorldLocationImage(loc),
+  alt: loc.image?.alt ?? loc.title,
 }));
 ---
 
@@ -135,27 +143,21 @@ const rosterCharacters = nonCore.map((c: any) => ({
         </div>
 
         <div class="pits-location-grid">
-          <div class="location-card">
-            <span class="location-card-marker">+</span>
-            <div class="location-card-content">
-              <span class="location-card-name">Big Ma's Clinic</span>
-              <span class="location-card-tagline">Patching up the broken, one rag at a time</span>
+          {pitsCards.map((card) => (
+            <div
+              class="location-card location-card--image"
+              style={`background-image: url('${card.image}');`}
+              role="img"
+              aria-label={card.alt}
+            >
+              <div class="location-card-overlay"></div>
+              <span class="location-card-marker">+</span>
+              <div class="location-card-content">
+                <span class="location-card-name">{card.name}</span>
+                <span class="location-card-tagline">{card.tagline}</span>
+              </div>
             </div>
-          </div>
-          <div class="location-card">
-            <span class="location-card-marker">+</span>
-            <div class="location-card-content">
-              <span class="location-card-name">Cletus's Shed</span>
-              <span class="location-card-tagline">Where moonshine meets mechanical genius</span>
-            </div>
-          </div>
-          <div class="location-card">
-            <span class="location-card-marker">+</span>
-            <div class="location-card-content">
-              <span class="location-card-name">The Perimeter</span>
-              <span class="location-card-tagline">Last line of defense against the wasteland</span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>
@@ -1035,6 +1037,46 @@ const rosterCharacters = nonCore.map((c: any) => ({
     font-size: 0.88rem;
     color: rgba(255, 255, 255, 0.55);
     line-height: 1.45;
+  }
+
+  /* ── Location card — image variant (Sanity-driven) ───── */
+  .location-card--image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 240px;
+    border-color: rgba(153, 19, 47, 0.5);
+  }
+
+  .location-card--image .location-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(30, 50, 56, 0.35) 0%,
+      rgba(30, 50, 56, 0.92) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .location-card--image .location-card-marker,
+  .location-card--image .location-card-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .location-card--image .location-card-marker {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  }
+
+  .location-card--image .location-card-tagline {
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .location-card--image:hover .location-card-marker {
+    color: #fff;
   }
 
   @media (max-width: 900px) {
