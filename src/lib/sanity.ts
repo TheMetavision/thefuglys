@@ -16,19 +16,19 @@ export function urlFor(source: any) {
 
 /** Returns a resolved image URL — Sanity portrait takes priority, imageUrl as fallback */
 export function getCharacterImage(char: any, width = 375, height = 619): string {
-  if (char.imageUrl) return char.imageUrl;
   if (char.portrait?.asset) {
     return urlFor(char.portrait).width(width).height(height).fit('crop').auto('format').url();
   }
+  if (char.imageUrl) return char.imageUrl;
   return '/images/placeholder-character.jpg';
 }
 
 /** Returns a resolved image URL for carousel (larger size) */
 export function getCharacterImageLarge(char: any): string {
-  if (char.imageUrl) return char.imageUrl;
   if (char.portrait?.asset) {
     return urlFor(char.portrait).width(900).fit('max').auto('format').url();
   }
+  if (char.imageUrl) return char.imageUrl;
   return '/images/placeholder-character.jpg';
 }
 
