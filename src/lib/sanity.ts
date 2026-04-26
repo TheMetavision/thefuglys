@@ -42,6 +42,7 @@ export async function getAllCharacters() {
       age,
       role,
       characterType,
+      displayCategory,
       bio,
       extendedBio,
       portrait,

@@ -42,6 +42,21 @@ export default {
       validation: (Rule) => Rule.required(),
     },
     {
+      name: 'displayCategory',
+      title: 'Display Category',
+      type: 'string',
+      description:
+        'Drives the filter tabs on the Meet The Misfits page. Independent of characterType so you can mark e.g. an antagonist as a "creature" or "villain" for display purposes.',
+      options: {
+        list: [
+          { title: 'Survivor (Hero)', value: 'hero' },
+          { title: 'Creature', value: 'creature' },
+          { title: 'Villain', value: 'villain' },
+        ],
+      },
+      validation: (Rule) => Rule.required(),
+    },
+    {
       name: 'bio',
       title: 'Biography',
       type: 'text',

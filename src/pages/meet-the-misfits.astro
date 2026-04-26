@@ -3,20 +3,18 @@ import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
-import { characters } from '../data/characters';
+import { getAllCharacters, getCharacterImage } from '../lib/sanity';
 
-const coreSix = characters.filter(c => c.coreSix);
-const restOfCrew = characters.filter(c => !c.coreSix);
+const allCharacters = await getAllCharacters();
 
-function getCategoryBadge(char: typeof characters[0]) {
-  const type = char.type ?? 'hero';
-  const role = (char.role ?? '').toUpperCase();
-  if (type === 'villain' || role.includes('VILLAIN')) return 'villain';
-  if (type === 'creature' || role.includes('CREATURE')) return 'creature';
-  return 'survivor';
+const coreSix = allCharacters.filter((c: any) => c.characterType === 'main');
+const restOfCrew = allCharacters.filter((c: any) => c.characterType !== 'main');
+
+function getCategoryBadge(char: any): 'hero' | 'creature' | 'villain' {
+  return (char.displayCategory ?? 'hero') as 'hero' | 'creature' | 'villain';
 }
 
-function getCategoryLabel(char: typeof characters[0]) {
+function getCategoryLabel(char: any) {
   const badge = getCategoryBadge(char);
   if (badge === 'villain') return 'Villain';
   if (badge === 'creature') return 'Creature';
@@ -34,11 +32,11 @@ function getCategoryLabel(char: typeof characters[0]) {
         <h2 class="section-heading">The Heart of the Crew</h2>
         <div class="heading-rule"></div>
         <div class="core-six-grid">
-          {coreSix.map(char => (
+          {coreSix.map((char: any) => (
             <article class="core-card">
               <div class="core-card-img-wrap">
                 <img
-                  src={char.image}
+                  src={getCharacterImage(char)}
                   alt={char.name}
                   class="core-card-img"
                   loading="lazy"
@@ -49,11 +47,11 @@ function getCategoryLabel(char: typeof characters[0]) {
               </div>
               <div class="character-body">
                 <h3 class="character-name">{char.name}</h3>
-                {char.age && <p class="character-age">{char.age}</p>}
+                {char.age && <p class="character-age">Age {char.age}</p>}
                 {char.quote && (
                   <p class="character-quote">"{char.quote}"</p>
                 )}
-                <p class="character-desc">{char.description}</p>
+                <p class="character-desc">{char.bio}</p>
               </div>
             </article>
           ))}
@@ -75,14 +73,14 @@ function getCategoryLabel(char: typeof characters[0]) {
         </div>
 
         <div class="characters-grid" id="characters-grid">
-          {restOfCrew.map(char => {
+          {restOfCrew.map((char: any) => {
             const badge = getCategoryBadge(char);
             const label = getCategoryLabel(char);
             return (
-              <article class:list={["character-card", char.type]} data-type={char.type ?? "hero"}>
+              <article class:list={["character-card", badge]} data-type={badge}>
                 <div class="character-img-wrap">
                   <img
-                    src={char.image}
+                    src={getCharacterImage(char)}
                     alt={char.name}
                     class="character-img"
                     loading="lazy"
@@ -94,8 +92,8 @@ function getCategoryLabel(char: typeof characters[0]) {
                 <div class="character-body">
                   <span class={`category-badge category-badge--${badge}`}>{label}</span>
                   <h3 class="character-name">{char.name}</h3>
-                  {char.age && <p class="character-age">{char.age}</p>}
-                  <p class="character-desc">{char.description}</p>
+                  {char.age && <p class="character-age">Age {char.age}</p>}
+                  <p class="character-desc">{char.bio}</p>
                 </div>
               </article>
             );
@@ -351,7 +349,8 @@ function getCategoryLabel(char: typeof characters[0]) {
     margin-bottom: 8px;
   }
 
-  .category-badge--survivor {
+  .category-badge--survivor,
+  .category-badge--hero {
     background: rgba(153, 19, 47, 0.15);
     color: #99132F;
     border: 1px solid rgba(153, 19, 47, 0.3);
