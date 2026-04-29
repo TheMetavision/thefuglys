@@ -1,6 +1,8 @@
 ---
 import CartDrawer from '../components/CartDrawer';
+import FuglysTransmission from '../components/FuglysTransmission.astro';
 import { organizationSchema, websiteSchema } from '../lib/schema';
+import { getThemeAudio } from '../lib/sanity';
 
 interface Props {
   title?: string;
@@ -24,6 +26,28 @@ if (jsonLd) {
     allSchemas.push(jsonLd);
   }
 }
+
+// ─── Theme audio (Transmission Signal) ─────────────────────────
+// Fetched once per page render. Passed to component as props so the
+// component is dumb (no second Sanity round-trip). The preload hint
+// below uses the same URL so the browser can warm the audio file
+// during idle bandwidth without blocking render.
+const themeAudio = await getThemeAudio();
+const themeAudioReady = themeAudio.enabled && !!themeAudio.audioUrl;
+
+// Suppression — Fuglys-specific paths (Arc spec Section E.2).
+// /cart, /checkout/*, /order/* — commerce flows (provisional; harmless
+// if the routes don't exist yet). /media(/*) — YouTube embeds play
+// trailer audio, theme would fight it.
+const SUPPRESSION_PATTERNS = [
+  /^\/cart(\/.*)?$/,
+  /^\/checkout(\/.*)?$/,
+  /^\/order(\/.*)?$/,
+  /^\/media(\/.*)?$/,
+];
+const currentPath = Astro.url.pathname;
+const isSuppressedRoute = SUPPRESSION_PATTERNS.some((p) => p.test(currentPath));
+const showTransmission = themeAudioReady && !isSuppressedRoute;
 ---
 
 <!doctype html>
@@ -60,12 +84,32 @@ if (jsonLd) {
     {allSchemas.map((schema) => (
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
+
+    <!-- Theme audio preload hint (low priority — bytes warmed during idle bandwidth) -->
+    {showTransmission && (
+      <link
+        rel="preload"
+        href={themeAudio.audioUrl}
+        as="audio"
+        type="audio/mpeg"
+        fetchpriority="low"
+      />
+    )}
   </head>
   <body>
     <slot />
 
     <!-- Cart Drawer (React island) -->
     <CartDrawer client:load />
+
+    <!-- Theme tune (Transmission Signal — Harlan's radio rig) -->
+    {showTransmission && (
+      <FuglysTransmission
+        audioUrl={themeAudio.audioUrl}
+        trackTitle={themeAudio.trackTitle}
+        trackArtist={themeAudio.trackArtist}
+      />
+    )}
   </body>
 </html>
 
@@ -79,6 +123,9 @@ if (jsonLd) {
     --color-text-muted: rgba(255, 255, 255, 0.72); --color-text-subtle: rgba(255, 255, 255, 0.45);
     --color-border: rgba(255, 255, 255, 0.12); --font-display: 'Bebas Neue', sans-serif;
     --font-condensed: 'Barlow Condensed', sans-serif; --font-body: 'Barlow', sans-serif;
+    /* ── Theme audio (Transmission Signal) opacity variants per Arc spec A.3 ── */
+    --fg-accent-dim: rgba(153, 19, 47, 0.6);
+    --fg-accent-faded: rgba(153, 19, 47, 0.4);
   }
   html { scroll-behavior: smooth; }
   body { background-color: var(--color-bg); color: var(--color-text); font-family: 'Barlow', sans-serif; font-weight: 400; font-size: 1rem; line-height: 1.65; -webkit-font-smoothing: antialiased; position: relative; }

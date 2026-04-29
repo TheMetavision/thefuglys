@@ -326,6 +326,34 @@ export async function getSiteSettings() {
   `);
 }
 
+// ─── Theme audio (Transmission Signal — Harlan's radio rig) ───
+// Added 2026-04-29 for the IP brand theme tune feature.
+// Pinned to the canonical singleton document `_id == "siteSettings"` to avoid
+// reading the stray UUID-keyed duplicate doc that exists in this dataset.
+export interface ThemeAudio {
+  audioUrl: string | null;
+  trackTitle: string | null;
+  trackArtist: string | null;
+  enabled: boolean;
+}
+
+export async function getThemeAudio(): Promise<ThemeAudio> {
+  const result = await client.fetch(`
+    *[_type == "siteSettings" && _id == "siteSettings"][0]{
+      "audioUrl": themeAudioFile.asset->url,
+      "trackTitle": themeTrackTitle,
+      "trackArtist": themeTrackArtist,
+      "enabled": themeEnabled
+    }
+  `);
+  return {
+    audioUrl: result?.audioUrl ?? null,
+    trackTitle: result?.trackTitle ?? 'The Fuglys Main Theme',
+    trackArtist: result?.trackArtist ?? null,
+    enabled: result?.enabled !== false, // default to true if field missing
+  };
+}
+
 // ─── World Locations ──────────────────────────────────────────
 export async function getWorldLocations() {
   return client.fetch(`
