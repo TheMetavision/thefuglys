@@ -1,0 +1,328 @@
+---
+// src/components/FuglysTransmission.astro
+//
+// "Transmission Signal" — The Fuglys theme-tune control.
+// Canonically: Harlan's scavenged radio rig broadcasting Wasteland Whispers.
+//
+// Per Arc spec arc-spec-fuglys-theme-tune-content-2026-04-29.md:
+//   - All copy strings verbatim (Section D)
+//   - Palette: canonical Fuglys (Section A.3) — NO acid-green, NO rust-orange
+//   - Voice anchor: scavenged radio rig coming alive (Section B.3)
+//   - Irregular flicker (Section B.3 — Harlan's rig is not a metronome)
+//   - Reduced-motion variant (Section D.6) — non-negotiable
+//   - ARIA labels exact (Section D.5)
+//
+// Data is fetched in Layout.astro (via getThemeAudio) and passed as props.
+// This component renders nothing if audioUrl is missing — safe to mount
+// before the MP3 has been uploaded to Sanity.
+
+interface Props {
+  audioUrl: string | null;
+  trackTitle?: string | null;
+  trackArtist?: string | null;
+}
+
+const { audioUrl, trackTitle = 'The Fuglys Main Theme', trackArtist = '' } = Astro.props;
+
+// Render nothing if there's no audio. Layout already gates on
+// themeEnabled + suppression — this is the last-line safety check.
+const shouldRender = !!audioUrl;
+---
+
+{shouldRender && (
+  <div
+    id="fg-transmission"
+    class="fg-transmission fg-state-idle"
+    data-state="idle"
+    data-namespace="fuglys"
+    data-audio-src={audioUrl}
+    data-track-title={trackTitle}
+    data-track-artist={trackArtist}
+  >
+    <button
+      type="button"
+      class="fg-transmission__button"
+      aria-label="Play The Fuglys theme music"
+      data-aria-idle="Play The Fuglys theme music"
+      data-aria-playing="Pause The Fuglys theme music"
+      data-aria-ended="Replay The Fuglys theme music"
+    >
+      <span class="fg-transmission__icon" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="20" height="20" focusable="false">
+          <line x1="16" y1="8" x2="16" y2="26" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <path d="M 11 14 Q 16 10 21 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" class="fg-arc fg-arc--inner" />
+          <path d="M 8 12 Q 16 6 24 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" class="fg-arc fg-arc--mid" />
+          <path d="M 5 10 Q 16 2 27 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" class="fg-arc fg-arc--outer" />
+          <rect x="12" y="25" width="8" height="2" fill="currentColor" />
+          <line x1="6" y1="6" x2="26" y2="26" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" class="fg-slash" />
+        </svg>
+      </span>
+
+      <span class="fg-transmission__label">
+        <span class="fg-label fg-label--idle">INCOMING TRANSMISSION</span>
+        <span class="fg-label fg-label--playing">TRANSMITTING FROM THE PITS</span>
+        <span class="fg-label fg-label--ended">SIGNAL LOST</span>
+      </span>
+
+      <span class="fg-transmission__rx" aria-hidden="true">RX</span>
+
+      <span class="fg-transmission__replay">Retransmit?</span>
+    </button>
+
+    <span class="fg-transmission__waveform" aria-hidden="true">
+      <span class="fg-wave"></span>
+      <span class="fg-wave"></span>
+      <span class="fg-wave"></span>
+      <span class="fg-wave"></span>
+    </span>
+  </div>
+)}
+
+{shouldRender && (
+  <script>
+    import { createThemeAudio, prefersReducedMotion } from '../lib/themeAudio.js';
+
+    const root = document.getElementById('fg-transmission');
+    if (root) {
+      const button = root.querySelector('.fg-transmission__button');
+      const audioSrc = root.dataset.audioSrc;
+
+      // Suppression paths — Fuglys-specific (Arc spec Section E.2)
+      const SUPPRESSION = [
+        /^\/cart(\/.*)?$/,
+        /^\/checkout(\/.*)?$/,
+        /^\/order(\/.*)?$/,
+        /^\/media(\/.*)?$/,
+      ];
+
+      const controller = createThemeAudio({
+        namespace: 'fuglys',
+        src: audioSrc,
+        suppressionPaths: SUPPRESSION,
+        onStateChange(state) {
+          root.dataset.state = state;
+          root.classList.remove('fg-state-idle', 'fg-state-playing', 'fg-state-replaying', 'fg-state-ended');
+          root.classList.add('fg-state-' + state);
+          if (state === 'idle') {
+            button.setAttribute('aria-label', button.dataset.ariaIdle);
+          } else if (state === 'playing' || state === 'replaying') {
+            button.setAttribute('aria-label', button.dataset.ariaPlaying);
+          } else if (state === 'ended') {
+            button.setAttribute('aria-label', button.dataset.ariaEnded);
+          }
+        },
+      });
+
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        controller.handleClick();
+      });
+
+      if (prefersReducedMotion()) {
+        root.classList.add('fg-reduced-motion');
+      }
+
+      window.addEventListener('astro:page-load', () => {
+        controller.applySuppression(window.location.pathname);
+      });
+      window.addEventListener('popstate', () => {
+        controller.applySuppression(window.location.pathname);
+      });
+    }
+  </script>
+)}
+
+<style>
+  /* ─── Container — top-right desktop, bottom-right mobile (Arc Section F) ── */
+  .fg-transmission {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10000; /* above body::before noise overlay (z-index 9999) */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    pointer-events: auto;
+  }
+
+  @media (max-width: 768px) {
+    .fg-transmission {
+      top: auto;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+      right: calc(env(safe-area-inset-right, 0px) + 16px);
+    }
+    /* mobile: simplified per brief Phase 2 — hide label, RX, waveform, replay */
+    .fg-transmission__label,
+    .fg-transmission__waveform,
+    .fg-transmission__rx,
+    .fg-transmission__replay {
+      display: none !important;
+    }
+  }
+
+  /* ─── Button — clickable target, the whole icon block ──────────────── */
+  .fg-transmission__button {
+    appearance: none;
+    background: var(--color-bg-card, #1e3238);
+    border: 1px solid var(--fg-accent-dim);
+    color: var(--fg-accent-dim);
+    padding: 0.45rem 0.6rem;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: var(--font-condensed, 'Barlow Condensed'), sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+  }
+
+  .fg-transmission__button:focus-visible {
+    outline: 2px solid var(--fg-text-primary);
+    outline-offset: 3px;
+  }
+
+  /* ─── Icon ─────────────────────────────────────────────────────────── */
+  .fg-transmission__icon {
+    display: inline-flex;
+    color: inherit;
+  }
+
+  /* arcs — irregular flicker on idle (Harlan's rig is not a metronome) */
+  .fg-arc {
+    opacity: 0.8;
+    animation-name: fg-flicker-arc;
+    animation-timing-function: steps(1, end);
+    animation-iteration-count: infinite;
+  }
+  .fg-arc--inner { animation-duration: 1.8s; }
+  .fg-arc--mid   { animation-duration: 2.3s; animation-delay: 0.2s; }
+  .fg-arc--outer { animation-duration: 2.6s; animation-delay: 0.4s; }
+
+  @keyframes fg-flicker-arc {
+    0%   { opacity: 0.85; }
+    40%  { opacity: 0.55; }
+    50%  { opacity: 0.85; }
+    70%  { opacity: 0.4; }
+    85%  { opacity: 0.7; }
+    100% { opacity: 0.85; }
+  }
+
+  /* slash hidden by default — shown only on ended state */
+  .fg-slash {
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+
+  /* ─── Labels — only one visible at a time per state ────────────────── */
+  .fg-transmission__label { display: inline-block; }
+  .fg-label { display: none; }
+  .fg-state-idle      .fg-label--idle    { display: inline; }
+  .fg-state-playing   .fg-label--playing,
+  .fg-state-replaying .fg-label--playing { display: inline; }
+  .fg-state-ended     .fg-label--ended   { display: inline; }
+
+  /* idle label hidden until hover (Arc spec — hover-revealed) */
+  .fg-state-idle .fg-label--idle { opacity: 0; transition: opacity 200ms ease; }
+  .fg-transmission__button:hover .fg-label--idle,
+  .fg-transmission__button:focus-visible .fg-label--idle { opacity: 1; }
+
+  /* ─── RX pulse — playing only ──────────────────────────────────────── */
+  .fg-transmission__rx {
+    display: none;
+    color: var(--fg-accent);
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    font-size: 0.65rem;
+    animation: fg-rx-pulse 1s steps(2, end) infinite;
+  }
+  .fg-state-playing .fg-transmission__rx,
+  .fg-state-replaying .fg-transmission__rx { display: inline; }
+
+  @keyframes fg-rx-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  /* ─── Replay affordance — ended only ───────────────────────────────── */
+  .fg-transmission__replay {
+    display: none;
+    color: var(--fg-text-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-size: 0.7rem;
+    text-transform: none;
+    letter-spacing: 0.04em;
+  }
+  .fg-state-ended .fg-transmission__replay { display: inline; }
+
+  /* ─── Waveform — pulses during playing ─────────────────────────────── */
+  .fg-transmission__waveform {
+    display: none;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+  }
+  .fg-state-playing .fg-transmission__waveform,
+  .fg-state-replaying .fg-transmission__waveform { display: inline-flex; }
+
+  .fg-wave {
+    display: inline-block;
+    width: 2px;
+    background: var(--fg-text-primary);
+    animation: fg-wave 1s ease-in-out infinite;
+    opacity: 0.85;
+  }
+  .fg-wave:nth-child(1) { animation-delay: 0s;    height: 6px; }
+  .fg-wave:nth-child(2) { animation-delay: 0.15s; height: 10px; }
+  .fg-wave:nth-child(3) { animation-delay: 0.3s;  height: 8px; }
+  .fg-wave:nth-child(4) { animation-delay: 0.45s; height: 12px; }
+
+  @keyframes fg-wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* ─── State styling — playing/replaying = strong, ended = faded + slash ─ */
+  .fg-state-playing .fg-transmission__button,
+  .fg-state-replaying .fg-transmission__button {
+    color: var(--fg-accent);
+    border-color: var(--fg-accent);
+  }
+
+  .fg-state-ended .fg-transmission__button {
+    color: var(--fg-accent-faded);
+    border-color: var(--fg-accent-faded);
+  }
+  .fg-state-ended .fg-slash { opacity: 1; }
+
+  /* ─── Hover (idle) — rig powering up ───────────────────────────────── */
+  .fg-state-idle .fg-transmission__button:hover {
+    color: var(--fg-accent);
+    border-color: var(--fg-accent);
+  }
+
+  /* ─── Reduced-motion variant (Arc Section D.6) ─────────────────────── */
+  .fg-reduced-motion .fg-arc,
+  .fg-reduced-motion .fg-transmission__rx,
+  .fg-reduced-motion .fg-wave {
+    animation: none !important;
+  }
+  .fg-reduced-motion .fg-arc { opacity: 0.7; }
+  .fg-reduced-motion .fg-transmission__rx { opacity: 1; }
+  .fg-reduced-motion .fg-wave { transform: scaleY(0.6); }
+  .fg-reduced-motion .fg-state-idle .fg-label--idle { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fg-arc,
+    .fg-transmission__rx,
+    .fg-wave,
+    .fg-slash {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>
