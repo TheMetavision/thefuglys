@@ -10,6 +10,12 @@
 //   strengthened on mobile so the control reads against dark page backgrounds.
 //   No copy or palette changes — Arc Section D strings preserved verbatim.
 //
+// v2.1 — 2026-04-29 — desktop cart collision fix:
+//   Desktop position moved from top:24px to top:80px so the control sits
+//   BELOW the CartDrawer icon rather than overlapping it. Cart keeps the
+//   top-right corner (commerce-functional element), transmission stacks
+//   below it. Mobile bottom-right placement unchanged.
+//
 // Per Arc spec arc-spec-fuglys-theme-tune-content-2026-04-29.md:
 //   - All copy strings verbatim (Section D)
 //   - Palette: canonical Fuglys (Section A.3) — NO acid-green, NO rust-orange
@@ -136,9 +142,12 @@ const shouldRender = !!audioUrl;
 
 <style>
   /* ─── Container — top-right desktop, bottom-right mobile (Arc Section F) ── */
+  /* v2.1 — top:80px on desktop so the control sits BELOW the CartDrawer icon
+     rather than overlapping it at the corner. Cart keeps the literal top-right
+     corner; transmission stacks immediately below it. */
   .fg-transmission {
     position: fixed;
-    top: 24px;
+    top: 80px;
     right: 24px;
     z-index: 10000; /* above body::before noise overlay (z-index 9999) */
     display: inline-flex;
@@ -320,23 +329,4 @@ const shouldRender = !!audioUrl;
   }
 
   /* ─── Reduced-motion variant (Arc Section D.6) ─────────────────────── */
-  .fg-reduced-motion .fg-arc,
-  .fg-reduced-motion .fg-transmission__rx,
-  .fg-reduced-motion .fg-wave {
-    animation: none !important;
-  }
-  .fg-reduced-motion .fg-arc { opacity: 0.7; }
-  .fg-reduced-motion .fg-transmission__rx { opacity: 1; }
-  .fg-reduced-motion .fg-wave { transform: scaleY(0.6); }
-  .fg-reduced-motion .fg-state-idle .fg-label--idle { opacity: 1; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .fg-arc,
-    .fg-transmission__rx,
-    .fg-wave,
-    .fg-slash {
-      animation: none !important;
-      transition: none !important;
-    }
-  }
-</style>
+  .fg-reduced-motion 
