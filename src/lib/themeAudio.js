@@ -3,11 +3,24 @@
 // Shared theme-audio utility for the four IP brand sites
 // (Fuglys / Labrats / Biker Babies / Cats On Crack).
 //
-// Reference build: written for Fuglys, designed to be copied
-// across to the other three brand repos without modification.
-// Each brand component imports `createThemeAudio(config)` and
-// passes its own brand config (namespace, audio src, suppression
-// paths, ARIA brand label).
+// v2 — 2026-04-29 — fixes for cross-page UX:
+//   1. Reset state to 'idle' on init if the persisted state was active playback.
+//      Browser autoplay policy means audio cannot legally auto-resume across a
+//      page reload without a fresh user click. Previous version showed the
+//      'playing' label on the new page even though no sound was playing — fixed.
+//      Position is still preserved separately so a single click resumes from
+//      where the user left off.
+//   2. Seek to persisted position only on the FIRST play of a session, not on
+//      every play. Previous version seeked to the cross-session resume point
+//      every time the user clicked play — including pause-resume within a
+//      single page, which would jump back to the saved-from-previous-session
+//      position. Within a session we now let Howler's own pause/resume handle
+//      position tracking.
+//
+// Reference build: written for Fuglys, designed to be copied across to the
+// other three brand repos without modification. Each brand component imports
+// `createThemeAudio(config)` and passes its own brand config (namespace, audio
+// src, suppression paths, ARIA brand label).
 //
 // Uses Howler.js (npm install howler).
 //
@@ -18,8 +31,8 @@
 //   'replaying' → user clicked replay on ended state (collapses to 'playing')
 //
 // Persistence:
-//   - Track position (seconds) stored in localStorage so audio continues
-//     seamlessly across page navigation.
+//   - Track position (seconds) stored in localStorage so audio can resume
+//     across page navigation.
 //   - State persists for 24 hours OR until browser close (whichever first).
 //   - All keys namespaced per brand (`fuglys_theme_*`, `labrats_theme_*`, etc.)
 //
@@ -117,7 +130,18 @@ export function createThemeAudio(config) {
   const persisted = storage.readState() || {};
 
   let howl = null;                 // lazy — built on first user interaction
-  let state = persisted.state || 'idle';
+  let firstPlayThisSession = true; // [v2] only seek to persisted position on first play
+
+  // [v2] Reset state to 'idle' if previous-session state was active playback —
+  // browser autoplay policy means audio cannot legally resume without a fresh
+  // user click. 'ended' state is preserved so the UI shows the Retransmit?
+  // affordance correctly.
+  const persistedState = persisted.state;
+  let state =
+    persistedState === 'playing' || persistedState === 'replaying'
+      ? 'idle'
+      : persistedState || 'idle';
+
   let volume = typeof persisted.volume === 'number' ? persisted.volume : DEFAULT_VOLUME;
   let lastPositionWrite = 0;
   let positionInterval = null;
@@ -183,10 +207,15 @@ export function createThemeAudio(config) {
     if (suppressed || destroyed) return;
     ensureHowl();
     if (!howl) return;
-    // resume from saved position if any
-    const resumeAt = persisted.position || 0;
-    if (resumeAt > 0 && state !== 'ended') {
-      try { howl.seek(resumeAt); } catch { /* no-op */ }
+    // [v2] Only seek to persisted resume-point on the FIRST play of the session.
+    // After that, Howler's own pause/resume position tracking takes over so we
+    // don't jump back to the cross-session resume point on every click.
+    if (firstPlayThisSession) {
+      firstPlayThisSession = false;
+      const resumeAt = persisted.position || 0;
+      if (resumeAt > 0 && state !== 'ended') {
+        try { howl.seek(resumeAt); } catch { /* no-op */ }
+      }
     }
     howl.play();
     setState(state === 'ended' ? 'replaying' : 'playing');
@@ -208,6 +237,7 @@ export function createThemeAudio(config) {
     howl.play();
     setState('replaying');
     startPositionTracker();
+    firstPlayThisSession = false; // replay counts as a "first play"
   }
 
   function setVolume(next) {
@@ -268,7 +298,7 @@ export function createThemeAudio(config) {
   if (typeof window !== 'undefined') {
     applySuppression(window.location.pathname);
   }
-  // fire initial render with persisted state so the UI reflects cross-page state
+  // fire initial render with reset/loaded state so the UI reflects current state
   queueMicrotask(() => onStateChange(state));
 
   return {

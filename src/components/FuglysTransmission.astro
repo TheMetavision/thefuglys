@@ -4,6 +4,12 @@
 // "Transmission Signal" — The Fuglys theme-tune control.
 // Canonically: Harlan's scavenged radio rig broadcasting Wasteland Whispers.
 //
+// v2 — 2026-04-29 — mobile visibility fix:
+//   Mobile icon bumped from 20px → 28px and button padding increased so the
+//   total tap target is ~52px (above WCAG's 44px minimum). Border slightly
+//   strengthened on mobile so the control reads against dark page backgrounds.
+//   No copy or palette changes — Arc Section D strings preserved verbatim.
+//
 // Per Arc spec arc-spec-fuglys-theme-tune-content-2026-04-29.md:
 //   - All copy strings verbatim (Section D)
 //   - Palette: canonical Fuglys (Section A.3) — NO acid-green, NO rust-orange
@@ -13,8 +19,6 @@
 //   - ARIA labels exact (Section D.5)
 //
 // Data is fetched in Layout.astro (via getThemeAudio) and passed as props.
-// This component renders nothing if audioUrl is missing — safe to mount
-// before the MP3 has been uploaded to Sanity.
 
 interface Props {
   audioUrl: string | null;
@@ -24,8 +28,6 @@ interface Props {
 
 const { audioUrl, trackTitle = 'The Fuglys Main Theme', trackArtist = '' } = Astro.props;
 
-// Render nothing if there's no audio. Layout already gates on
-// themeEnabled + suppression — this is the last-line safety check.
 const shouldRender = !!audioUrl;
 ---
 
@@ -145,6 +147,7 @@ const shouldRender = !!audioUrl;
     pointer-events: auto;
   }
 
+  /* ── MOBILE — v2 sizing fix ─────────────────────────────────────────── */
   @media (max-width: 768px) {
     .fg-transmission {
       top: auto;
@@ -157,6 +160,17 @@ const shouldRender = !!audioUrl;
     .fg-transmission__rx,
     .fg-transmission__replay {
       display: none !important;
+    }
+    /* v2 — bump tap target to ~52px (WCAG min is 44px) and strengthen the
+       border so the control reads against the dark page background */
+    .fg-transmission__button {
+      padding: 0.75rem 0.85rem;
+      border-width: 1.5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+    .fg-transmission__icon svg {
+      width: 28px !important;
+      height: 28px !important;
     }
   }
 
