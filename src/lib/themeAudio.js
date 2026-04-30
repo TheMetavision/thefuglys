@@ -341,4 +341,65 @@ export function createThemeAudio(config) {
         try { howl.fade(volume, 0, SUPPRESSION_FADE_MS); } catch { /* no-op */ }
         setTimeout(() => {
           if (!howl) return;
-          try { howl.pause(); howl.volume(volume);
+          try { howl.pause(); howl.volume(volume); } catch { /* no-op */ }
+        }, SUPPRESSION_FADE_MS + 50);
+      }
+      stopPositionTracker();
+    } else if (!suppressed && (state === 'playing' || state === 'replaying')) {
+      setState('idle');
+    }
+  }
+
+  // ── Click handler ───────────────────────────────────────────────────────
+
+  function handleClick() {
+    if (suppressed || destroyed) return;
+    if (storage.isDismissed()) return;
+    if (state === 'idle') play();
+    else if (state === 'playing' || state === 'replaying') pause();
+    else if (state === 'ended') replay();
+  }
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────
+
+  function destroy() {
+    destroyed = true;
+    stopPositionTracker();
+    if (howl) {
+      try { howl.unload(); } catch { /* no-op */ }
+      howl = null;
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+
+  if (typeof window !== 'undefined') {
+    applySuppression(window.location.pathname);
+  }
+  queueMicrotask(() => onStateChange(state));
+
+  return {
+    handleClick,
+    play,
+    pause,
+    replay,
+    setVolume,
+    applySuppression,
+    destroy,
+    // v3.1 additions
+    dismiss,
+    isDismissed,
+    getProgress,
+    seekTo,
+    get state() { return state; },
+    get volume() { return volume; },
+    get isSuppressed() { return suppressed; },
+  };
+}
+
+// ─── Convenience: detect prefers-reduced-motion ───────────────────────────
+
+export function prefersReducedMotion() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
