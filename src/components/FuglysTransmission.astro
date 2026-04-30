@@ -4,17 +4,32 @@
 // "Transmission Signal" — The Fuglys theme-tune control.
 // Canonically: Harlan's scavenged radio rig broadcasting Wasteland Whispers.
 //
-// v2 — 2026-04-29 — mobile visibility fix:
-//   Mobile icon bumped from 20px → 28px and button padding increased so the
-//   total tap target is ~52px (above WCAG's 44px minimum). Border slightly
-//   strengthened on mobile so the control reads against dark page backgrounds.
-//   No copy or palette changes — Arc Section D strings preserved verbatim.
+// v3 INTERIM — 2026-04-29 — discoverability + cart-collision fix:
+//   v1 was too discreet — the dim 60%-opacity outlined box on a dark teal
+//   background was effectively invisible, and the hover-revealed label meant
+//   visitors had no idea it was a theme tune until they happened to mouse over
+//   it. Mobile users had no hover at all.
 //
-// v2.1 — 2026-04-29 — desktop cart collision fix:
-//   Desktop position moved from top:24px to top:80px so the control sits
-//   BELOW the CartDrawer icon rather than overlapping it. Cart keeps the
-//   top-right corner (commerce-functional element), transmission stacks
-//   below it. Mobile bottom-right placement unchanged.
+//   v3 changes (interim — Arc still owns the v3-final visual redesign):
+//   - Position moved to BOTTOM-RIGHT on both desktop and mobile (was top-right
+//     desktop). Cart icon owns the top-right corner uncontested. Audio control
+//     gets its own zone at bottom-right, no collision possible.
+//   - Idle state styled prominently: solid crimson fill (#99132F) with white
+//     antenna icon, always-visible "TUNE IN?" label (in-canon per Arc D.1
+//     optional sub-label), larger button (~52px tall).
+//   - Attention pulse: subtle 3-second crimson pulse on initial page load to
+//     catch the eye on first visit. Stops after 2 cycles. Respects
+//     prefers-reduced-motion.
+//   - Hover label "INCOMING TRANSMISSION" still appears on hover as a richer
+//     secondary state for mouse-equipped users, no longer the primary
+//     affordance.
+//   - All Arc-spec copy strings preserved verbatim. Voice unchanged.
+//
+// v2 — 2026-04-29 — mobile visibility fix (kept):
+//   Mobile icon bumped from 20px → 28px and button padding increased.
+//
+// v2.1 — 2026-04-29 — desktop cart collision fix (now obsolete — bottom-right
+//   eliminates the cart conflict at root rather than stacking under it).
 //
 // Per Arc spec arc-spec-fuglys-theme-tune-content-2026-04-29.md:
 //   - All copy strings verbatim (Section D)
@@ -56,18 +71,19 @@ const shouldRender = !!audioUrl;
       data-aria-ended="Replay The Fuglys theme music"
     >
       <span class="fg-transmission__icon" aria-hidden="true">
-        <svg viewBox="0 0 32 32" width="20" height="20" focusable="false">
+        <svg viewBox="0 0 32 32" width="22" height="22" focusable="false">
           <line x1="16" y1="8" x2="16" y2="26" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           <path d="M 11 14 Q 16 10 21 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" class="fg-arc fg-arc--inner" />
           <path d="M 8 12 Q 16 6 24 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" class="fg-arc fg-arc--mid" />
           <path d="M 5 10 Q 16 2 27 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" class="fg-arc fg-arc--outer" />
           <rect x="12" y="25" width="8" height="2" fill="currentColor" />
-          <line x1="6" y1="6" x2="26" y2="26" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" class="fg-slash" />
+          <line x1="6" y1="6" x2="26" y2="26" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" class="fg-slash" />
         </svg>
       </span>
 
       <span class="fg-transmission__label">
-        <span class="fg-label fg-label--idle">INCOMING TRANSMISSION</span>
+        <span class="fg-label fg-label--idle-primary">TUNE IN?</span>
+        <span class="fg-label fg-label--idle-hover">INCOMING TRANSMISSION</span>
         <span class="fg-label fg-label--playing">TRANSMITTING FROM THE PITS</span>
         <span class="fg-label fg-label--ended">SIGNAL LOST</span>
       </span>
@@ -141,14 +157,16 @@ const shouldRender = !!audioUrl;
 )}
 
 <style>
-  /* ─── Container — top-right desktop, bottom-right mobile (Arc Section F) ── */
-  /* v2.1 — top:80px on desktop so the control sits BELOW the CartDrawer icon
-     rather than overlapping it at the corner. Cart keeps the literal top-right
-     corner; transmission stacks immediately below it. */
+  /* ─── Container — bottom-right both desktop and mobile (v3) ─────────── */
+  /* Cart owns the top-right corner uncontested. Theme tune gets its own
+     zone at bottom-right, no collision possible. Same offset desktop and
+     mobile = consistent mental model. */
   .fg-transmission {
     position: fixed;
-    top: 80px;
-    right: 24px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    right: calc(env(safe-area-inset-right, 0px) + 24px);
+    top: auto;
+    left: auto;
     z-index: 10000; /* above body::before noise overlay (z-index 9999) */
     display: inline-flex;
     align-items: center;
@@ -156,67 +174,71 @@ const shouldRender = !!audioUrl;
     pointer-events: auto;
   }
 
-  /* ── MOBILE — v2 sizing fix ─────────────────────────────────────────── */
   @media (max-width: 768px) {
     .fg-transmission {
-      top: auto;
       bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
       right: calc(env(safe-area-inset-right, 0px) + 16px);
     }
-    /* mobile: simplified per brief Phase 2 — hide label, RX, waveform, replay */
-    .fg-transmission__label,
+    /* mobile: simplified per brief Phase 2 — hide hover label, RX, waveform,
+       replay text, but keep the primary "TUNE IN?" idle label visible. */
+    .fg-label--idle-hover,
     .fg-transmission__waveform,
     .fg-transmission__rx,
     .fg-transmission__replay {
       display: none !important;
     }
-    /* v2 — bump tap target to ~52px (WCAG min is 44px) and strengthen the
-       border so the control reads against the dark page background */
-    .fg-transmission__button {
-      padding: 0.75rem 0.85rem;
-      border-width: 1.5px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    }
-    .fg-transmission__icon svg {
-      width: 28px !important;
-      height: 28px !important;
-    }
   }
 
-  /* ─── Button — clickable target, the whole icon block ──────────────── */
+  /* ─── Button — prominent crimson fill with always-visible label ─────── */
+  /* v3: solid crimson fill instead of dim outline. Visitor sees a clear
+     branded affordance the moment they land — not a vague utility outline. */
   .fg-transmission__button {
     appearance: none;
-    background: var(--color-bg-card, #1e3238);
-    border: 1px solid var(--fg-accent-dim);
-    color: var(--fg-accent-dim);
-    padding: 0.45rem 0.6rem;
+    background: var(--fg-accent, #99132F);
+    border: 1.5px solid var(--fg-accent, #99132F);
+    color: var(--fg-text-primary, #FFFFFF);
+    padding: 0.65rem 1rem;
     border-radius: 2px;
     cursor: pointer;
     font-family: var(--font-condensed, 'Barlow Condensed'), sans-serif;
     font-weight: 700;
-    font-size: 0.7rem;
-    letter-spacing: 0.15em;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+    gap: 0.55rem;
+    transition: background 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+
+  .fg-transmission__button:hover {
+    background: #b3162e; /* matches existing --color-primary-hover token */
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   }
 
   .fg-transmission__button:focus-visible {
-    outline: 2px solid var(--fg-text-primary);
+    outline: 2px solid var(--fg-text-primary, #FFFFFF);
     outline-offset: 3px;
+  }
+
+  /* Mobile: thumb-friendly tap target (~56px) */
+  @media (max-width: 768px) {
+    .fg-transmission__button {
+      padding: 0.85rem 1rem;
+    }
   }
 
   /* ─── Icon ─────────────────────────────────────────────────────────── */
   .fg-transmission__icon {
     display: inline-flex;
-    color: inherit;
+    color: var(--fg-text-primary, #FFFFFF);
   }
 
   /* arcs — irregular flicker on idle (Harlan's rig is not a metronome) */
   .fg-arc {
-    opacity: 0.8;
+    opacity: 0.85;
     animation-name: fg-flicker-arc;
     animation-timing-function: steps(1, end);
     animation-iteration-count: infinite;
@@ -226,12 +248,12 @@ const shouldRender = !!audioUrl;
   .fg-arc--outer { animation-duration: 2.6s; animation-delay: 0.4s; }
 
   @keyframes fg-flicker-arc {
-    0%   { opacity: 0.85; }
-    40%  { opacity: 0.55; }
-    50%  { opacity: 0.85; }
-    70%  { opacity: 0.4; }
-    85%  { opacity: 0.7; }
-    100% { opacity: 0.85; }
+    0%   { opacity: 0.95; }
+    40%  { opacity: 0.6; }
+    50%  { opacity: 0.95; }
+    70%  { opacity: 0.45; }
+    85%  { opacity: 0.8; }
+    100% { opacity: 0.95; }
   }
 
   /* slash hidden by default — shown only on ended state */
@@ -240,26 +262,47 @@ const shouldRender = !!audioUrl;
     transition: opacity 250ms ease;
   }
 
-  /* ─── Labels — only one visible at a time per state ────────────────── */
+  /* ─── Labels — primary always-visible on idle, hover-revealed secondary ─ */
   .fg-transmission__label { display: inline-block; }
   .fg-label { display: none; }
-  .fg-state-idle      .fg-label--idle    { display: inline; }
+
+  .fg-state-idle      .fg-label--idle-primary { display: inline; }
   .fg-state-playing   .fg-label--playing,
   .fg-state-replaying .fg-label--playing { display: inline; }
   .fg-state-ended     .fg-label--ended   { display: inline; }
 
-  /* idle label hidden until hover (Arc spec — hover-revealed) */
-  .fg-state-idle .fg-label--idle { opacity: 0; transition: opacity 200ms ease; }
-  .fg-transmission__button:hover .fg-label--idle,
-  .fg-transmission__button:focus-visible .fg-label--idle { opacity: 1; }
+  /* INCOMING TRANSMISSION fades in on hover/focus over the TUNE IN? primary */
+  @media (hover: hover) {
+    .fg-state-idle .fg-transmission__button:hover .fg-label--idle-primary,
+    .fg-state-idle .fg-transmission__button:focus-visible .fg-label--idle-primary {
+      display: none;
+    }
+    .fg-state-idle .fg-transmission__button:hover .fg-label--idle-hover,
+    .fg-state-idle .fg-transmission__button:focus-visible .fg-label--idle-hover {
+      display: inline;
+    }
+  }
 
-  /* ─── RX pulse — playing only ──────────────────────────────────────── */
+  /* ─── Attention pulse on initial page load — 2 cycles, ~3s, then stops ─ */
+  /* Subtle outer-glow pulse to catch the visitor's eye on first arrival.
+     Doesn't loop forever — explicitly bounded to 2 iterations. */
+  .fg-state-idle .fg-transmission__button {
+    animation: fg-attention-pulse 1.5s ease-out 0.8s 2;
+  }
+
+  @keyframes fg-attention-pulse {
+    0%   { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 0   rgba(153, 19, 47, 0.55); }
+    70%  { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 14px rgba(153, 19, 47, 0); }
+    100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 0   rgba(153, 19, 47, 0); }
+  }
+
+  /* ─── RX pulse — playing only (white on crimson now) ───────────────── */
   .fg-transmission__rx {
     display: none;
-    color: var(--fg-accent);
+    color: var(--fg-text-primary, #FFFFFF);
     font-weight: 700;
-    letter-spacing: 0.15em;
-    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    font-size: 0.7rem;
     animation: fg-rx-pulse 1s steps(2, end) infinite;
   }
   .fg-state-playing .fg-transmission__rx,
@@ -267,22 +310,22 @@ const shouldRender = !!audioUrl;
 
   @keyframes fg-rx-pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
+    50% { opacity: 0.45; }
   }
 
   /* ─── Replay affordance — ended only ───────────────────────────────── */
   .fg-transmission__replay {
     display: none;
-    color: var(--fg-text-primary);
+    color: var(--fg-text-primary, #FFFFFF);
     text-decoration: underline;
     text-underline-offset: 3px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-transform: none;
     letter-spacing: 0.04em;
   }
   .fg-state-ended .fg-transmission__replay { display: inline; }
 
-  /* ─── Waveform — pulses during playing ─────────────────────────────── */
+  /* ─── Waveform — pulses during playing (white on crimson) ───────────── */
   .fg-transmission__waveform {
     display: none;
     align-items: flex-end;
@@ -293,40 +336,4 @@ const shouldRender = !!audioUrl;
   .fg-state-replaying .fg-transmission__waveform { display: inline-flex; }
 
   .fg-wave {
-    display: inline-block;
-    width: 2px;
-    background: var(--fg-text-primary);
-    animation: fg-wave 1s ease-in-out infinite;
-    opacity: 0.85;
-  }
-  .fg-wave:nth-child(1) { animation-delay: 0s;    height: 6px; }
-  .fg-wave:nth-child(2) { animation-delay: 0.15s; height: 10px; }
-  .fg-wave:nth-child(3) { animation-delay: 0.3s;  height: 8px; }
-  .fg-wave:nth-child(4) { animation-delay: 0.45s; height: 12px; }
-
-  @keyframes fg-wave {
-    0%, 100% { transform: scaleY(0.4); }
-    50% { transform: scaleY(1); }
-  }
-
-  /* ─── State styling — playing/replaying = strong, ended = faded + slash ─ */
-  .fg-state-playing .fg-transmission__button,
-  .fg-state-replaying .fg-transmission__button {
-    color: var(--fg-accent);
-    border-color: var(--fg-accent);
-  }
-
-  .fg-state-ended .fg-transmission__button {
-    color: var(--fg-accent-faded);
-    border-color: var(--fg-accent-faded);
-  }
-  .fg-state-ended .fg-slash { opacity: 1; }
-
-  /* ─── Hover (idle) — rig powering up ───────────────────────────────── */
-  .fg-state-idle .fg-transmission__button:hover {
-    color: var(--fg-accent);
-    border-color: var(--fg-accent);
-  }
-
-  /* ─── Reduced-motion variant (Arc Section D.6) ─────────────────────── */
-  .fg-reduced-motion 
+    display: inline-b
