@@ -4,38 +4,24 @@
 // "Transmission Signal" — The Fuglys theme-tune control.
 // Canonically: Harlan's scavenged radio rig broadcasting Wasteland Whispers.
 //
+// v3.1 — 2026-04-30 — adds dismiss + progress scrubber:
+//   - Small circular X badge at the top-right corner of the widget. Click to
+//     hide the player for the rest of this browser session. Returns next
+//     visit (sessionStorage cleared on tab close).
+//   - Progress bar below the main button shows playback position. Click
+//     anywhere on the bar to seek to that position (works during playing,
+//     and "back to beginning" by clicking the leftmost edge). ARIA slider
+//     role + keyboard arrow-key support (5s steps).
+//
 // v3 INTERIM — 2026-04-29 — discoverability + cart-collision fix:
-//   v1 was too discreet — the dim 60%-opacity outlined box on a dark teal
-//   background was effectively invisible, and the hover-revealed label meant
-//   visitors had no idea it was a theme tune until they happened to mouse over
-//   it. Mobile users had no hover at all.
-//
-//   v3 changes (interim — Arc still owns the v3-final visual redesign):
-//   - Position moved to BOTTOM-RIGHT on both desktop and mobile (was top-right
-//     desktop). Cart icon owns the top-right corner uncontested. Audio control
-//     gets its own zone at bottom-right, no collision possible.
-//   - Idle state styled prominently: solid crimson fill (#99132F) with white
-//     antenna icon, always-visible "TUNE IN?" label (in-canon per Arc D.1
-//     optional sub-label), larger button (~52px tall).
-//   - Attention pulse: subtle 3-second crimson pulse on initial page load to
-//     catch the eye on first visit. Stops after 2 cycles. Respects
-//     prefers-reduced-motion.
-//   - Hover label "INCOMING TRANSMISSION" still appears on hover as a richer
-//     secondary state for mouse-equipped users, no longer the primary
-//     affordance.
-//   - All Arc-spec copy strings preserved verbatim. Voice unchanged.
-//
-// v2 — 2026-04-29 — mobile visibility fix (kept):
-//   Mobile icon bumped from 20px → 28px and button padding increased.
-//
-// v2.1 — 2026-04-29 — desktop cart collision fix (now obsolete — bottom-right
-//   eliminates the cart conflict at root rather than stacking under it).
+//   - Position bottom-right both desktop and mobile.
+//   - Solid crimson fill, always-visible "TUNE IN?" label.
+//   - Bounded attention pulse on initial load (2 cycles, ~3s, then stops).
 //
 // Per Arc spec arc-spec-fuglys-theme-tune-content-2026-04-29.md:
 //   - All copy strings verbatim (Section D)
-//   - Palette: canonical Fuglys (Section A.3) — NO acid-green, NO rust-orange
+//   - Palette: canonical Fuglys (Section A.3)
 //   - Voice anchor: scavenged radio rig coming alive (Section B.3)
-//   - Irregular flicker (Section B.3 — Harlan's rig is not a metronome)
 //   - Reduced-motion variant (Section D.6) — non-negotiable
 //   - ARIA labels exact (Section D.5)
 //
@@ -61,7 +47,20 @@ const shouldRender = !!audioUrl;
     data-audio-src={audioUrl}
     data-track-title={trackTitle}
     data-track-artist={trackArtist}
+    data-dismissed="false"
   >
+    <button
+      type="button"
+      class="fg-transmission__close"
+      aria-label="Hide theme music player for this session"
+      title="Hide for this session"
+    >
+      <svg viewBox="0 0 12 12" width="10" height="10" focusable="false" aria-hidden="true">
+        <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </svg>
+    </button>
+
     <button
       type="button"
       class="fg-transmission__button"
@@ -99,6 +98,20 @@ const shouldRender = !!audioUrl;
       <span class="fg-wave"></span>
       <span class="fg-wave"></span>
     </span>
+
+    <div
+      class="fg-transmission__progress"
+      role="slider"
+      tabindex="0"
+      aria-label="Theme music progress — click or use arrow keys to scrub"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+    >
+      <div class="fg-transmission__progress-track">
+        <div class="fg-transmission__progress-fill"></div>
+      </div>
+    </div>
   </div>
 )}
 
@@ -109,15 +122,38 @@ const shouldRender = !!audioUrl;
     const root = document.getElementById('fg-transmission');
     if (root) {
       const button = root.querySelector('.fg-transmission__button');
+      const closeBtn = root.querySelector('.fg-transmission__close');
+      const progress = root.querySelector('.fg-transmission__progress');
+      const progressFill = root.querySelector('.fg-transmission__progress-fill');
       const audioSrc = root.dataset.audioSrc;
 
-      // Suppression paths — Fuglys-specific (Arc spec Section E.2)
       const SUPPRESSION = [
         /^\/cart(\/.*)?$/,
         /^\/checkout(\/.*)?$/,
         /^\/order(\/.*)?$/,
         /^\/media(\/.*)?$/,
       ];
+
+      let progressInterval = null;
+
+      function startProgressTracker() {
+        stopProgressTracker();
+        updateProgressDisplay();
+        progressInterval = setInterval(updateProgressDisplay, 200);
+      }
+
+      function stopProgressTracker() {
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+      }
+
+      function updateProgressDisplay() {
+        const { percent } = controller.getProgress();
+        progressFill.style.width = percent + '%';
+        progress.setAttribute('aria-valuenow', String(Math.round(percent)));
+      }
 
       const controller = createThemeAudio({
         namespace: 'fuglys',
@@ -129,17 +165,82 @@ const shouldRender = !!audioUrl;
           root.classList.add('fg-state-' + state);
           if (state === 'idle') {
             button.setAttribute('aria-label', button.dataset.ariaIdle);
+            stopProgressTracker();
+            // refresh once to reflect persisted position
+            updateProgressDisplay();
           } else if (state === 'playing' || state === 'replaying') {
             button.setAttribute('aria-label', button.dataset.ariaPlaying);
+            startProgressTracker();
           } else if (state === 'ended') {
             button.setAttribute('aria-label', button.dataset.ariaEnded);
+            stopProgressTracker();
+            // ended = full bar
+            progressFill.style.width = '100%';
+            progress.setAttribute('aria-valuenow', '100');
           }
+        },
+        onDismiss() {
+          root.dataset.dismissed = 'true';
+          stopProgressTracker();
         },
       });
 
+      // Initial dismiss check — hide if user dismissed earlier in this session
+      if (controller.isDismissed()) {
+        root.dataset.dismissed = 'true';
+      }
+
+      // Main play/pause click
       button.addEventListener('click', (e) => {
         e.preventDefault();
         controller.handleClick();
+      });
+
+      // Close (X) — dismiss for this session
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        controller.dismiss();
+      });
+
+      // Progress bar click-to-seek
+      progress.addEventListener('click', (e) => {
+        const rect = progress.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const { duration } = controller.getProgress();
+        if (duration > 0) {
+          const target = ratio * duration;
+          controller.seekTo(target);
+          updateProgressDisplay();
+        } else {
+          // Audio not yet loaded — seek will be queued via pendingSeek;
+          // also kick off play so the user actually hears something.
+          controller.handleClick();
+          // Try the seek a beat later once Howl has metadata
+          setTimeout(() => {
+            const { duration: d2 } = controller.getProgress();
+            if (d2 > 0) {
+              controller.seekTo(ratio * d2);
+              updateProgressDisplay();
+            }
+          }, 250);
+        }
+      });
+
+      // Keyboard support on progress bar — arrow keys to scrub by 5 seconds,
+      // Home jumps to 0, End jumps to duration.
+      progress.addEventListener('keydown', (e) => {
+        const { current, duration } = controller.getProgress();
+        if (duration <= 0) return;
+        let target = current;
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') target = Math.max(0, current - 5);
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') target = Math.min(duration, current + 5);
+        else if (e.key === 'Home') target = 0;
+        else if (e.key === 'End') target = duration;
+        else return;
+        e.preventDefault();
+        controller.seekTo(target);
+        updateProgressDisplay();
       });
 
       if (prefersReducedMotion()) {
@@ -157,30 +258,34 @@ const shouldRender = !!audioUrl;
 )}
 
 <style>
-  /* ─── Container — bottom-right both desktop and mobile (v3) ─────────── */
-  /* Cart owns the top-right corner uncontested. Theme tune gets its own
-     zone at bottom-right, no collision possible. Same offset desktop and
-     mobile = consistent mental model. */
+  /* ─── Container — bottom-right both desktop and mobile ──────────────── */
   .fg-transmission {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
     right: calc(env(safe-area-inset-right, 0px) + 24px);
     top: auto;
     left: auto;
-    z-index: 10000; /* above body::before noise overlay (z-index 9999) */
+    z-index: 10000;
     display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
     pointer-events: auto;
+    min-width: 200px;
+    max-width: 360px;
+  }
+
+  /* Hide entirely when dismissed */
+  .fg-transmission[data-dismissed="true"] {
+    display: none;
   }
 
   @media (max-width: 768px) {
     .fg-transmission {
       bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
       right: calc(env(safe-area-inset-right, 0px) + 16px);
+      min-width: 0;
     }
-    /* mobile: simplified per brief Phase 2 — hide hover label, RX, waveform,
-       replay text, but keep the primary "TUNE IN?" idle label visible. */
     .fg-label--idle-hover,
     .fg-transmission__waveform,
     .fg-transmission__rx,
@@ -189,9 +294,36 @@ const shouldRender = !!audioUrl;
     }
   }
 
-  /* ─── Button — prominent crimson fill with always-visible label ─────── */
-  /* v3: solid crimson fill instead of dim outline. Visitor sees a clear
-     branded affordance the moment they land — not a vague utility outline. */
+  /* ─── Close (X) badge — top-right of widget ─────────────────────────── */
+  .fg-transmission__close {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1.5px solid var(--fg-text-primary, #FFFFFF);
+    background: var(--fg-bg-footer, #1D3035);
+    color: var(--fg-text-primary, #FFFFFF);
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    transition: background 150ms ease, transform 150ms ease;
+  }
+  .fg-transmission__close:hover {
+    background: var(--fg-accent, #99132F);
+    transform: scale(1.1);
+  }
+  .fg-transmission__close:focus-visible {
+    outline: 2px solid var(--fg-text-primary, #FFFFFF);
+    outline-offset: 2px;
+  }
+
+  /* ─── Main button — prominent crimson fill with always-visible label ─ */
   .fg-transmission__button {
     appearance: none;
     background: var(--fg-accent, #99132F);
@@ -213,7 +345,7 @@ const shouldRender = !!audioUrl;
   }
 
   .fg-transmission__button:hover {
-    background: #b3162e; /* matches existing --color-primary-hover token */
+    background: #b3162e;
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   }
@@ -223,117 +355,10 @@ const shouldRender = !!audioUrl;
     outline-offset: 3px;
   }
 
-  /* Mobile: thumb-friendly tap target (~56px) */
   @media (max-width: 768px) {
     .fg-transmission__button {
       padding: 0.85rem 1rem;
     }
   }
 
-  /* ─── Icon ─────────────────────────────────────────────────────────── */
-  .fg-transmission__icon {
-    display: inline-flex;
-    color: var(--fg-text-primary, #FFFFFF);
-  }
-
-  /* arcs — irregular flicker on idle (Harlan's rig is not a metronome) */
-  .fg-arc {
-    opacity: 0.85;
-    animation-name: fg-flicker-arc;
-    animation-timing-function: steps(1, end);
-    animation-iteration-count: infinite;
-  }
-  .fg-arc--inner { animation-duration: 1.8s; }
-  .fg-arc--mid   { animation-duration: 2.3s; animation-delay: 0.2s; }
-  .fg-arc--outer { animation-duration: 2.6s; animation-delay: 0.4s; }
-
-  @keyframes fg-flicker-arc {
-    0%   { opacity: 0.95; }
-    40%  { opacity: 0.6; }
-    50%  { opacity: 0.95; }
-    70%  { opacity: 0.45; }
-    85%  { opacity: 0.8; }
-    100% { opacity: 0.95; }
-  }
-
-  /* slash hidden by default — shown only on ended state */
-  .fg-slash {
-    opacity: 0;
-    transition: opacity 250ms ease;
-  }
-
-  /* ─── Labels — primary always-visible on idle, hover-revealed secondary ─ */
-  .fg-transmission__label { display: inline-block; }
-  .fg-label { display: none; }
-
-  .fg-state-idle      .fg-label--idle-primary { display: inline; }
-  .fg-state-playing   .fg-label--playing,
-  .fg-state-replaying .fg-label--playing { display: inline; }
-  .fg-state-ended     .fg-label--ended   { display: inline; }
-
-  /* INCOMING TRANSMISSION fades in on hover/focus over the TUNE IN? primary */
-  @media (hover: hover) {
-    .fg-state-idle .fg-transmission__button:hover .fg-label--idle-primary,
-    .fg-state-idle .fg-transmission__button:focus-visible .fg-label--idle-primary {
-      display: none;
-    }
-    .fg-state-idle .fg-transmission__button:hover .fg-label--idle-hover,
-    .fg-state-idle .fg-transmission__button:focus-visible .fg-label--idle-hover {
-      display: inline;
-    }
-  }
-
-  /* ─── Attention pulse on initial page load — 2 cycles, ~3s, then stops ─ */
-  /* Subtle outer-glow pulse to catch the visitor's eye on first arrival.
-     Doesn't loop forever — explicitly bounded to 2 iterations. */
-  .fg-state-idle .fg-transmission__button {
-    animation: fg-attention-pulse 1.5s ease-out 0.8s 2;
-  }
-
-  @keyframes fg-attention-pulse {
-    0%   { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 0   rgba(153, 19, 47, 0.55); }
-    70%  { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 14px rgba(153, 19, 47, 0); }
-    100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 0   rgba(153, 19, 47, 0); }
-  }
-
-  /* ─── RX pulse — playing only (white on crimson now) ───────────────── */
-  .fg-transmission__rx {
-    display: none;
-    color: var(--fg-text-primary, #FFFFFF);
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    font-size: 0.7rem;
-    animation: fg-rx-pulse 1s steps(2, end) infinite;
-  }
-  .fg-state-playing .fg-transmission__rx,
-  .fg-state-replaying .fg-transmission__rx { display: inline; }
-
-  @keyframes fg-rx-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.45; }
-  }
-
-  /* ─── Replay affordance — ended only ───────────────────────────────── */
-  .fg-transmission__replay {
-    display: none;
-    color: var(--fg-text-primary, #FFFFFF);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    font-size: 0.75rem;
-    text-transform: none;
-    letter-spacing: 0.04em;
-  }
-  .fg-state-ended .fg-transmission__replay { display: inline; }
-
-  /* ─── Waveform — pulses during playing (white on crimson) ───────────── */
-  .fg-transmission__waveform {
-    display: none;
-    align-items: flex-end;
-    gap: 2px;
-    height: 14px;
-  }
-  .fg-state-playing .fg-transmission__waveform,
-  .fg-state-replaying .fg-transmission__waveform { display: inline-flex; }
-
-  .fg-wave {
-    display: inline-b
+  /* ─── Icon ──────────────────────────────────────────────────�

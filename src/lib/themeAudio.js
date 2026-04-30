@@ -3,24 +3,24 @@
 // Shared theme-audio utility for the four IP brand sites
 // (Fuglys / Labrats / Biker Babies / Cats On Crack).
 //
+// v3.1 — 2026-04-30 — adds dismiss (per-session) + progress/seek API:
+//   - dismiss() — user clicks the X on the player. Sets a sessionStorage
+//     flag so the player stays hidden for the rest of this browser tab/session
+//     but reappears on a new visit. Pauses audio if playing.
+//   - isDismissed() — sync check used by the component on init.
+//   - getProgress() — returns { current, duration, percent } for the progress
+//     bar. Reads Howler.seek() and Howler.duration().
+//   - seekTo(seconds) — moves the playhead. If audio not yet loaded, lazy-
+//     loads first then seeks once metadata is available.
+//
 // v2 — 2026-04-29 — fixes for cross-page UX:
-//   1. Reset state to 'idle' on init if the persisted state was active playback.
-//      Browser autoplay policy means audio cannot legally auto-resume across a
-//      page reload without a fresh user click. Previous version showed the
-//      'playing' label on the new page even though no sound was playing — fixed.
-//      Position is still preserved separately so a single click resumes from
-//      where the user left off.
-//   2. Seek to persisted position only on the FIRST play of a session, not on
-//      every play. Previous version seeked to the cross-session resume point
-//      every time the user clicked play — including pause-resume within a
-//      single page, which would jump back to the saved-from-previous-session
-//      position. Within a session we now let Howler's own pause/resume handle
-//      position tracking.
+//   1. Reset state to 'idle' on init if previous-session state was active
+//      playback (browser autoplay policy compliance).
+//   2. First-play-only seek to persisted position so within-session pause/
+//      resume uses Howler's own position.
 //
 // Reference build: written for Fuglys, designed to be copied across to the
-// other three brand repos without modification. Each brand component imports
-// `createThemeAudio(config)` and passes its own brand config (namespace, audio
-// src, suppression paths, ARIA brand label).
+// other three brand repos without modification.
 //
 // Uses Howler.js (npm install howler).
 //
@@ -31,25 +31,18 @@
 //   'replaying' → user clicked replay on ended state (collapses to 'playing')
 //
 // Persistence:
-//   - Track position (seconds) stored in localStorage so audio can resume
-//     across page navigation.
-//   - State persists for 24 hours OR until browser close (whichever first).
-//   - All keys namespaced per brand (`fuglys_theme_*`, `labrats_theme_*`, etc.)
-//
-// Suppression:
-//   - On entering a suppressed route while playing: 0.5s fade out, position
-//     persisted, UI hidden.
-//   - On exit back to a non-suppressed route: UI fades back in IDLE state.
-//     User must click again — browser autoplay policy compliance.
+//   - Track position (seconds), state, volume in localStorage. 24h TTL.
+//   - Per-session dismiss flag in sessionStorage (cleared on tab close).
+//   - All keys namespaced per brand (`fuglys_theme_*`, etc.)
 
 import { Howl } from 'howler';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-const DEFAULT_VOLUME = 0.25;          // 25% per brief
-const SUPPRESSION_FADE_MS = 500;       // 0.5s per brief
-const STATE_TTL_MS = 24 * 60 * 60_000; // 24 hours per brief
-const POSITION_THROTTLE_MS = 1000;     // write position to localStorage no more than once/sec
+const DEFAULT_VOLUME = 0.25;
+const SUPPRESSION_FADE_MS = 500;
+const STATE_TTL_MS = 24 * 60 * 60_000;
+const POSITION_THROTTLE_MS = 1000;
 
 // ─── Storage helpers (per-brand namespacing) ───────────────────────────────
 
@@ -65,13 +58,24 @@ function makeStorage(namespace) {
     try { localStorage.removeItem(key); } catch { /* no-op */ }
   };
 
+  // Session-scoped storage for the dismiss flag — cleared on tab close,
+  // so the player reappears next visit.
+  const sessionGet = (key) => {
+    try { return sessionStorage.getItem(key); } catch { return null; }
+  };
+  const sessionSet = (key, value) => {
+    try { sessionStorage.setItem(key, value); } catch { /* no-op */ }
+  };
+  const sessionRemove = (key) => {
+    try { sessionStorage.removeItem(key); } catch { /* no-op */ }
+  };
+
   return {
     readState() {
       const raw = safeGet(k('state'));
       if (!raw) return null;
       try {
         const parsed = JSON.parse(raw);
-        // expire after TTL
         if (Date.now() - (parsed.savedAt || 0) > STATE_TTL_MS) {
           safeRemove(k('state'));
           return null;
@@ -88,6 +92,14 @@ function makeStorage(namespace) {
     clearState() {
       safeRemove(k('state'));
     },
+    // Per-session dismiss flag
+    isDismissed() {
+      return sessionGet(k('dismissed')) === 'true';
+    },
+    setDismissed(value) {
+      if (value) sessionSet(k('dismissed'), 'true');
+      else sessionRemove(k('dismissed'));
+    },
   };
 }
 
@@ -100,13 +112,14 @@ function isSuppressed(pathname, patterns) {
 
 // ─── Howl factory (lazy) ──────────────────────────────────────────────────
 
-function buildHowl({ src, volume, onEnd }) {
+function buildHowl({ src, volume, onEnd, onLoad }) {
   return new Howl({
     src: [src],
-    html5: true,         // streams from CDN, doesn't load whole file into memory
-    preload: 'metadata', // bytes only fetched on first play()
+    html5: true,
+    preload: 'metadata',
     volume,
     onend: onEnd,
+    onload: onLoad,
   });
 }
 
@@ -121,21 +134,19 @@ function buildHowl({ src, volume, onEnd }) {
  * @param {RegExp[]} config.suppressionPaths   Routes where the control hides
  * @param {(state: string) => void} config.onStateChange  Render callback (state machine state changed)
  * @param {(volume: number) => void} [config.onVolumeChange]  Optional volume render callback
- * @returns {Object} controller with play/pause/replay/setVolume/destroy + getters
+ * @param {() => void} [config.onDismiss]      Called when user dismisses the player
+ * @returns {Object} controller
  */
 export function createThemeAudio(config) {
-  const { namespace, src, suppressionPaths, onStateChange, onVolumeChange } = config;
+  const { namespace, src, suppressionPaths, onStateChange, onVolumeChange, onDismiss } = config;
 
   const storage = makeStorage(namespace);
   const persisted = storage.readState() || {};
 
-  let howl = null;                 // lazy — built on first user interaction
-  let firstPlayThisSession = true; // [v2] only seek to persisted position on first play
+  let howl = null;
+  let firstPlayThisSession = true;
+  let pendingSeek = null; // queued seek if Howl not yet loaded
 
-  // [v2] Reset state to 'idle' if previous-session state was active playback —
-  // browser autoplay policy means audio cannot legally resume without a fresh
-  // user click. 'ended' state is preserved so the UI shows the Retransmit?
-  // affordance correctly.
   const persistedState = persisted.state;
   let state =
     persistedState === 'playing' || persistedState === 'replaying'
@@ -197,6 +208,13 @@ export function createThemeAudio(config) {
         storage.writeState({ state: 'ended', volume, position: 0 });
         setState('ended');
       },
+      onLoad: () => {
+        // If a seek was queued before metadata loaded, apply it now.
+        if (pendingSeek != null && howl) {
+          try { howl.seek(pendingSeek); } catch { /* no-op */ }
+          pendingSeek = null;
+        }
+      },
     });
     return howl;
   }
@@ -205,11 +223,9 @@ export function createThemeAudio(config) {
 
   function play() {
     if (suppressed || destroyed) return;
+    if (storage.isDismissed()) return; // ignore play attempts when dismissed
     ensureHowl();
     if (!howl) return;
-    // [v2] Only seek to persisted resume-point on the FIRST play of the session.
-    // After that, Howler's own pause/resume position tracking takes over so we
-    // don't jump back to the cross-session resume point on every click.
     if (firstPlayThisSession) {
       firstPlayThisSession = false;
       const resumeAt = persisted.position || 0;
@@ -237,7 +253,7 @@ export function createThemeAudio(config) {
     howl.play();
     setState('replaying');
     startPositionTracker();
-    firstPlayThisSession = false; // replay counts as a "first play"
+    firstPlayThisSession = false;
   }
 
   function setVolume(next) {
@@ -245,6 +261,72 @@ export function createThemeAudio(config) {
     if (howl) howl.volume(volume);
     storage.writeState({ state, volume, position: getPosition() });
     if (onVolumeChange) onVolumeChange(volume);
+  }
+
+  // ── Progress / seek API (v3.1) ──────────────────────────────────────────
+
+  function getProgress() {
+    if (!howl) {
+      const persistedPos = persisted.position || 0;
+      return { current: persistedPos, duration: 0, percent: 0 };
+    }
+    try {
+      const current = Number(howl.seek()) || 0;
+      const duration = Number(howl.duration()) || 0;
+      const percent = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
+      return { current, duration, percent };
+    } catch {
+      return { current: 0, duration: 0, percent: 0 };
+    }
+  }
+
+  /**
+   * Seek to a specific position in seconds. If audio not yet loaded, queue the
+   * seek for after onload. Caller is responsible for ensuring play() / replay()
+   * is called separately if they want playback to resume.
+   */
+  function seekTo(seconds) {
+    if (destroyed) return;
+    if (storage.isDismissed()) return;
+    const target = Math.max(0, Number(seconds) || 0);
+    ensureHowl();
+    if (!howl) return;
+    // If duration is known and target is beyond, clamp.
+    let safeTarget = target;
+    try {
+      const dur = Number(howl.duration()) || 0;
+      if (dur > 0) safeTarget = Math.min(target, dur);
+    } catch { /* no-op */ }
+
+    // Howler's seek() works once metadata is loaded. If not yet, queue.
+    try {
+      const current = howl.seek();
+      // If seek returns the howl object itself or a non-number, we're not loaded yet.
+      if (typeof current !== 'number' || Number.isNaN(current)) {
+        pendingSeek = safeTarget;
+      } else {
+        howl.seek(safeTarget);
+      }
+    } catch {
+      pendingSeek = safeTarget;
+    }
+    storage.writeState({ state, volume, position: safeTarget });
+  }
+
+  // ── Dismiss (v3.1) ──────────────────────────────────────────────────────
+
+  function dismiss() {
+    storage.setDismissed(true);
+    if (howl && (state === 'playing' || state === 'replaying')) {
+      try { howl.pause(); } catch { /* no-op */ }
+    }
+    storage.writeState({ state: 'idle', volume, position: getPosition() });
+    stopPositionTracker();
+    if (onDismiss) onDismiss();
+  }
+
+  function isDismissed() {
+    return storage.isDismissed();
   }
 
   // ── Suppression ──────────────────────────────────────────────────────────
@@ -255,69 +337,8 @@ export function createThemeAudio(config) {
     suppressed = shouldSuppress;
 
     if (suppressed) {
-      // entering a suppressed route — fade out if playing, persist position, hide UI
       if (howl && (state === 'playing' || state === 'replaying')) {
         try { howl.fade(volume, 0, SUPPRESSION_FADE_MS); } catch { /* no-op */ }
         setTimeout(() => {
           if (!howl) return;
-          try { howl.pause(); howl.volume(volume); } catch { /* no-op */ }
-        }, SUPPRESSION_FADE_MS + 50);
-      }
-      stopPositionTracker();
-    } else if (!suppressed && (state === 'playing' || state === 'replaying')) {
-      // leaving a suppressed route while logically still playing —
-      // browser autoplay policy means we cannot resume without a fresh user click.
-      // Drop back to 'idle' so the UI shows the play affordance, position is preserved
-      // for resume on next user click.
-      setState('idle');
-    }
-  }
-
-  // ── Click handler (single entry point for the brand component) ──────────
-
-  function handleClick() {
-    if (suppressed || destroyed) return;
-    if (state === 'idle') play();
-    else if (state === 'playing' || state === 'replaying') pause();
-    else if (state === 'ended') replay();
-  }
-
-  // ── Lifecycle ────────────────────────────────────────────────────────────
-
-  function destroy() {
-    destroyed = true;
-    stopPositionTracker();
-    if (howl) {
-      try { howl.unload(); } catch { /* no-op */ }
-      howl = null;
-    }
-  }
-
-  // ── Init: apply suppression for current route, fire initial state ───────
-
-  if (typeof window !== 'undefined') {
-    applySuppression(window.location.pathname);
-  }
-  // fire initial render with reset/loaded state so the UI reflects current state
-  queueMicrotask(() => onStateChange(state));
-
-  return {
-    handleClick,
-    play,
-    pause,
-    replay,
-    setVolume,
-    applySuppression,
-    destroy,
-    get state() { return state; },
-    get volume() { return volume; },
-    get isSuppressed() { return suppressed; },
-  };
-}
-
-// ─── Convenience: detect prefers-reduced-motion ───────────────────────────
-
-export function prefersReducedMotion() {
-  if (typeof window === 'undefined' || !window.matchMedia) return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
+          try { howl.pause(); howl.volume(volume);
