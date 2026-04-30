@@ -361,4 +361,206 @@ const shouldRender = !!audioUrl;
     }
   }
 
-  /* ─── Icon ──────────────────────────────────────────────────�
+  /* ─── Icon ─────────────────────────────────────────────────────────── */
+  .fg-transmission__icon {
+    display: inline-flex;
+    color: var(--fg-text-primary, #FFFFFF);
+  }
+
+  .fg-arc {
+    opacity: 0.85;
+    animation-name: fg-flicker-arc;
+    animation-timing-function: steps(1, end);
+    animation-iteration-count: infinite;
+  }
+  .fg-arc--inner { animation-duration: 1.8s; }
+  .fg-arc--mid   { animation-duration: 2.3s; animation-delay: 0.2s; }
+  .fg-arc--outer { animation-duration: 2.6s; animation-delay: 0.4s; }
+
+  @keyframes fg-flicker-arc {
+    0%   { opacity: 0.95; }
+    40%  { opacity: 0.6; }
+    50%  { opacity: 0.95; }
+    70%  { opacity: 0.45; }
+    85%  { opacity: 0.8; }
+    100% { opacity: 0.95; }
+  }
+
+  .fg-slash {
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+
+  /* ─── Labels ───────────────────────────────────────────────────────── */
+  .fg-transmission__label { display: inline-block; }
+  .fg-label { display: none; }
+
+  .fg-state-idle      .fg-label--idle-primary { display: inline; }
+  .fg-state-playing   .fg-label--playing,
+  .fg-state-replaying .fg-label--playing { display: inline; }
+  .fg-state-ended     .fg-label--ended   { display: inline; }
+
+  @media (hover: hover) {
+    .fg-state-idle .fg-transmission__button:hover .fg-label--idle-primary,
+    .fg-state-idle .fg-transmission__button:focus-visible .fg-label--idle-primary {
+      display: none;
+    }
+    .fg-state-idle .fg-transmission__button:hover .fg-label--idle-hover,
+    .fg-state-idle .fg-transmission__button:focus-visible .fg-label--idle-hover {
+      display: inline;
+    }
+  }
+
+  /* ─── Attention pulse on initial page load ─────────────────────────── */
+  .fg-state-idle .fg-transmission__button {
+    animation: fg-attention-pulse 1.5s ease-out 0.8s 2;
+  }
+
+  @keyframes fg-attention-pulse {
+    0%   { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 0   rgba(153, 19, 47, 0.55); }
+    70%  { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 14px rgba(153, 19, 47, 0); }
+    100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 0   rgba(153, 19, 47, 0); }
+  }
+
+  /* ─── RX pulse — playing only ──────────────────────────────────────── */
+  .fg-transmission__rx {
+    display: none;
+    color: var(--fg-text-primary, #FFFFFF);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    font-size: 0.7rem;
+    animation: fg-rx-pulse 1s steps(2, end) infinite;
+  }
+  .fg-state-playing .fg-transmission__rx,
+  .fg-state-replaying .fg-transmission__rx { display: inline; }
+
+  @keyframes fg-rx-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* ─── Replay affordance — ended only ───────────────────────────────── */
+  .fg-transmission__replay {
+    display: none;
+    color: var(--fg-text-primary, #FFFFFF);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-size: 0.75rem;
+    text-transform: none;
+    letter-spacing: 0.04em;
+  }
+  .fg-state-ended .fg-transmission__replay { display: inline; }
+
+  /* ─── Waveform — pulses during playing ─────────────────────────────── */
+  .fg-transmission__waveform {
+    display: none;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+  }
+  .fg-state-playing .fg-transmission__waveform,
+  .fg-state-replaying .fg-transmission__waveform { display: inline-flex; }
+
+  .fg-wave {
+    display: inline-block;
+    width: 2px;
+    background: var(--fg-text-primary, #FFFFFF);
+    animation: fg-wave 1s ease-in-out infinite;
+    opacity: 0.95;
+  }
+  .fg-wave:nth-child(1) { animation-delay: 0s;    height: 6px; }
+  .fg-wave:nth-child(2) { animation-delay: 0.15s; height: 10px; }
+  .fg-wave:nth-child(3) { animation-delay: 0.3s;  height: 8px; }
+  .fg-wave:nth-child(4) { animation-delay: 0.45s; height: 12px; }
+
+  @keyframes fg-wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* ─── Progress bar (v3.1) ──────────────────────────────────────────── */
+  .fg-transmission__progress {
+    height: 14px;
+    padding: 5px 0; /* enlarges click target without enlarging visible bar */
+    cursor: pointer;
+    display: block;
+    user-select: none;
+  }
+  .fg-transmission__progress:focus-visible {
+    outline: 2px solid var(--fg-text-primary, #FFFFFF);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  .fg-transmission__progress-track {
+    width: 100%;
+    height: 4px;
+    background: var(--fg-bg-footer, #1D3035);
+    border: 1px solid rgba(153, 19, 47, 0.4);
+    border-radius: 2px;
+    overflow: hidden;
+    transition: height 150ms ease;
+  }
+  .fg-transmission__progress:hover .fg-transmission__progress-track,
+  .fg-transmission__progress:focus-visible .fg-transmission__progress-track {
+    height: 6px;
+  }
+  .fg-transmission__progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--fg-accent, #99132F);
+    transition: width 200ms linear;
+  }
+  /* Hide progress bar on idle (no track to scrub) — show on playing/ended */
+  .fg-state-idle .fg-transmission__progress {
+    display: none;
+  }
+  /* Mobile: show progress only when playing/ended (saves space) */
+  @media (max-width: 768px) {
+    .fg-transmission__progress {
+      height: 10px;
+      padding: 3px 0;
+    }
+  }
+
+  /* ─── Playing/replaying state — keep crimson fill, slight darkening ─── */
+  .fg-state-playing .fg-transmission__button,
+  .fg-state-replaying .fg-transmission__button {
+    background: #b3162e;
+    border-color: #b3162e;
+  }
+
+  /* ─── Ended state — desaturated outline, slash through icon ─────────── */
+  .fg-state-ended .fg-transmission__button {
+    background: transparent;
+    border-color: var(--fg-accent-faded, rgba(153, 19, 47, 0.4));
+    color: var(--fg-accent-faded, rgba(153, 19, 47, 0.4));
+  }
+  .fg-state-ended .fg-transmission__icon { color: var(--fg-accent-faded, rgba(153, 19, 47, 0.4)); }
+  .fg-state-ended .fg-slash { opacity: 1; }
+  .fg-state-ended .fg-transmission__replay { color: var(--fg-text-primary, #FFFFFF); }
+
+  /* ─── Reduced-motion variant ───────────────────────────────────────── */
+  .fg-reduced-motion .fg-arc,
+  .fg-reduced-motion .fg-transmission__rx,
+  .fg-reduced-motion .fg-wave,
+  .fg-reduced-motion .fg-state-idle .fg-transmission__button,
+  .fg-reduced-motion .fg-transmission__progress-fill {
+    animation: none !important;
+    transition: none !important;
+  }
+  .fg-reduced-motion .fg-arc { opacity: 0.85; }
+  .fg-reduced-motion .fg-transmission__rx { opacity: 1; }
+  .fg-reduced-motion .fg-wave { transform: scaleY(0.6); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fg-arc,
+    .fg-transmission__rx,
+    .fg-wave,
+    .fg-slash,
+    .fg-state-idle .fg-transmission__button,
+    .fg-transmission__progress-fill {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>
