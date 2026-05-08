@@ -7,6 +7,7 @@ import faq from './faq';
 import page from './page';
 import siteSettings from './siteSettings';
 import worldLocation from './worldLocation';
+import legalPage from './legalPage';
 
 export const schemaTypes = [
   siteSettings,
@@ -18,4 +19,5 @@ export const schemaTypes = [
   faq,
   page,
   worldLocation,
+legalPage,
 ];

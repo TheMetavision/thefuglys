@@ -6,6 +6,16 @@ export const client = createClient({
   dataset: import.meta.env.SANITY_DATASET || 'production',
   apiVersion: '2024-01-01',
   useCdn: true,
+  token: import.meta.env.SANITY_API_TOKEN,
+});
+
+// Non-CDN client for content that needs fresh reads (e.g. legal pages)
+export const liveClient = createClient({
+  projectId: import.meta.env.SANITY_PROJECT_ID || 'ngx60q2x',
+  dataset: import.meta.env.SANITY_DATASET || 'production',
+  apiVersion: '2024-01-01',
+  useCdn: false,
+  token: import.meta.env.SANITY_API_TOKEN,
 });
 
 const builder = imageUrlBuilder(client);
