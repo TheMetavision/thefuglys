@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
-import { getAllEpisodes, FALLBACK_EPISODES, urlFor } from '../lib/sanity';
+import { getAllEpisodes, FALLBACK_EPISODES, getAllBooks, FALLBACK_BOOKS, getBookCoverImage, urlFor } from '../lib/sanity';
 
 const rawEpisodes = await getAllEpisodes();
 
@@ -25,6 +25,9 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
         : '/images/fuglys-episode-placeholder.webp',
   }));
 }
+
+const rawBooks = await getAllBooks();
+const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
 ---
 
 <Layout title="Media — The Fuglys" description="Chaos, Mayhem and Mutant Madness – Watch It All Unfold! Exclusive videos, behind-the-scenes chaos, and explosive action from The Fuglys.">
@@ -117,31 +120,52 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
 
     <section class="section book-section">
       <div class="container">
-        <div class="split-grid">
-          <div class="split-image">
-            <img
-              src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=768,h=1152,fit=crop/Y4LxzG2RBzt2zBlj/09154fac-2e31-47aa-9b16-86c805fe36ca-dJo5MjGaenFqQVWx.png"
-              alt="The Fuglys book"
-              class="book-img"
-              loading="lazy"
-            />
+        <div class="book-header">
+          <div class="section-eyebrow">Graphic Novel Series</div>
+          <h2 class="section-heading">Survival's Messy. Their Story's Wilder.</h2>
+          <div class="heading-rule"></div>
+          <p class="book-intro">
+            Dive into <em>The Fuglys</em> graphic novel series — gritty, unpredictable, and packed with chaos.
+            Follow the misfit crew as they navigate the wasteland, face bizarre dangers, and somehow
+            stick together through it all.
+          </p>
+          <div class="genre-tags">
+            <span class="genre-tag">Dark Comedy</span>
+            <span class="genre-tag">Post-Apocalyptic</span>
+            <span class="genre-tag">Ages 14+</span>
+            <span class="genre-tag">Gritty Humour</span>
           </div>
-          <div class="split-text">
-            <h2 class="section-heading">Survival's Messy, But....Their Story's Wilder!</h2>
-            <div class="heading-rule"></div>
-            <p>
-              Dive into <em>The Fuglys</em> book series—gritty, unpredictable, and packed with chaos!
-              Follow the misfit crew as they navigate the wasteland, face bizarre dangers, and somehow
-              stick together through it all. Get your copy and embrace the madness!
-            </p>
-            <div class="genre-tags">
-              <span class="genre-tag">Dark Comedy</span>
-              <span class="genre-tag">Post-Apocalyptic</span>
-              <span class="genre-tag">Ages 14+</span>
-              <span class="genre-tag">Gritty Humour</span>
-            </div>
-            <span class="btn btn-coming-soon mt-btn">Coming Soon</span>
-          </div>
+        </div>
+
+        <div class="books-grid">
+          {books.map((book: any) => {
+            const volLabel = `VOL ${String(book.seriesOrder).padStart(2, '0')}`;
+            const coverUrl = getBookCoverImage(book, 600, 900);
+            return (
+              <article class="book-card">
+                <div class="book-cover-wrap">
+                  {coverUrl ? (
+                    <img
+                      src={coverUrl}
+                      alt={`${book.title} — Volume ${book.seriesOrder} cover`}
+                      class="book-cover-img"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div class="book-cover-placeholder">
+                      <span>Cover Coming</span>
+                    </div>
+                  )}
+                  <span class="badge-vol">{volLabel}</span>
+                  <span class="badge-coming-soon-overlay">Coming Soon</span>
+                </div>
+                <div class="book-body">
+                  <h3 class="book-card-title">"{book.title}"</h3>
+                  <p class="book-card-desc">{book.description}</p>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -410,49 +434,45 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
     line-height: 1.65;
   }
 
-  /* Book */
+  /* ===========================================================
+     BOOK SERIES — Sanity-driven graphic novel grid
+     =========================================================== */
   .book-section {
     background: #99132F;
+    padding: 80px 0 96px;
   }
 
-  .split-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 64px;
-    align-items: center;
+  .book-header {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 48px;
   }
 
-  .split-image {
-    perspective: 800px;
-  }
-
-  .book-img {
-    width: 100%;
-    border-radius: 4px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.3);
-    transform: rotate(-2deg);
-    transition: transform 0.4s ease, box-shadow 0.4s ease;
-    display: block;
-  }
-
-  .book-img:hover {
-    transform: rotate(0deg);
-    box-shadow: 0 28px 72px rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.35);
-  }
-
-  .section-heading {
+  .book-header .section-heading {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
     font-size: clamp(2rem, 4vw, 3rem);
     color: #fff;
+    letter-spacing: 0.02em;
     margin-bottom: 16px;
   }
 
-  .split-text p {
-    color: rgba(255,255,255,0.8);
-    font-size: 1.05rem;
-    line-height: 1.7;
+  .book-header .heading-rule {
+    width: 48px;
+    height: 3px;
+    background: #fff;
+    margin: 0 auto 24px;
   }
 
-  .split-text p em {
+  .book-intro {
+    color: rgba(255,255,255,0.85);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+
+  .book-intro em {
     color: #fff;
     font-style: italic;
   }
@@ -461,66 +481,147 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 32px;
-    margin-top: 20px;
+    justify-content: center;
+    margin: 0;
   }
 
   .genre-tag {
-    background: rgba(153, 19, 47, 0.15);
-    border: 1px solid rgba(153, 19, 47, 0.4);
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.25);
     border-radius: 999px;
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 700;
     font-size: 0.72rem;
     text-transform: uppercase;
-    color: #99132F;
+    letter-spacing: 0.08em;
+    color: #fff;
     padding: 6px 16px;
   }
 
-  .mt-btn {
-    display: inline-block;
+  .books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 28px;
+    direction: ltr;
   }
 
-  .btn-coming-soon {
+  .book-card {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .book-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,0.4);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  .book-cover-wrap {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 2/3;
+    background: #1a0a10;
+  }
+
+  .book-cover-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    filter: saturate(0.85) contrast(1.05);
+    transition: transform 0.5s ease, filter 0.4s ease;
+  }
+
+  .book-card:hover .book-cover-img {
+    transform: scale(1.04);
+    filter: saturate(1) contrast(1);
+  }
+
+  .book-cover-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a0a10 0%, #0a0408 100%);
+    color: rgba(255,255,255,0.4);
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.9rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 14px 32px;
-    border-radius: 2px;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.4);
-    border: 1px dashed rgba(255,255,255,0.2);
-    cursor: default;
   }
 
-  .book-section .btn-primary {
-    background: #263F44;
-    border: 2px solid #263F44;
+  .badge-vol {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.78);
+    backdrop-filter: blur(4px);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
     color: #fff;
+    padding: 5px 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.15);
   }
 
-  .book-section .btn-primary:hover {
-    background: #1D3035;
-    border-color: #1D3035;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  .badge-coming-soon-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.7);
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .book-body {
+    padding: 20px 20px 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .book-card-title {
+    font-size: 1.2rem;
+    color: #fff;
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+  }
+
+  .book-card-desc {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin: 0;
   }
 
   @media (max-width: 900px) {
     .episodes-grid {
       grid-template-columns: 1fr;
     }
-
-    .split-grid {
-      grid-template-columns: 1fr;
-      gap: 40px;
-    }
   }
 
   @media (max-width: 600px) {
-    .episode-body {
+    .episode-body,
+    .book-body {
       padding: 20px 18px 24px;
     }
 
@@ -542,6 +643,11 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
 
     .episode-card {
       margin-bottom: 0;
+    }
+
+    .books-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
     }
 
     .book-section {

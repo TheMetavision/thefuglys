@@ -386,7 +386,76 @@ export function getWorldLocationImage(loc: any, width = 1200, height = 680): str
   return '';
 }
 
+// ─── Books (Graphic Novel Series) ─────────────────────────────
+export async function getAllBooks() {
+  return client.fetch(`
+    *[_type == "book"] | order(seriesOrder asc) {
+      _id,
+      title,
+      "slug": slug.current,
+      description,
+      coverImage,
+      seriesOrder,
+      format,
+      orderUrl,
+      status,
+      publishedAt
+    }
+  `);
+}
+
+/** Returns a resolved image URL for a book cover (2:3 portrait crop) */
+export function getBookCoverImage(book: any, width = 600, height = 900): string {
+  if (book.coverImage?.asset) {
+    return urlFor(book.coverImage).width(width).height(height).fit('crop').auto('format').url();
+  }
+  return '';
+}
+
 // ─── Fallback Data ────────────────────────────────────────
+export const FALLBACK_BOOKS = [
+  {
+    _id: 'fallback-vol-1',
+    title: "Blister's Big Night",
+    slug: 'blisters-big-night',
+    description: "When the gang's hideout is overrun with toxic fumes, they realise the culprit is none other than Blister, the most revolting possum in the wasteland. Desperate for fresh air, they set off on a chaotic mission to relocate their foul-smelling frenemy — only to discover he might be the key to repelling a gang of raiders.",
+    seriesOrder: 1,
+    format: 'graphic-novel',
+    status: 'coming-soon',
+    coverImage: null,
+  },
+  {
+    _id: 'fallback-vol-2',
+    title: "Axel's Almost Apocalypse",
+    slug: 'axels-almost-apocalypse',
+    description: "Axel gets his hands on an old, rusty detonator and — against every warning — decides to push the button. When nothing happens, he assumes it's broken. But as strange tremors begin shaking the wasteland, the gang scrambles to stop whatever disaster Axel may have just unleashed.",
+    seriesOrder: 2,
+    format: 'graphic-novel',
+    status: 'coming-soon',
+    coverImage: null,
+  },
+  {
+    _id: 'fallback-vol-3',
+    title: 'The Great Trash Heist',
+    slug: 'the-great-trash-heist',
+    description: "Clyde stumbles upon the ultimate jackpot — an untouched landfill rumoured to be loaded with pre-apocalypse treasure. The only problem? A rival gang of scavengers has already claimed it. Flint hatches a ridiculous plan to outwit them, but things quickly spiral into an all-out junkyard battle.",
+    seriesOrder: 3,
+    format: 'graphic-novel',
+    status: 'coming-soon',
+    coverImage: null,
+  },
+  {
+    _id: 'fallback-vol-4',
+    title: "Daisy's Lost & Found",
+    slug: 'daisys-lost-and-found',
+    description: "While exploring the wasteland, Daisy discovers an abandoned relic from the past — a rusted-out amusement park hidden in the ruins. Determined to bring some joy to the crew, she convinces them to fix it up. But as strange noises echo from the shadows, they begin to wonder if they're really alone...",
+    seriesOrder: 4,
+    format: 'graphic-novel',
+    status: 'coming-soon',
+    coverImage: null,
+  },
+];
+
 export const FALLBACK_EPISODES = [
   {
     title: "Blister's Big Night",
