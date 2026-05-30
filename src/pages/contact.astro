@@ -34,16 +34,8 @@ import Newsletter from '../components/Newsletter.astro';
         <div class="contact-layout">
 
           <div class="contact-form-col">
-            <form
-              class="contact-form"
-              id="contact-form"
-              action="https://api.web3forms.com/submit"
-              method="POST"
-              novalidate
-            >
-              <input type="hidden" name="access_key" value="ae5f8d86-af04-457f-bca3-73d9041cc56c" />
+            <form class="contact-form" id="contact-form" novalidate>
               <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
-              <input type="hidden" name="from_name" value="The Fuglys Contact Form" />
 
               <div class="form-group">
                 <label for="name" class="form-label">Name</label>
@@ -65,7 +57,10 @@ import Newsletter from '../components/Newsletter.astro';
                 <textarea id="message" name="message" class="form-input form-textarea" placeholder="Tell us what's on your mind..." required></textarea>
               </div>
 
-              <button type="submit" class="btn btn-primary form-submit">Send Message</button>
+              <button type="submit" class="btn btn-primary form-submit" id="form-submit">
+                <span class="submit-text">Send Message</span>
+                <span class="submit-sending" style="display:none;">Sending...</span>
+              </button>
             </form>
 
             <div class="form-success-msg" id="form-success" aria-live="polite">
@@ -88,6 +83,29 @@ import Newsletter from '../components/Newsletter.astro';
                   <div class="transmission__actions">
                     <a class="transmission__btn transmission__btn--ghost" href="/meet-the-misfits">Meet the Crew</a>
                     <a class="transmission__btn transmission__btn--solid" href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener">Watch the Chaos</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-error-msg" id="form-error" aria-live="polite" style="display:none;">
+              <div class="transmission transmission--error">
+                <span class="transmission__tag">// Signal lost</span>
+
+                <div class="transmission__body">
+                  <div class="transmission__badge transmission__badge--error" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </div>
+                  <div>
+                    <div class="transmission__label">Couldn't send</div>
+                    <h3 class="transmission__headline">Something jammed the signal.</h3>
+                    <p class="transmission__sub">Try again, or email <a href="mailto:chaos@thefuglys.com" style="color:inherit;text-decoration:underline;">chaos@thefuglys.com</a> directly.</p>
+                  </div>
+                </div>
+
+                <div class="transmission__footer">
+                  <div class="transmission__actions">
+                    <button type="button" class="transmission__btn transmission__btn--solid" id="retry-btn">Try Again</button>
                   </div>
                 </div>
               </div>
@@ -152,43 +170,73 @@ import Newsletter from '../components/Newsletter.astro';
   <Footer />
 </Layout>
 
-<script>
-  const form = document.getElementById('contact-form') as HTMLFormElement | null;
-  const successMsg = document.getElementById('form-success');
+<script is:inline>
+  (function () {
+    var form = document.getElementById('contact-form');
+    if (!form) return;
+    var submitBtn = document.getElementById('form-submit');
+    var sendText = form.querySelector('.submit-text');
+    var sending = form.querySelector('.submit-sending');
+    var successEl = document.getElementById('form-success');
+    var errorEl = document.getElementById('form-error');
+    var retryBtn = document.getElementById('retry-btn');
 
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = form.querySelector('.form-submit') as HTMLButtonElement;
-    const originalText = btn.textContent;
-    btn.textContent = 'Sending...';
-    btn.disabled = true;
-
-    try {
-      const formData = new FormData(form);
-      const userSubject = formData.get("subject") || "General";
-      formData.delete("subject");
-      formData.append("subject", `The Fuglys - ${userSubject}`);
-      const response = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        form.style.display = 'none';
-        if (successMsg) successMsg.style.display = 'block';
-      } else {
-        btn.textContent = originalText;
-        btn.disabled = false;
-        alert('Something went wrong. Please try again or email chaos@thefuglys.com directly.');
-      }
-    } catch (err) {
-      btn.textContent = originalText;
-      btn.disabled = false;
-      alert('Failed to send. Please email chaos@thefuglys.com directly.');
+    function showSending(on) {
+      if (submitBtn) submitBtn.disabled = on;
+      if (sendText) sendText.style.display = on ? 'none' : '';
+      if (sending) sending.style.display = on ? '' : 'none';
     }
-  });
+
+    function show(el) { if (el) el.style.display = ''; }
+    function hide(el) { if (el) el.style.display = 'none'; }
+
+    function resetToForm() {
+      hide(successEl);
+      hide(errorEl);
+      show(form);
+      form.reset();
+      showSending(false);
+    }
+
+    if (retryBtn) retryBtn.addEventListener('click', resetToForm);
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      showSending(true);
+
+      var data = new FormData(form);
+      var payload = {
+        name: (data.get('name') || '').toString().trim(),
+        email: (data.get('email') || '').toString().trim(),
+        subject: (data.get('subject') || '').toString().trim(),
+        message: (data.get('message') || '').toString().trim(),
+        // Honeypot is a checkbox — only present in FormData when checked.
+        // Bots typically tick or fill every input including hidden ones.
+        botcheck: data.get('botcheck') ? 'on' : '',
+        pageUri: window.location.href,
+      };
+
+      try {
+        var res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        var json = await res.json().catch(function () { return {}; });
+        if (res.ok && json.success) {
+          hide(form);
+          show(successEl);
+        } else {
+          throw new Error((json && json.error) || 'Submission failed');
+        }
+      } catch (err) {
+        hide(form);
+        show(errorEl);
+      } finally {
+        showSending(false);
+      }
+    });
+  })();
 </script>
 
 <style>
@@ -317,6 +365,21 @@ import Newsletter from '../components/Newsletter.astro';
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Error variant — same shape as the transmission card, but in alarm red */
+  .form-error-msg { display: none; }
+  .transmission--error {
+    border-left-color: #c92a45;
+    background: #2a1a1f;
+  }
+  .transmission--error .transmission__label,
+  .transmission--error .transmission__tag { color: #ff6a85; }
+  .transmission__badge--error { background: #c92a45; }
+  .transmission__btn[type="button"] {
+    border: 0;
+    cursor: pointer;
+    font: inherit;
   }
 
   .transmission__label {
