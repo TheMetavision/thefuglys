@@ -109,11 +109,17 @@ function renderEmailShell({ brandName, logoUrl, headerBg, accent, siteUrl, prehe
     : `<span style="font-size:20px;font-weight:800;letter-spacing:1px;color:#ffffff;">${escapeHtml(brandName)}</span>`;
   const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '') : '';
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>:root{color-scheme:light dark;supported-color-schemes:light dark;}</style>
+</head>
 <body style="margin:0;padding:24px;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a2e;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader || '')}</div>
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <tr><td align="center" style="padding:24px 28px;background:${bg};">${header}</td></tr>
+    <tr><td align="center" bgcolor="${bg}" style="padding:24px 28px;background:${bg};">${header}</td></tr>
     <tr><td style="height:3px;background:${rule};font-size:0;line-height:0;">&nbsp;</td></tr>
     <tr><td style="padding:28px;">${innerHtml}</td></tr>
     <tr><td style="padding:18px 28px;border-top:1px solid #eee;font-size:12px;line-height:1.6;color:#9aa0aa;">
