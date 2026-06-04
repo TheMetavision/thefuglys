@@ -1,79 +1,72 @@
 ---
 /**
- * src/pages/order-success.astro
+ * src/pages/order-success.astro  (The Fuglys)
  *
- * Post-checkout landing page. Stripe redirects here after payment.
- * Customise the brand name, colours, and links per brand.
- *
- * Replace:
- *   The Fuglys  → e.g. "Cats On Crack"
- *   #D4A033      → e.g. "#FF00FF"
- *   /merch    → e.g. "/shop" or "/merch"
- *   /    → e.g. "/"
+ * Post-checkout landing page. Stripe redirects here after payment with
+ * ?session_id=... — which triggers the cart clear. Uses the site's global
+ * tokens + .btn classes so it matches the rest of The Fuglys.
  */
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Order Confirmed — The Fuglys">
-  <section style={`
+<Layout title="Order Confirmed" description="Your Fuglys order is locked in.">
+  {/* Empty the cart once Stripe redirects back with a session_id.
+      is:inline so it runs during parse, before the CartDrawer island hydrates. */}
+  <script is:inline>
+    if (new URLSearchParams(window.location.search).get('session_id')) {
+      try { localStorage.removeItem('fuglys-cart-v1'); } catch (e) {}
+    }
+  </script>
+
+  <section class="oc-section">
+    <div class="oc-inner">
+      <div class="oc-check">&#10003;</div>
+      <h1 class="oc-title">Order Locked In</h1>
+      <div class="heading-rule oc-rule"></div>
+      <p class="oc-body">
+        Thanks for the haul. A confirmation email is on its way, and we'll send
+        tracking the moment your gear ships out of the wasteland.
+      </p>
+      <div class="oc-actions">
+        <a href="/merch" class="btn btn-primary">Keep Scavenging</a>
+        <a href="/" class="btn btn-outline">Back to Base</a>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .oc-section {
     min-height: 70vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 60px 24px;
     text-align: center;
-  `}>
-    <div style="max-width: 520px;">
-      <div style={`
-        font-size: 64px;
-        margin-bottom: 24px;
-      `}>&#10003;</div>
-
-      <h1 style={`
-        font-size: 36px;
-        font-weight: 700;
-        color: #D4A033;
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        margin: 0 0 16px;
-      `}>Order Confirmed</h1>
-
-      <p style={`
-        font-size: 16px;
-        line-height: 1.7;
-        color: #ccc;
-        margin: 0 0 32px;
-      `}>
-        Thanks for your order! You'll receive a confirmation email shortly.
-        Your items are being prepared and you'll get tracking details once they ship.
-      </p>
-
-      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-        <a href="/merch" style={`
-          display: inline-block;
-          padding: 12px 28px;
-          background: #D4A033;
-          color: #000;
-          text-decoration: none;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          border-radius: 4px;
-          font-size: 14px;
-        `}>Continue Shopping</a>
-
-        <a href="/" style={`
-          display: inline-block;
-          padding: 12px 28px;
-          background: transparent;
-          color: #ccc;
-          text-decoration: none;
-          font-weight: 600;
-          border: 1px solid #333;
-          border-radius: 4px;
-          font-size: 14px;
-        `}>Back to Home</a>
-      </div>
-    </div>
-  </section>
-</Layout>
+  }
+  .oc-inner { max-width: 520px; }
+  .oc-check {
+    font-size: 64px;
+    line-height: 1;
+    color: var(--color-primary-hover);
+    margin-bottom: 20px;
+  }
+  .oc-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: var(--color-text);
+    margin-bottom: 16px;
+  }
+  .oc-rule { margin: 0 auto 24px; }
+  .oc-body {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--color-text-muted);
+    margin: 0 0 32px;
+  }
+  .oc-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+</style>

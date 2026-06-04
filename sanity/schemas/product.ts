@@ -55,6 +55,22 @@ export default defineType({
       title: 'Care Instructions',
       type: 'string',
     }),
+    // ADDED (COC parity) — longer editorial copy rendered on the PDP
+    defineField({
+      name: 'designStory',
+      title: 'Design Story',
+      type: 'text',
+      rows: 4,
+      description: 'Longer-form story behind the design (rendered on the product page).',
+    }),
+    // ADDED (COC parity) — optional link to a Fuglys character
+    defineField({
+      name: 'featuredCharacter',
+      title: 'Featured Character',
+      type: 'reference',
+      to: [{ type: 'character' }],
+      description: 'Optional — links this design to a Fuglys character.',
+    }),
     defineField({
       name: 'category',
       title: 'Category',
@@ -85,6 +101,8 @@ export default defineType({
                   { title: 'Socks', value: 'socks' },
                   { title: '20oz Tumbler', value: 'tumbler' },
                   { title: '16oz Can Glass', value: 'glass' },
+                  { title: 'Cap', value: 'cap' },   // ADDED — Scavenger Cap
+                  { title: 'Mug', value: 'mug' },   // ADDED — Scrap Metal Mug
                 ],
               },
               validation: (r) => r.required(),
@@ -122,6 +140,7 @@ export default defineType({
                 list: [
                   'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'One Size',
                   '16 oz', '16 oz With Lid & Straw', '20 oz',
+                  '11 oz', '15 oz',   // ADDED — ceramic mug sizes
                 ],
               },
             }),
@@ -222,17 +241,22 @@ export default defineType({
       initialValue: true,
     }),
     defineField({
-      name: 'fmFeatured',
-      title: 'Featured on Wyrmfuel FM',
-      description: 'Display this product on the /wyrmfuel-fm hub in the "Merch from the Station" section',
-      type: 'boolean',
-      initialValue: false,
-    }),
-    defineField({
       name: 'sortOrder',
       title: 'Sort Order',
       type: 'number',
       initialValue: 0,
+    }),
+    // ADDED (COC parity) — SEO meta read by the PDP <head>
+    defineField({
+      name: 'seoTitle',
+      title: 'SEO Title',
+      type: 'string',
+    }),
+    defineField({
+      name: 'seoDescription',
+      title: 'SEO Description',
+      type: 'text',
+      rows: 2,
     }),
   ],
   orderings: [

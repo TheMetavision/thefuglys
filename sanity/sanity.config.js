@@ -28,6 +28,7 @@ export default defineConfig({
             S.divider(),
             S.documentTypeListItem('product').title('Products'),
             S.documentTypeListItem('category').title('Categories'),
+            S.documentTypeListItem('order').title('Orders'),
             S.divider(),
             S.documentTypeListItem('faq').title('FAQs'),
             S.documentTypeListItem('page').title('Pages'),

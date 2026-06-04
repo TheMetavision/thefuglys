@@ -3,537 +3,125 @@ import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
+import { getAllProducts, urlFor } from '../lib/sanity';
 
-const categories = [
-  {
-    label: "Apparel",
-    items: [
-      { name: "Fuglys Crew Tee", desc: "Worn-out wasteland style. 100% cotton, screen-printed crew neck.", status: "coming-soon", price: null },
-      { name: "Outlaw Hoodie", desc: "Heavy-duty fleece with the Fuglys crest on the back. Built for the cold nights.", status: "coming-soon", price: null },
-      { name: "Scavenger Cap", desc: "Distressed 5-panel cap. Keep the wasteland sun out of your eyes.", status: "coming-soon", price: null },
-    ],
-  },
-  {
-    label: "Collectibles",
-    items: [
-      { name: "Character Sticker Pack", desc: "12 individual die-cut stickers featuring the full Fuglys roster.", status: "coming-soon", price: null },
-      { name: "Blister Enamel Pin", desc: "Limited-run hard enamel pin. The possum you never wanted, now on your jacket.", status: "coming-soon", price: null },
-      { name: "Wasteland Poster Set", desc: "Set of 3 A3 art prints, each featuring a different crew member.", status: "coming-soon", price: null },
-    ],
-  },
-  {
-    label: "Accessories",
-    items: [
-      { name: "Dog-Tag Keychain", desc: "Stamped metal keychain with the Fuglys motto on one side.", status: "coming-soon", price: null },
-      { name: "Crew Patch Set", desc: "Embroidered iron-on patches. Rep the wasteland wherever you go.", status: "coming-soon", price: null },
-      { name: "Scrap Metal Mug", desc: "Ceramic mug with a distressed Fuglys print. 11oz.", status: "coming-soon", price: null },
-    ],
-  },
-];
+const products = await getAllProducts();
 
-function getBadgeLabel(status: string) {
-  if (status === 'available') return 'Available';
-  if (status === 'sold-out') return 'Sold Out';
-  return 'Coming Soon';
+/* Card image: prefer the Sanity heroImage; fall back to the first variant's
+   first colour mockup (a plain Printful URL), then the variant thumbnail. */
+function cardImage(p) {
+  if (p.heroImage) {
+    try { return urlFor(p.heroImage).width(600).height(600).fit('crop').url(); } catch (_) {}
+  }
+  const v = p.variants?.[0];
+  return v?.colourImages?.[0]?.imageUrl || v?.printfulImageUrl || '';
 }
 ---
 
-<Layout title="Merch — The Fuglys" description="Bring the wasteland home. Official Fuglys merch featuring gritty character designs, rebellious apparel, collectibles, and accessories.">
+<Layout title="Merch" description="Official The Fuglys merch — apparel, accessories and collectibles dragged straight out of the wasteland.">
   <Nav />
 
-  <main>
-    <section class="page-hero">
+  <main class="merch-main">
+
+    <section class="hero-banner">
+      <div class="hero-noise"></div>
+      <div class="container hero-inner">
+        <p class="hero-eyebrow">Official Merch Drop</p>
+        <h1 class="hero-title">Wasteland Gear</h1>
+        <p class="hero-sub">Rep the wasteland.</p>
+      </div>
+    </section>
+
+    <section class="section products-section">
       <div class="container">
-        <div class="page-hero-grid">
-          <div class="page-hero-text">
-            <div class="section-eyebrow">Official Merch</div>
-            <h1 class="page-title">Gear Up for the Wasteland</h1>
-            <div class="heading-rule"></div>
-            <p class="page-intro">Bring the chaos home. Official Fuglys merch featuring gritty character designs, rebellious apparel, and must-have accessories.</p>
-          </div>
-          <div class="page-hero-visual">
-            <img
-              src="/images/fuglys-merch-hero.webp"
-              alt="The Fuglys wasteland market stall - official merch on display with characters browsing t-shirts, stickers and mugs"
-              class="hero-merch-img"
-            />
-          </div>
+        <div class="section-header">
+          <div class="header-rule"></div>
+          <h2 class="section-title">The Goods</h2>
+          <div class="header-rule"></div>
         </div>
-      </div>
-    </section>
 
-    <section class="section store-banner-section">
-      <div class="container">
-        <div class="store-banner-inner">
-          <p class="store-banner-eyebrow">Merch Drop Incoming</p>
-          <h2 class="store-banner-heading">The Wasteland Store is Almost Open</h2>
-          <div class="store-banner-rule"></div>
+        {products.length === 0 ? (
+          <p class="empty-note">New gear incoming. Check back soon.</p>
+        ) : (
+          <div class="products-grid">
+            {products.map((p) => (
+              <a class="product-card fade-in" href={`/product/${p.slug}`}>
+                <div class="card-worn-edge top-edge"></div>
+                <div class="card-worn-edge bottom-edge"></div>
 
-          <p class="countdown-label">Store opens in</p>
-          <div class="countdown" id="countdown" aria-label="Countdown to merch launch">
-            <div class="countdown-block">
-              <span class="countdown-value" id="cd-days">--</span>
-              <span class="countdown-unit">Days</span>
-            </div>
-            <span class="countdown-sep">:</span>
-            <div class="countdown-block">
-              <span class="countdown-value" id="cd-hours">--</span>
-              <span class="countdown-unit">Hours</span>
-            </div>
-            <span class="countdown-sep">:</span>
-            <div class="countdown-block">
-              <span class="countdown-value" id="cd-mins">--</span>
-              <span class="countdown-unit">Mins</span>
-            </div>
-            <span class="countdown-sep">:</span>
-            <div class="countdown-block">
-              <span class="countdown-value" id="cd-secs">--</span>
-              <span class="countdown-unit">Secs</span>
-            </div>
-          </div>
-          <p class="countdown-note">Early access for subscribers only</p>
+                <div class="product-thumb">
+                  <div class="thumb-bg-noise"></div>
+                  <img class="product-img" src={cardImage(p)} alt={p.name} loading="lazy" />
+                </div>
 
-          <p class="store-banner-body">Character apparel. Enamel pins. Art prints. Get on the list — don't get left outside the fence.</p>
-          <a href="#newsletter" class="btn btn-dark">Notify Me</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section merch-section">
-      <div class="container">
-        {categories.map(cat => (
-          <div class="merch-category">
-            <div class="category-header">
-              <h2 class="category-title">{cat.label}</h2>
-              <div class="category-rule"></div>
-            </div>
-            <div class="merch-grid">
-              {cat.items.map(item => (
-                <article class="merch-card">
-                  <div class="merch-img-panel">
-                    <div class="merch-img-noise"></div>
-                    <span class="merch-img-label">{item.name}</span>
-                    <div class="merch-img-accent"></div>
-                    <span class={`status-badge status-badge--${item.status}`}>{getBadgeLabel(item.status)}</span>
+                <div class="product-info">
+                  <h3>{p.name}</h3>
+                  <p class="product-desc">{p.tagline || p.backstory}</p>
+                  <div class="product-footer">
+                    <span class="product-price">{p.fromPrice ? `from £${p.fromPrice.toFixed(2)}` : ''}</span>
+                    <span class="shop-btn">Shop</span>
                   </div>
-                  <div class="merch-card-inner">
-                    <h3 class="merch-name">{item.name}</h3>
-                    {item.price
-                      ? <p class="merch-price">{item.price}</p>
-                      : <p class="merch-price merch-price--tba">Price TBA</p>
-                    }
-                    <p class="merch-desc">{item.desc}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
+                </div>
+              </a>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </section>
 
-    <div id="newsletter">
-      <Newsletter />
-    </div>
+    <Newsletter />
+
   </main>
 
   <Footer />
 </Layout>
 
 <style>
-  .hero-merch-img {
-    width: 100%;
-    height: auto;
-    border-radius: 4px;
-    display: block;
-    object-fit: cover;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  }
+  /* Fuglys tokens: bg #263F44 · surface #1e3238 · accent #99132f / hover #b3162e
+     · text #fff. Display = Barlow Condensed, card titles = Bebas Neue. */
+  .merch-main { background: var(--color-bg); }
 
+  /* ── HERO ── */
+  .hero-banner { position: relative; padding: 120px 0 80px; background: #1e3238; text-align: center; overflow: hidden; }
+  .hero-noise { position: absolute; inset: 0; background:
+      radial-gradient(ellipse at 30% 50%, rgba(179,22,46,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 30%, rgba(153,19,47,0.10) 0%, transparent 50%); pointer-events: none; }
+  .hero-inner { position: relative; }
+  .hero-eyebrow { font-family: var(--font-condensed); font-weight: 700; font-size: 0.9rem; letter-spacing: 5px; color: var(--color-primary-hover); text-transform: uppercase; margin-bottom: 12px; }
+  .hero-title { font-family: var(--font-condensed); font-weight: 900; font-size: clamp(3.5rem, 9vw, 8rem); color: #fff; line-height: 0.95; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px;
+      text-shadow: 4px 4px 0 rgba(153,19,47,0.5), 8px 8px 0 rgba(153,19,47,0.2), 0 0 60px rgba(179,22,46,0.25); }
+  .hero-sub { font-family: var(--font-condensed); font-weight: 700; font-size: 1.1rem; color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase; }
 
-  /* Merch section */
-  .merch-section {
-    background: #99132F;
-  }
+  /* ── PRODUCTS ── */
+  .products-section { background: var(--color-bg); padding: 100px 0; }
+  .section-header { display: flex; align-items: center; gap: 24px; margin-bottom: 60px; }
+  .header-rule { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(179,22,46,0.5) 60%); }
+  .header-rule:last-child { background: linear-gradient(270deg, transparent, rgba(179,22,46,0.5) 60%); }
+  .section-title { font-family: var(--font-condensed); font-weight: 900; font-size: clamp(2rem, 4vw, 3.5rem); color: #fff; letter-spacing: 2px; white-space: nowrap; text-transform: uppercase; text-shadow: 0 0 30px rgba(179,22,46,0.3); }
+  .empty-note { text-align: center; color: var(--color-text-muted); font-family: var(--font-condensed); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
 
-  .merch-category {
-    margin-bottom: 64px;
-  }
+  .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 32px; }
 
-  .merch-category:last-of-type {
-    margin-bottom: 0;
-  }
+  .product-card { position: relative; background: var(--color-surface); border: 1px solid rgba(179,22,46,0.18); overflow: visible; transition: transform 0.3s ease, box-shadow 0.3s ease; text-decoration: none; display: block; }
+  .card-worn-edge { position: absolute; left: -2px; right: -2px; height: 4px; z-index: 2; background: var(--color-bg);
+    clip-path: polygon(0% 0%,3% 100%,6% 0%,9% 100%,12% 0%,15% 100%,18% 0%,21% 100%,24% 0%,27% 100%,30% 0%,33% 100%,36% 0%,39% 100%,42% 0%,45% 100%,48% 0%,51% 100%,54% 0%,57% 100%,60% 0%,63% 100%,66% 0%,69% 100%,72% 0%,75% 100%,78% 0%,81% 100%,84% 0%,87% 100%,90% 0%,93% 100%,96% 0%,100% 100%,100% 0%); }
+  .top-edge { top: -2px; }
+  .bottom-edge { bottom: -2px; transform: rotate(180deg); }
+  .product-card:hover { transform: translateY(-8px) rotate(-0.3deg); box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(179,22,46,0.35), 0 0 30px rgba(179,22,46,0.15); }
 
-  .category-header {
-    margin-bottom: 32px;
-  }
+  .product-thumb { position: relative; aspect-ratio: 1; overflow: hidden; background: #16262b; }
+  .thumb-bg-noise { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E"); background-size: 200px 200px; pointer-events: none; }
+  .product-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
-  .category-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    text-transform: uppercase;
-    color: #fff;
-    margin-bottom: 12px;
-  }
-
-  .category-rule {
-    width: 100%;
-    height: 1px;
-    background: rgba(153, 19, 47, 0.3);
-  }
-
-  /* Product grid */
-  .merch-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-
-  .merch-card {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 4px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .merch-card:hover {
-    border-color: #99132F;
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  }
-
-  .merch-img-panel {
-    position: relative;
-    background: #1D3035;
-    height: 180px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-
-  .merch-img-noise {
-    position: absolute;
-    inset: 0;
-    background-image:
-      repeating-linear-gradient(
-        0deg,
-        rgba(255,255,255,0.015) 0px,
-        rgba(255,255,255,0.015) 1px,
-        transparent 1px,
-        transparent 4px
-      );
-    pointer-events: none;
-    transition: transform 0.4s ease;
-  }
-
-  .merch-card:hover .merch-img-noise {
-    transform: scale(1.05);
-  }
-
-  .merch-img-accent {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: #99132F;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-  }
-
-  .merch-card:hover .merch-img-accent {
-    opacity: 1;
-  }
-
-  .merch-img-label {
-    position: relative;
-    z-index: 1;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 800;
-    font-size: clamp(1rem, 2vw, 1.3rem);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #ffffff;
-    text-align: center;
-    padding: 0 20px;
-    line-height: 1.25;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
-  }
-
-  /* Status badges */
-  .status-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 2;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 4px 12px;
-    border-radius: 2px;
-  }
-
-  .status-badge--available {
-    background: rgba(153, 19, 47, 0.85);
-    color: #fff;
-  }
-
-  .status-badge--coming-soon {
-    background: rgba(242, 158, 66, 0.15);
-    color: #f29e42;
-    border: 1px solid rgba(242, 158, 66, 0.3);
-  }
-
-  .status-badge--sold-out {
-    background: rgba(226, 75, 74, 0.15);
-    color: #e24b4a;
-    border: 1px solid rgba(226, 75, 74, 0.3);
-  }
-
-  /* Card body */
-  .merch-card-inner {
-    padding: 24px 28px 28px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .merch-name {
-    font-size: 1.2rem;
-    color: #fff;
-    margin-bottom: 6px;
-  }
-
-  .merch-price {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #fff;
-    margin-bottom: 10px;
-  }
-
-  .merch-price--tba {
-    font-family: 'Barlow', sans-serif;
-    font-weight: 400;
-    font-style: italic;
-    font-size: 0.9rem;
-    color: rgba(255,255,255,0.35);
-  }
-
-  .merch-desc {
-    font-size: 0.9rem;
-    color: rgba(255,255,255,0.75);
-    line-height: 1.6;
-  }
-
-  /* Store coming soon banner */
-  .store-banner-section {
-    background: #99132F;
-    padding: 80px 0;
-  }
-
-  .store-banner-inner {
-    max-width: 640px;
-    margin: 0 auto;
-    text-align: center;
-  }
-
-  .store-banner-eyebrow {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 12px;
-  }
-
-  .store-banner-heading {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
-    text-transform: uppercase;
-    color: #fff;
-    margin-bottom: 20px;
-    line-height: 1.1;
-  }
-
-  .store-banner-rule {
-    width: 48px;
-    height: 3px;
-    background: #fff;
-    margin: 0 auto 24px;
-  }
-
-  .store-banner-body {
-    font-family: 'Barlow', sans-serif;
-    font-weight: 400;
-    font-size: 1.05rem;
-    color: rgba(255,255,255,0.75);
-    line-height: 1.7;
-    margin-bottom: 32px;
-  }
-
-  .btn-dark {
-    display: inline-block;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.88rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 14px 32px;
-    border-radius: 2px;
-    text-decoration: none;
-    background: #263F44;
-    color: #fff;
-    border: 1px solid #263F44;
-    transition: all 0.3s ease;
-  }
-
-  .btn-dark:hover {
-    background: #1e3238;
-    border-color: #1e3238;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  /* Countdown Timer */
-  .countdown-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.75rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
-    margin-bottom: 12px;
-  }
-
-  .countdown {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .countdown-block {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 60px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 4px;
-    padding: 10px 12px 8px;
-  }
-
-  .countdown-value {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    color: #fff;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .countdown-unit {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600;
-    font-size: 0.6rem;
-    color: rgba(255,255,255,0.4);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-top: 4px;
-  }
-
-  .countdown-sep {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: 1.6rem;
-    color: rgba(255,255,255,0.25);
-    line-height: 1;
-    padding-bottom: 14px;
-  }
-
-  .countdown-note {
-    font-family: 'Barlow', sans-serif;
-    font-size: 0.78rem;
-    color: rgba(255,255,255,0.35);
-    font-style: italic;
-    margin-bottom: 28px;
-  }
+  .product-info { padding: 20px 22px 22px; border-top: 1px solid rgba(179,22,46,0.12); }
+  .product-info h3 { font-family: var(--font-display); font-size: 1.5rem; color: #fff; letter-spacing: 1px; margin-bottom: 6px; text-transform: none; }
+  .product-desc { font-size: 0.86rem; color: var(--color-text-subtle); margin-bottom: 16px; line-height: 1.5; min-height: 2.4em; }
+  .product-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .product-price { font-family: var(--font-display); font-size: 1.5rem; color: #fff; letter-spacing: 1px; }
+  .shop-btn { font-family: var(--font-condensed); font-weight: 700; font-size: 0.78rem; letter-spacing: 2px; text-transform: uppercase; color: var(--color-primary-hover); border: 1px solid rgba(179,22,46,0.45); padding: 6px 16px; transition: all 0.25s ease; }
+  .product-card:hover .shop-btn { background: var(--color-primary); border-color: var(--color-primary-hover); color: #fff; box-shadow: 0 0 12px rgba(179,22,46,0.25); }
 
   @media (max-width: 768px) {
-    .countdown-block {
-      min-width: 50px;
-      padding: 8px 8px 6px;
-    }
-
-    .category-title {
-      font-size: 1.3rem;
-    }
-
-    .merch-grid {
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    .merch-card {
-      margin-bottom: 0;
-    }
-
-    .store-banner-section {
-      padding: 56px 0;
-    }
-
-    .store-banner-heading {
-      font-size: 1.6rem;
-    }
+    .products-grid { grid-template-columns: 1fr; }
   }
 </style>
-
-<script>
-  const LAUNCH_DATE = new Date("2026-06-12T00:00:00Z");
-
-  function updateCountdown() {
-    const now = new Date();
-    const diff = LAUNCH_DATE.getTime() - now.getTime();
-
-    const daysEl = document.getElementById("cd-days");
-    const hoursEl = document.getElementById("cd-hours");
-    const minsEl = document.getElementById("cd-mins");
-    const secsEl = document.getElementById("cd-secs");
-
-    if (!daysEl || !hoursEl || !minsEl || !secsEl) return;
-
-    if (diff <= 0) {
-      daysEl.textContent = "00";
-      hoursEl.textContent = "00";
-      minsEl.textContent = "00";
-      secsEl.textContent = "00";
-      return;
-    }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-    daysEl.textContent = String(days).padStart(2, "0");
-    hoursEl.textContent = String(hours).padStart(2, "0");
-    minsEl.textContent = String(mins).padStart(2, "0");
-    secsEl.textContent = String(secs).padStart(2, "0");
-  }
-
-  updateCountdown();
-  setInterval(updateCountdown, 1000);
-</script>

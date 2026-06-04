@@ -8,9 +8,13 @@
 // Sanity-backed contact form intake.
 // 2026-06-03: added printfulVariant (object type) for the Wyrmfuel-model
 // product schema, so the variants[].printfulVariants field resolves.
+// 2026-06-04: added order (readOnly document) for the COC-model commerce
+// build — written by the stripe-webhook function via SANITY_TOKEN.
+// Registration only; the Orders desk item is added in the structure file.
 import character from './character';
 import product from './product';
 import printfulVariant from './printfulVariant';
+import order from './order';
 import blogPost from './blogPost';
 import episode from './episode';
 // import book from './book';                  // TODO: create book.js
@@ -25,8 +29,11 @@ import contactSubmission from './contactSubmission';
 export const schemaTypes = [
   // Content types
   character,
+  // Commerce
   product,
   printfulVariant,
+  order,
+  // Content types (cont.)
   blogPost,
   episode,
   // book,           // re-enable when book.js exists
