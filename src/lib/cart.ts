@@ -52,3 +52,14 @@ export function removeFromCart(id: string, size: string) {
 export function clearCart() { $cartItems.set([]); }
 export function toggleCart() { $cartOpen.set(!$cartOpen.get()); }
 export function closeCart() { $cartOpen.set(false); }
+
+// ── Backwards-compatible aliases ──
+// Existing Fuglys components (e.g. CartButton.tsx) import the store atoms
+// without the `$` prefix. These alias the same stores so both naming
+// conventions resolve to one source of truth.
+export const cartItems = $cartItems;
+export const cartOpen = $cartOpen;
+export const cartTotal = $cartTotal;
+export const cartCount = $cartCount;
+export const qualifiesForFreeShipping = $qualifiesForFreeShipping;
+export const amountToFreeShipping = $amountToFreeShipping;
