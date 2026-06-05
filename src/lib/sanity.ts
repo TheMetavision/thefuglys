@@ -7,6 +7,7 @@ export const client = createClient({
   apiVersion: '2024-01-01',
   useCdn: true,
   token: import.meta.env.SANITY_API_TOKEN,
+  perspective: 'published', // only ever serve published docs — keeps sync drafts out of the static build
 });
 
 // Non-CDN client for content that needs fresh reads (e.g. legal pages)
@@ -16,6 +17,7 @@ export const liveClient = createClient({
   apiVersion: '2024-01-01',
   useCdn: false,
   token: import.meta.env.SANITY_API_TOKEN,
+  perspective: 'published', // same: published-only, so drafts never leak into legal/fresh reads
 });
 
 const builder = imageUrlBuilder(client);

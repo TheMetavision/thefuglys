@@ -38,7 +38,7 @@ const variantsJson = JSON.stringify(
 );
 ---
 
-<Layout title={design.name} description={design.backstory || design.tagline}>
+<Layout title={design.seoTitle || design.name} description={design.seoDescription || design.description || design.backstory || design.tagline}>
   <main class="pdp" style={`--accent: ${design.accent || '#b3162e'};`}>
     <div class="pdp-grid">
       <!-- Gallery -->
@@ -68,7 +68,9 @@ const variantsJson = JSON.stringify(
         </div>
 
         <p class="pdp-price" id="pdp-price">&pound;{defaultVariant?.basePrice?.toFixed(2)}</p>
-        {design.backstory && <p class="pdp-backstory">{design.backstory}</p>}
+        {(design.description || design.backstory) && (
+          <p class="pdp-backstory">{design.description || design.backstory}</p>
+        )}
 
         <div class="pdp-field" id="colour-wrap">
           <span class="pdp-field-label">Colour <span id="colour-name" class="pdp-colour-name"></span></span>
