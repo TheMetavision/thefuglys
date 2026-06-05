@@ -16,6 +16,12 @@ function cardImage(p) {
   const v = p.variants?.[0];
   return v?.colourImages?.[0]?.imageUrl || v?.printfulImageUrl || '';
 }
+
+/* Lowest base price across this design's garments, for the "from £" label. */
+function fromPrice(p) {
+  const prices = (p.variants || []).map((v) => v.basePrice).filter((n) => typeof n === 'number');
+  return prices.length ? Math.min(...prices) : null;
+}
 ---
 
 <Layout title="Merch" description="Official The Fuglys merch — apparel, accessories and collectibles dragged straight out of the wasteland.">
@@ -45,7 +51,7 @@ function cardImage(p) {
         ) : (
           <div class="products-grid">
             {products.map((p) => (
-              <a class="product-card fade-in" href={`/product/${p.slug}`}>
+              <a class="product-card fade-in" href={`/products/${p.slug}`}>
                 <div class="card-worn-edge top-edge"></div>
                 <div class="card-worn-edge bottom-edge"></div>
 
@@ -56,9 +62,9 @@ function cardImage(p) {
 
                 <div class="product-info">
                   <h3>{p.name}</h3>
-                  <p class="product-desc">{p.tagline || p.backstory}</p>
+                  <p class="product-desc">{p.description || p.designStory}</p>
                   <div class="product-footer">
-                    <span class="product-price">{p.fromPrice ? `from £${p.fromPrice.toFixed(2)}` : ''}</span>
+                    <span class="product-price">{fromPrice(p) ? `from £${fromPrice(p).toFixed(2)}` : ''}</span>
                     <span class="shop-btn">Shop</span>
                   </div>
                 </div>
