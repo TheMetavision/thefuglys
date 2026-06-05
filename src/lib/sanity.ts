@@ -203,24 +203,36 @@ export async function getBlogPostBySlug(slug: string) {
 }
 
 // ─── Products ─────────────────────────────────────────────────
+// NESTED model: one product document = one design, holding a variants[] array
+// where each entry is a garment type with its own price ladder, colours,
+// per-colour mockups (colourImages) and the Printful syncVariantId matrix.
 export async function getAllProducts() {
   return client.fetch(`
-    *[_type == "product"] | order(name asc) {
+    *[_type == "product" && active == true] | order(coalesce(sortOrder, 999), name asc) {
       _id,
       name,
       "slug": slug.current,
+      active,
       "category": category->{ title, "slug": slug.current },
       "featuredCharacter": featuredCharacter->{ name, "slug": slug.current },
       description,
       designStory,
-      price,
-      compareAtPrice,
-      images,
-      printfulVariants,
-      material,
+      heroImage,
       featured,
       seoTitle,
-      seoDescription
+      seoDescription,
+      "price": coalesce(price, variants[0].basePrice),
+      compareAtPrice,
+      variants[]{
+        productType,
+        label,
+        basePrice,
+        colours,
+        sizes,
+        sizePrices[]{ size, price },
+        colourImages[]{ colour, imageUrl },
+        printfulVariants[]{ size, colour, syncVariantId }
+      }
     }
   `);
 }
@@ -231,31 +243,44 @@ export async function getProductBySlug(slug: string) {
       _id,
       name,
       "slug": slug.current,
+      active,
       "category": category->{ title, "slug": slug.current },
       "featuredCharacter": featuredCharacter->{ name, "slug": slug.current, portrait, imageUrl },
       description,
       designStory,
-      price,
-      compareAtPrice,
-      images,
-      printfulVariants,
-      material,
+      heroImage,
       featured,
       seoTitle,
-      seoDescription
+      seoDescription,
+      "price": coalesce(price, variants[0].basePrice),
+      compareAtPrice,
+      variants[]{
+        productType,
+        label,
+        basePrice,
+        colours,
+        sizes,
+        sizePrices[]{ size, price },
+        colourImages[]{ colour, imageUrl },
+        printfulVariants[]{ size, colour, syncVariantId },
+        stripePriceId
+      }
     }
   `, { slug });
 }
 
 export async function getFeaturedProducts() {
   return client.fetch(`
-    *[_type == "product" && featured == true] | order(name asc)[0...6] {
+    *[_type == "product" && featured == true && active == true] | order(coalesce(sortOrder, 999), name asc)[0...6] {
       _id,
       name,
       "slug": slug.current,
-      price,
-      images,
-      "category": category->{ title, "slug": slug.current }
+      heroImage,
+      "price": coalesce(price, variants[0].basePrice),
+      "category": category->{ title, "slug": slug.current },
+      variants[]{
+        colourImages[]{ colour, imageUrl }
+      }
     }
   `);
 }
@@ -276,14 +301,17 @@ export async function getAllCategories() {
 
 export async function getProductsByCategory(categorySlug: string) {
   return client.fetch(`
-    *[_type == "product" && category->slug.current == $categorySlug] | order(name asc) {
+    *[_type == "product" && active == true && category->slug.current == $categorySlug] | order(coalesce(sortOrder, 999), name asc) {
       _id,
       name,
       "slug": slug.current,
-      price,
+      heroImage,
+      "price": coalesce(price, variants[0].basePrice),
       compareAtPrice,
-      images,
-      featured
+      featured,
+      variants[]{
+        colourImages[]{ colour, imageUrl }
+      }
     }
   `, { categorySlug });
 }
