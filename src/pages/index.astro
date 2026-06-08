@@ -4,6 +4,7 @@ import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
+import MerchPromo from '../components/MerchPromo.astro';
 import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage, getWorldLocations, getWorldLocationImage } from '../lib/sanity';
 
 const coreSix = await getCoreSixCharacters();
@@ -124,12 +125,20 @@ const pitsCards = worldLocations.map((loc: any) => ({
           <div class="content-card">
             <span class="card-label">Rep</span>
             <h3 class="card-heading">Rep the Wasteland</h3>
-            <p class="card-body">Character apparel, enamel pins, art prints. The official Fuglys merch store is coming — get on the list.</p>
-            <a href="/merch" class="card-cta">See What's Coming &rarr;</a>
+            <p class="card-body">Character apparel, hoodies, tumblers and more. The official Fuglys store is live — printed on demand, shipped worldwide.</p>
+            <a href="/merch" class="card-cta">Shop the Merch &rarr;</a>
           </div>
         </div>
       </div>
     </section>
+
+    <MerchPromo
+      accent="#b3162e"
+      eyebrow="Official Merch"
+      heading="Rep the Wasteland"
+      blurb="Character tees, hoodies and tumblers — printed on demand and shipped worldwide."
+      ctaLabel="Shop the Collection"
+    />
 
     <section class="section the-pits-section">
       <div class="container">

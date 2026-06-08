@@ -1,0 +1,132 @@
+---
+/**
+ * MerchPromo.astro — homepage band promoting the live merch range.
+ * Self-fetching: pulls real product mockups from Sanity via getAllProducts.
+ * Brand-themed via props (accent colour + copy); fonts inherit from Layout.
+ *
+ * Usage (in index.astro):
+ *   import MerchPromo from '../components/MerchPromo.astro';
+ *   <MerchPromo accent="#b3162e" eyebrow="Official Merch" heading="Rep the Wasteland"
+ *     blurb="Character tees, hoodies and more — printed on demand, shipped worldwide."
+ *     ctaLabel="Shop the Collection" />
+ */
+import { getAllProducts } from '../lib/sanity';
+
+interface Props {
+  accent?: string;        // brand accent (buttons, hover)
+  accentText?: string;    // heading colour (defaults to accent)
+  eyebrow?: string;
+  heading?: string;
+  blurb?: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  count?: number;         // how many mockups to show (default 4)
+}
+const {
+  accent = '#b3162e',
+  accentText = accent,
+  eyebrow = 'Official Merch',
+  heading = 'Shop the Collection',
+  blurb = 'Wear it loud — official designs printed on demand and shipped worldwide.',
+  ctaHref = '/merch',
+  ctaLabel = 'Shop the Collection',
+  count = 4,
+} = Astro.props as Props;
+
+function seededRandom(seed: number) { const x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+
+let products: any[] = [];
+try { products = (await getAllProducts()) || []; } catch (_) { products = []; }
+
+/* Pick `count` products, each showing a (seeded-random) colourway mockup of its
+   first garment. Falls back gracefully if a product has no mockups yet. */
+const picks = products.slice(0, count).map((p: any, i: number) => {
+  const v = (p.variants || [])[0];
+  const imgs = v?.colourImages || [];
+  let image = v?.printfulImageUrl || '';
+  if (imgs.length) {
+    const idx = Math.floor(seededRandom(i * 7 + 3) * imgs.length);
+    image = imgs[idx]?.imageUrl || image;
+  }
+  const prices = (v?.sizePrices || []).map((s: any) => s.price).filter((n: any) => typeof n === 'number');
+  const price = prices.length ? Math.min(...prices) : v?.basePrice;
+  return { slug: p.slug, name: p.name, image, price };
+}).filter((x: any) => x.image);
+---
+
+{picks.length > 0 && (
+  <section class="merchpromo" style={`--mp-accent: ${accent}; --mp-accent-text: ${accentText};`}>
+    <div class="merchpromo-inner">
+      <div class="merchpromo-head">
+        <span class="merchpromo-eyebrow">{eyebrow}</span>
+        <h2 class="merchpromo-heading">{heading}</h2>
+        <p class="merchpromo-blurb">{blurb}</p>
+      </div>
+
+      <div class="merchpromo-grid">
+        {picks.map((item: any) => (
+          <a href={`/products/${item.slug}`} class="merchpromo-card">
+            <div class="merchpromo-thumb">
+              <img src={item.image} alt={item.name} loading="lazy" />
+              <span class="merchpromo-view">View</span>
+            </div>
+            <div class="merchpromo-meta">
+              <span class="merchpromo-name">{item.name}</span>
+              {item.price != null && <span class="merchpromo-price">from £{item.price.toFixed(2)}</span>}
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <div class="merchpromo-cta-wrap">
+        <a href={ctaHref} class="merchpromo-cta">{ctaLabel} &rarr;</a>
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .merchpromo { padding: 5rem 1.5rem; }
+  .merchpromo-inner { max-width: 1200px; margin: 0 auto; }
+  .merchpromo-head { text-align: center; max-width: 640px; margin: 0 auto 3rem; }
+  .merchpromo-eyebrow {
+    display: inline-block; font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem;
+    letter-spacing: 4px; text-transform: uppercase; color: var(--mp-accent); margin-bottom: 0.5rem;
+  }
+  .merchpromo-heading {
+    font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.02; letter-spacing: 1px; text-transform: uppercase; color: var(--mp-accent-text); margin: 0 0 0.75rem;
+  }
+  .merchpromo-blurb { font-size: 1rem; line-height: 1.6; color: inherit; opacity: 0.78; margin: 0; }
+
+  .merchpromo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+  .merchpromo-card { display: block; text-decoration: none; color: inherit; }
+  .merchpromo-thumb {
+    position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+    background: rgba(127,127,127,0.12); border: 1px solid color-mix(in srgb, var(--mp-accent) 22%, transparent);
+  }
+  .merchpromo-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+  .merchpromo-card:hover .merchpromo-thumb img { transform: scale(1.05); }
+  .merchpromo-view {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, #000 45%, transparent); opacity: 0; transition: opacity 0.25s ease;
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 0.95rem;
+    color: #fff;
+  }
+  .merchpromo-card:hover .merchpromo-view { opacity: 1; }
+  .merchpromo-meta { padding: 0.75rem 0.25rem 0; display: flex; flex-direction: column; gap: 2px; }
+  .merchpromo-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: 0.5px; }
+  .merchpromo-price { font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; letter-spacing: 0.5px; color: var(--mp-accent); }
+
+  .merchpromo-cta-wrap { text-align: center; margin-top: 3rem; }
+  .merchpromo-cta {
+    display: inline-block; font-family: 'Bebas Neue', sans-serif; font-size: 1.15rem; letter-spacing: 2px;
+    text-transform: uppercase; padding: 0.85rem 2.4rem; border-radius: 6px;
+    background: var(--mp-accent); color: #fff; text-decoration: none;
+    transition: transform 0.15s ease, filter 0.2s ease;
+  }
+  .merchpromo-cta:hover { filter: brightness(1.12); transform: translateY(-2px); }
+
+  @media (max-width: 900px) { .merchpromo-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .merchpromo-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; } .merchpromo { padding: 3.5rem 1rem; } }
+</style>
