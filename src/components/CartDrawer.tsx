@@ -8,13 +8,16 @@
 
 import { useStore } from '@nanostores/react';
 import { useEffect, useState } from 'react';
-import { $cartItems, $cartOpen, $cartTotal, $cartCount, removeFromCart, toggleCart, addToCart, clearCart } from '../lib/cart';
+import { $cartItems, $cartOpen, $cartTotal, $cartCount, $qualifiesForFreeShipping, $amountToFreeShipping, FREE_SHIPPING_THRESHOLD, removeFromCart, toggleCart, addToCart, clearCart } from '../lib/cart';
 
 export default function CartDrawer() {
   const items = useStore($cartItems);
   const isOpen = useStore($cartOpen);
   const total = useStore($cartTotal);
   const count = useStore($cartCount);
+  const freeShipping = useStore($qualifiesForFreeShipping);
+  const toFreeShipping = useStore($amountToFreeShipping);
+  const progressPct = Math.min(100, (total / FREE_SHIPPING_THRESHOLD) * 100);
   const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
@@ -139,6 +142,25 @@ export default function CartDrawer() {
     footer: {
       padding: '20px 24px', borderTop: `1px solid ${accent}22`,
     },
+    shippingBar: {
+      marginBottom: '16px', padding: '12px 14px',
+      background: freeShipping ? 'rgba(179,22,46,0.12)' : 'rgba(255,255,255,0.04)',
+      border: `1px solid ${freeShipping ? accent : `${accent}22`}`,
+      borderRadius: '4px',
+    },
+    shippingMsg: {
+      fontFamily: bebas, fontSize: '0.8rem', letterSpacing: '1.5px',
+      textTransform: 'uppercase' as const, textAlign: 'center' as const,
+      margin: '0 0 8px', color: freeShipping ? accent : textMuted,
+    },
+    shippingTrack: {
+      height: '5px', background: 'rgba(255,255,255,0.12)',
+      borderRadius: '3px', overflow: 'hidden' as const,
+    },
+    shippingFill: {
+      height: '100%', width: `${progressPct}%`,
+      background: accent, borderRadius: '3px', transition: 'width 0.4s ease',
+    },
     totalRow: {
       display: 'flex', justifyContent: 'space-between',
       marginBottom: '16px',
@@ -236,6 +258,16 @@ export default function CartDrawer() {
         </div>
         {items.length > 0 && (
           <div style={styles.footer}>
+            <div style={styles.shippingBar}>
+              <p style={styles.shippingMsg}>
+                {freeShipping
+                  ? "\uD83C\uDF89 You've unlocked FREE UK delivery!"
+                  : `Add \u00A3${toFreeShipping.toFixed(2)} more for FREE UK delivery`}
+              </p>
+              <div style={styles.shippingTrack}>
+                <div style={styles.shippingFill} />
+              </div>
+            </div>
             <div style={styles.totalRow}>
               <span style={styles.totalLabel}>Total</span>
               <span style={styles.totalValue}>&pound;{total.toFixed(2)}</span>

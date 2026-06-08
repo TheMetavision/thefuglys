@@ -1,0 +1,122 @@
+---
+/**
+ * ImageZoom.astro — click-to-lightbox zoom for the PDP main image.
+ * Drop into a product page and render once: <ImageZoom accent="#b3162e" />
+ * Requires the main image to have id="pdp-hero" (all IP-brand PDPs do).
+ *
+ * Behaviour:
+ *  - Click the hero image (or its zoom hint) → opens a fullscreen lightbox
+ *    showing whatever colour/garment is currently selected.
+ *  - Click the lightbox image → toggles 2× magnify; move mouse / drag finger to pan.
+ *  - Close via ×, backdrop click, or Esc.
+ */
+interface Props { accent?: string; }
+const { accent = '#ffffff' } = Astro.props as Props;
+---
+
+<div class="pdpzoom-overlay" id="pdpzoom-overlay" aria-hidden="true" style={`--zoom-accent: ${accent};`}>
+  <button class="pdpzoom-close" id="pdpzoom-close" aria-label="Close zoom">&times;</button>
+  <div class="pdpzoom-stage" id="pdpzoom-stage">
+    <img class="pdpzoom-img" id="pdpzoom-img" src="" alt="Product image enlarged" draggable="false" />
+  </div>
+  <span class="pdpzoom-hint" id="pdpzoom-hint">Click to zoom · drag to pan</span>
+</div>
+
+<script>
+  (function () {
+    const hero = document.getElementById('pdp-hero') as HTMLImageElement | null;
+    const overlay = document.getElementById('pdpzoom-overlay');
+    const stage = document.getElementById('pdpzoom-stage');
+    const img = document.getElementById('pdpzoom-img') as HTMLImageElement | null;
+    const closeBtn = document.getElementById('pdpzoom-close');
+    const hint = document.getElementById('pdpzoom-hint');
+    if (!hero || !overlay || !stage || !img) return;
+
+    let zoomed = false;
+
+    function open() {
+      if (!img || !hero || !overlay) return;
+      img.src = hero.currentSrc || hero.src;   // reflects the selected colour/type
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      setZoom(false);
+    }
+    function close() {
+      if (!overlay) return;
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      setZoom(false);
+    }
+    function setZoom(on: boolean) {
+      zoomed = on;
+      if (!img) return;
+      img.classList.toggle('zoomed', on);
+      if (hint) hint.style.opacity = on ? '0' : '0.8';
+      if (!on) img.style.transformOrigin = 'center center';
+    }
+    function panTo(clientX: number, clientY: number) {
+      if (!zoomed || !stage || !img) return;
+      const r = stage.getBoundingClientRect();
+      const x = Math.min(Math.max((clientX - r.left) / r.width, 0), 1) * 100;
+      const y = Math.min(Math.max((clientY - r.top) / r.height, 0), 1) * 100;
+      img.style.transformOrigin = `${x}% ${y}%`;
+    }
+
+    // Make the hero look interactive
+    hero.style.cursor = 'zoom-in';
+    hero.addEventListener('click', open);
+
+    closeBtn?.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target === stage) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) close(); });
+
+    img.addEventListener('click', (e) => { e.stopPropagation(); setZoom(!zoomed); });
+    stage.addEventListener('mousemove', (e) => panTo(e.clientX, e.clientY));
+    stage.addEventListener('touchmove', (e) => {
+      if (!zoomed) return;
+      const t = e.touches[0]; if (t) { panTo(t.clientX, t.clientY); e.preventDefault(); }
+    }, { passive: false });
+  })();
+</script>
+
+<style>
+  .pdpzoom-overlay {
+    position: fixed; inset: 0; z-index: 3000;
+    background: rgba(0,0,0,0.92);
+    display: none; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.25s ease;
+  }
+  .pdpzoom-overlay.open { display: flex; opacity: 1; }
+  .pdpzoom-stage {
+    width: 92vw; height: 88vh; display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .pdpzoom-img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    user-select: none; -webkit-user-drag: none;
+    cursor: zoom-in; transition: transform 0.2s ease;
+    border-radius: 4px;
+  }
+  .pdpzoom-img.zoomed { transform: scale(2.2); cursor: zoom-out; transition: transform 0.15s ease; }
+  .pdpzoom-close {
+    position: absolute; top: 18px; right: 22px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(0,0,0,0.5); border: 1px solid var(--zoom-accent);
+    color: #fff; font-size: 28px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s ease;
+  }
+  .pdpzoom-close:hover { background: var(--zoom-accent); color: #000; }
+  .pdpzoom-hint {
+    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; text-transform: uppercase;
+    font-size: 0.8rem; color: var(--zoom-accent); opacity: 0.8;
+    pointer-events: none; transition: opacity 0.2s ease;
+  }
+  @media (max-width: 768px) {
+    .pdpzoom-stage { width: 96vw; height: 82vh; }
+    .pdpzoom-img.zoomed { transform: scale(2.6); }
+  }
+</style>
