@@ -10,6 +10,7 @@
  */
 import Layout from '../../layouts/Layout.astro';
 import { getAllProducts, getProductBySlug } from '../../lib/sanity';
+import ImageZoom from '../../components/ImageZoom.astro';
 
 export async function getStaticPaths() {
   const products = await getAllProducts();
@@ -95,7 +96,8 @@ const variantsJson = JSON.stringify(
         )}
       </div>
     </div>
-  </main>
+    <ImageZoom accent="#b3162e" />
+</main>
 
   <script define:vars={{ designId: design._id, designName: design.name, variantsJson, defaultType: defaultVariant?.productType || '' }}>
     const variants = JSON.parse(variantsJson);
