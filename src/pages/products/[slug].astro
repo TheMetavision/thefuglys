@@ -11,7 +11,6 @@
 import Layout from '../../layouts/Layout.astro';
 import { getAllProducts, getProductBySlug } from '../../lib/sanity';
 import ImageZoom from '../../components/ImageZoom.astro';
-import TumblerSpin from '../../components/TumblerSpin.astro';
 
 export async function getStaticPaths() {
   const products = await getAllProducts();
@@ -21,12 +20,6 @@ export async function getStaticPaths() {
 const { product } = Astro.props;
 const design = product ?? (await getProductBySlug(Astro.params.slug || ''));
 const defaultVariant = design.variants?.[0];
-
-/* 3D tumbler spin — TEST on one listing only (widen later by removing the gate) */
-const SPIN_TEST_SLUG = 'zeke-like-father';
-const isSpinTest = Astro.params.slug === SPIN_TEST_SLUG;
-const tumblerVariant = (design.variants || []).find((v) => v.productType === 'tumbler');
-const tumblerWrapUrl = 'https://cdn.sanity.io/images/ngx60q2x/production/11788c3ca8e2cb8f2994876334fcd0e7a92cde79-3758x2824.png?w=1400';
 
 /* Variant has no printfulImageUrl in our data — fall back to first colour mockup */
 const variantImg = (v) => v?.printfulImageUrl || v?.colourImages?.[0]?.imageUrl || '';
@@ -53,11 +46,6 @@ const variantsJson = JSON.stringify(
       <div class="pdp-gallery">
         <div class="pdp-main">
           <img id="pdp-hero" src={variantImg(defaultVariant)} alt={`${design.name} ${defaultVariant?.label}`} />
-          {isSpinTest && tumblerVariant && (
-            <div id="pdp-spin">
-              <TumblerSpin image={tumblerWrapUrl} fallback={variantImg(tumblerVariant)} alt={`${design.name} Tumbler`} />
-            </div>
-          )}
         </div>
         <div class="pdp-thumbs">
           {design.variants?.map((v, i) => (
@@ -205,12 +193,6 @@ const variantsJson = JSON.stringify(
       renderSizes(v);
       updateHero();
       updatePrice();
-      const spinEl = document.getElementById('pdp-spin');
-      if (spinEl) {
-        const showSpin = type === 'tumbler';
-        spinEl.style.display = showSpin ? 'flex' : 'none';
-        if (heroEl) heroEl.style.display = showSpin ? 'none' : 'block';
-      }
     }
 
     document.querySelectorAll('.pdp-type').forEach((b) => b.addEventListener('click', () => selectType(b.dataset.type)));
@@ -275,8 +257,6 @@ const variantsJson = JSON.stringify(
     .pdp-story h2 { font-family: var(--font-condensed); font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-text-muted); margin-bottom: 0.5rem; }
     .pdp-story p { color: var(--color-text-muted); line-height: 1.7; }
     @media (max-width: 768px) { .pdp-grid { grid-template-columns: 1fr; } }
-    #pdp-spin { display: none; align-items: center; justify-content: center; width: 100%; height: 100%; }
-    #pdp-spin canvas { height: 100%; width: auto; max-width: 100%; }
     .pdp-pay-note { color: var(--color-text-muted); font-size: 0.78rem; line-height: 1.5; margin: 0.9rem 0 0; max-width: 360px; opacity: 0.85; }
   </style>
 
