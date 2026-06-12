@@ -48,7 +48,14 @@ const categories = categoryOrder.map((cat, catIdx) => ({
         let backImage = '';
         let displayColour = '';
         if (colourImages.length > 0) {
-          const idx = Math.floor(seededRandom(pIdx * 13 + catIdx * 7 + seedCounter++) * colourImages.length);
+          /* Spread cards across real colourways (apparel) for variety. Colourless
+             products — glass, tumbler, socks, etc. (colour "") — can carry several
+             presentation shots (e.g. glass no-lid vs lid & straw), so a random pick
+             would split the cards. For those, always use the primary (index 0) image.
+             The seededRandom call still runs so apparel seeding is unchanged. */
+          const distinctColours = [...new Set(colourImages.map((c) => c.colour || ''))].filter(Boolean);
+          const r = seededRandom(pIdx * 13 + catIdx * 7 + seedCounter++);
+          const idx = distinctColours.length > 1 ? Math.floor(r * colourImages.length) : 0;
           image = colourImages[idx].imageUrl || image;
           backImage = colourImages[idx].backImageUrl || '';
           displayColour = colourImages[idx].colour || '';
