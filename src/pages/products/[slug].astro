@@ -47,6 +47,7 @@ const variantsJson = JSON.stringify(
         <div class="pdp-main">
           <img id="pdp-hero" src={variantImg(defaultVariant)} alt={`${design.name} ${defaultVariant?.label}`} />
         </div>
+        <div class="pdp-gallery-strip" id="pdp-gallery-strip" style="display:none;"></div>
         <div class="pdp-thumbs">
           {design.variants?.map((v, i) => (
             <button class={`pdp-thumb ${i === 0 ? 'active' : ''}`} data-type={v.productType} title={v.label}>
@@ -147,15 +148,20 @@ const variantsJson = JSON.stringify(
 
     function renderColours(variant) {
       const opts = coloursFor(variant);
-      const colourless = opts.length <= 1 && !opts[0];
+      /* Judge "colourless" by DISTINCT, non-empty colours — not raw image count.
+         A can glass now carries two images (no-lid + lid & straw), both with an
+         empty colour, which previously tripped a length check and showed an empty
+         dropdown. Real apparel keeps its colour selector. */
+      const distinct = [...new Set(opts)].filter(Boolean);
+      const colourless = distinct.length <= 1;
       if (colourless) {
         colourWrap.style.display = 'none';
         selectedColour = opts[0] || '';
         return;
       }
       colourWrap.style.display = '';
-      const keep = opts.includes(selectedColour) ? selectedColour : opts[0];
-      colourSelect.innerHTML = opts.map((c) => `<option value="${c}"${c === keep ? ' selected' : ''}>${c}</option>`).join('');
+      const keep = distinct.includes(selectedColour) ? selectedColour : distinct[0];
+      colourSelect.innerHTML = distinct.map((c) => `<option value="${c}"${c === keep ? ' selected' : ''}>${c}</option>`).join('');
       selectedColour = keep;
       if (colourName) colourName.textContent = '';
     }
@@ -183,6 +189,29 @@ const variantsJson = JSON.stringify(
     }
     function updateHero() {
       if (heroEl) heroEl.src = imageForColour(getVariant(), selectedColour);
+      renderGalleryStrip(getVariant());
+    }
+    /* Secondary image strip: shows every stored image for the CURRENT colour.
+       Most variants have one image (strip stays hidden); the can glass has two
+       (no-lid + lid & straw), so both become tappable here without affecting
+       colour, size, price or add-to-cart. */
+    function renderGalleryStrip(variant) {
+      const stripEl = document.getElementById('pdp-gallery-strip');
+      if (!stripEl) return;
+      const imgs = (variant.colourImages || []).filter((c) => c.colour === selectedColour && c.imageUrl);
+      if (imgs.length <= 1) { stripEl.style.display = 'none'; stripEl.innerHTML = ''; return; }
+      const cur = heroEl ? heroEl.src : '';
+      stripEl.style.display = 'flex';
+      stripEl.innerHTML = imgs.map((c) =>
+        `<button type="button" class="pdp-shot" data-src="${c.imageUrl}"><img src="${c.imageUrl}" alt="" loading="lazy" /></button>`
+      ).join('');
+      const btns = [...stripEl.querySelectorAll('.pdp-shot')];
+      const mark = (el) => btns.forEach((b) => b.classList.toggle('active', b === el));
+      mark(btns.find((b) => b.dataset.src === cur) || btns[0]);
+      btns.forEach((b) => b.addEventListener('click', () => {
+        if (heroEl) heroEl.src = b.dataset.src;
+        mark(b);
+      }));
     }
     function selectType(type) {
       currentType = type;
@@ -232,6 +261,11 @@ const variantsJson = JSON.stringify(
     .pdp-main { aspect-ratio: 1; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
     .pdp-main img { width: 100%; height: 100%; object-fit: cover; }
     .pdp-thumbs { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .pdp-gallery-strip { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .pdp-shot { width: 64px; height: 64px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; background: var(--color-surface); cursor: pointer; padding: 0; transition: border-color .15s ease; }
+    .pdp-shot:hover { border-color: var(--accent); }
+    .pdp-shot.active { border-color: var(--accent); }
+    .pdp-shot img { width: 100%; height: 100%; object-fit: cover; }
     .pdp-thumb { width: 64px; height: 64px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; background: var(--color-surface); cursor: pointer; padding: 0; }
     .pdp-thumb.active { border-color: var(--accent); }
     .pdp-thumb img { width: 100%; height: 100%; object-fit: cover; }
