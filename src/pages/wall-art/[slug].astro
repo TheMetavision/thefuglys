@@ -1,0 +1,229 @@
+---
+// src/pages/wall-art/[slug].astro  (The Fuglys)
+import Layout from '../../layouts/Layout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import { getAllWallArt } from '../../lib/wallart';
+import { ARTWORK_FORMATS, ARTWORK_SIZES, ARTWORK_PRICES } from '../../lib/artwork-pricing.cjs';
+
+export async function getStaticPaths() {
+  const pieces = await getAllWallArt();
+  return pieces.map((piece) => ({ params: { slug: piece.slug }, props: { piece } }));
+}
+
+const { piece } = Astro.props;
+
+const formats = ARTWORK_FORMATS;
+const sizes = ARTWORK_SIZES;
+const accent = piece.accent || '#b3162e';
+
+// Default selection: poster (lowest friction) at Medium.
+const defFormat = formats[0].id;
+const defSize = (sizes[1] || sizes[0]).id;
+const defPence = ARTWORK_PRICES[defFormat][defSize];
+const fmtGBP = (p) => `£${(p / 100).toFixed(2)}`;
+
+const gallery = [piece.imageUrl, ...(piece.mockups || []).map((m) => m.url)].filter(Boolean);
+---
+
+<Layout title={`${piece.title} — Wall Art — The Fuglys`} description={piece.tagline || piece.description || `${piece.title} wall art — poster and canvas prints.`}>
+  <Nav />
+
+  <main class="wa-main">
+    <div class="container wa-wrap">
+      <a class="wa-back" href="/merch">&larr; Back to merch</a>
+
+      <div class="wa-grid">
+        <!-- Gallery -->
+        <div class="wa-gallery">
+          <div class="wa-stage">
+            <div class="thumb-bg-noise"></div>
+            <img id="wa-main-img" class="wa-main-img" src={gallery[0]} alt={piece.title} />
+          </div>
+          {gallery.length > 1 && (
+            <div class="wa-thumbs">
+              {gallery.map((url, i) => (
+                <button class={`wa-thumb ${i === 0 ? 'active' : ''}`} data-src={url} aria-label={`View ${i + 1}`}>
+                  <img src={url} alt={`${piece.title} view ${i + 1}`} loading="lazy" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <!-- Buy panel -->
+        <div class="wa-panel">
+          <p class="wa-eyebrow">Wall Art</p>
+          <h1 class="wa-title">{piece.title}</h1>
+          {piece.tagline && <p class="wa-tagline">{piece.tagline}</p>}
+
+          <p class="wa-price"><span id="wa-price">{fmtGBP(defPence)}</span></p>
+
+          <!-- Format -->
+          <div class="wa-field">
+            <p class="wa-label">Format</p>
+            <div class="wa-opts" id="wa-formats">
+              {formats.map((f, i) => (
+                <button class={`wa-opt ${i === 0 ? 'active' : ''}`} data-format={f.id} type="button">
+                  <span class="wa-opt-name">{f.label}</span>
+                </button>
+              ))}
+            </div>
+            <p class="wa-blurb" id="wa-format-blurb">{formats[0].blurb}</p>
+          </div>
+
+          <!-- Size -->
+          <div class="wa-field">
+            <p class="wa-label">Size</p>
+            <div class="wa-opts wa-opts--size" id="wa-sizes">
+              {sizes.map((s) => (
+                <button class={`wa-opt wa-opt--size ${s.id === defSize ? 'active' : ''}`} data-size={s.id} type="button">
+                  <span class="wa-opt-name">{s.label}</span>
+                  <span class="wa-opt-dim">{s.inches}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button id="wa-add" class="wa-add" type="button">Add to Cart</button>
+
+          <div class="wa-meta">
+            <p>&#10003; Printed, framed &amp; dispatched in-house by The Metavision.</p>
+            <p>&#10003; Ships worldwide. Free UK delivery over &pound;75.</p>
+            <p class="wa-dispatch">Made to order &mdash; allow a few working days before dispatch.</p>
+          </div>
+
+          {piece.description && (
+            <div class="wa-desc">
+              <p>{piece.description}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</Layout>
+
+<style define:vars={{ accent }}>
+  .wa-main { background: var(--color-bg, #263F44); min-height: 100vh; padding: 110px 0 80px; }
+  .wa-wrap { max-width: 1100px; margin: 0 auto; }
+  .wa-back { display: inline-block; margin-bottom: 28px; color: var(--color-text-muted, rgba(255,255,255,0.6)); font-family: var(--font-condensed, 'Bebas Neue', sans-serif); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; font-size: 0.85rem; text-decoration: none; transition: color 0.2s; }
+  .wa-back:hover { color: var(--accent); }
+
+  .wa-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: start; }
+
+  /* Gallery */
+  .wa-stage { position: relative; aspect-ratio: 16 / 9; background: #16262b; border: 1px solid rgba(179,22,46,0.18); overflow: hidden; }
+  .thumb-bg-noise { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E"); background-size: 200px 200px; pointer-events: none; }
+  .wa-main-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .wa-thumbs { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .wa-thumb { width: 64px; height: 64px; padding: 0; border: 1px solid rgba(179,22,46,0.25); background: #16262b; cursor: pointer; overflow: hidden; transition: border-color 0.2s; }
+  .wa-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .wa-thumb.active, .wa-thumb:hover { border-color: var(--accent); }
+
+  /* Panel */
+  .wa-eyebrow { font-family: var(--font-condensed, 'Bebas Neue', sans-serif); font-weight: 700; font-size: 0.75rem; letter-spacing: 4px; color: var(--accent); text-transform: uppercase; margin-bottom: 10px; }
+  .wa-title { font-family: var(--font-display, 'Bebas Neue', sans-serif); font-size: clamp(2.4rem, 5vw, 3.6rem); color: #fff; line-height: 0.98; letter-spacing: 1px; margin-bottom: 12px; }
+  .wa-tagline { color: rgba(255,255,255,0.6); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; }
+  .wa-price { font-family: var(--font-display, 'Bebas Neue', sans-serif); font-size: 2.4rem; color: #fff; letter-spacing: 1px; margin-bottom: 28px; }
+
+  .wa-field { margin-bottom: 24px; }
+  .wa-label { font-family: var(--font-condensed, 'Bebas Neue', sans-serif); font-weight: 700; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+  .wa-opts { display: flex; flex-direction: column; gap: 8px; }
+  .wa-opts--size { flex-direction: row; flex-wrap: wrap; }
+  .wa-opt { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 16px; background: var(--color-surface, #1e3238); border: 1px solid rgba(179,22,46,0.22); color: rgba(255,255,255,0.85); font-family: var(--font-condensed, 'Bebas Neue', sans-serif); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s ease; text-align: left; }
+  .wa-opt:hover { border-color: var(--accent); color: #fff; }
+  .wa-opt.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 16px rgba(179,22,46,0.3); }
+  .wa-opt-name { font-size: 1rem; }
+  .wa-opt--size { flex-direction: column; align-items: center; gap: 2px; min-width: 92px; flex: 1; }
+  .wa-opt-dim { font-size: 0.72rem; letter-spacing: 1px; opacity: 0.7; }
+  .wa-blurb { margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
+
+  .wa-add { width: 100%; padding: 16px; margin-top: 8px; background: var(--accent); color: #fff; border: none; font-family: var(--font-condensed, 'Bebas Neue', sans-serif); font-weight: 700; font-size: 1.1rem; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: background 0.2s, box-shadow 0.2s; }
+  .wa-add:hover { background: var(--color-primary-hover, #99132f); box-shadow: 0 0 24px rgba(179,22,46,0.35); }
+  .wa-add.added { background: #0a7d28; }
+
+  .wa-meta { margin-top: 22px; border-top: 1px solid rgba(179,22,46,0.15); padding-top: 18px; }
+  .wa-meta p { font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.7; margin: 0; }
+  .wa-dispatch { color: rgba(255,255,255,0.38) !important; margin-top: 6px !important; }
+  .wa-desc { margin-top: 22px; }
+  .wa-desc p { font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.7; }
+
+  @media (max-width: 860px) {
+    .wa-grid { grid-template-columns: 1fr; gap: 28px; }
+    .wa-main { padding: 90px 0 60px; }
+  }
+</style>
+
+<script define:vars={{ prices: ARTWORK_PRICES, formatList: formats, sizeList: sizes, slug: piece.slug, title: piece.title, image: piece.imageUrl, defFormat, defSize }}>
+  (function () {
+    let selFormat = defFormat;
+    let selSize = defSize;
+
+    const priceEl = document.getElementById('wa-price');
+    const blurbEl = document.getElementById('wa-format-blurb');
+    const addBtn = document.getElementById('wa-add');
+    const formatWrap = document.getElementById('wa-formats');
+    const sizeWrap = document.getElementById('wa-sizes');
+    const mainImg = document.getElementById('wa-main-img');
+
+    const penceFor = (f, s) => (prices[f] && prices[f][s]) || 0;
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+
+    function refreshPrice() {
+      if (priceEl) priceEl.textContent = gbp(penceFor(selFormat, selSize));
+    }
+
+    if (formatWrap) {
+      formatWrap.querySelectorAll('[data-format]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selFormat = btn.getAttribute('data-format');
+          formatWrap.querySelectorAll('[data-format]').forEach((b) => b.classList.toggle('active', b === btn));
+          const f = formatList.find((x) => x.id === selFormat);
+          if (blurbEl && f) blurbEl.textContent = f.blurb;
+          refreshPrice();
+        });
+      });
+    }
+
+    if (sizeWrap) {
+      sizeWrap.querySelectorAll('[data-size]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selSize = btn.getAttribute('data-size');
+          sizeWrap.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('active', b === btn));
+          refreshPrice();
+        });
+      });
+    }
+
+    document.querySelectorAll('.wa-thumb').forEach((t) => {
+      t.addEventListener('click', () => {
+        const src = t.getAttribute('data-src');
+        if (src && mainImg) mainImg.setAttribute('src', src);
+        document.querySelectorAll('.wa-thumb').forEach((x) => x.classList.toggle('active', x === t));
+      });
+    });
+
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        const pence = penceFor(selFormat, selSize);
+        const detail = {
+          id: `wallart-${slug}-${selFormat}-${selSize}`,
+          title: title,
+          price: pence / 100,            // £ for display; server re-prices at checkout
+          size: selSize,                  // size id
+          format: selFormat,              // format id
+          image: image,
+          productType: 'wallart',
+        };
+        window.dispatchEvent(new CustomEvent('add-to-cart', { detail }));
+
+        addBtn.textContent = 'Added \u2713';
+        addBtn.classList.add('added');
+        setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.classList.remove('added'); }, 1400);
+      });
+    }
+  })();
+</script>

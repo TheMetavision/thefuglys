@@ -37,6 +37,10 @@ const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID || 'ngx60q2x';
 const SANITY_DATASET = process.env.SANITY_DATASET || 'production';
 const SANITY_API_VER = '2024-01-01';
 
+// Shared wall-art helper (same module the checkout uses; single source of truth).
+// Path assumes netlify/functions/ -> src/lib/. Adjust if your lib lives elsewhere.
+const { artworkVariantLabel } = require('../../src/lib/artwork-pricing.cjs');
+
 function readVariantId(lineItem) {
   const product = lineItem.price && lineItem.price.product;
   const fromProduct =
@@ -52,6 +56,22 @@ function readVariantId(lineItem) {
 function meta(lineItem, key) {
   const p = lineItem.price && lineItem.price.product;
   return p && typeof p === 'object' && p.metadata ? p.metadata[key] : undefined;
+}
+
+/* A wall-art line is one the checkout stamped with fulfilment:'inhouse'. These
+   are made & dispatched BY US — never sent to Printful. */
+function isInhouse(lineItem) {
+  return meta(lineItem, 'fulfilment') === 'inhouse';
+}
+/* Pretty "Canvas — Gallery Frame · Large (24 x 16")" label for the owner email
+   and order log, falling back to the Stripe line description. */
+function inhouseLineLabel(lineItem) {
+  const fmt = meta(lineItem, 'wallart_format');
+  const size = meta(lineItem, 'wallart_size');
+  if (fmt && size) {
+    try { return artworkVariantLabel(fmt, size); } catch (_) { /* fall through */ }
+  }
+  return lineItem.description || 'Wall art';
 }
 
 function esc(s) {
@@ -191,10 +211,30 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId) {
       <td style="padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:14px;text-align:right;">${gbp(li.amount_total)}</td>
     </tr>`).join('');
   const failed = status === 'fulfilment-failed';
+  const inhouseLis = (lineItems.data || []).filter(isInhouse);
+  const hasInhouse = inhouseLis.length > 0;
+  const inhouseOnly = status === 'inhouse';
   const banner = failed
     ? `<p style="background:#b00020;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#9888; FULFILMENT FAILED &mdash; this order did NOT reach Printful. Place it manually.</p>`
-    : `<p style="background:#0a7d28;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#10003; Sent to Printful${printfulOrderId ? ' (#' + esc(printfulOrderId) + ')' : ''}</p>`;
-  const subject = `${failed ? '\u26A0 ACTION NEEDED \u2014 ' : ''}New Fuglys order #${ref} \u2014 ${gbp(session.amount_total)}`;
+    : inhouseOnly
+      ? `<p style="background:#1d4ed8;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#128230; IN-HOUSE ORDER &mdash; make &amp; dispatch the wall art below. No Printful order; nothing auto-ships.</p>`
+      : `<p style="background:#0a7d28;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#10003; Sent to Printful${printfulOrderId ? ' (#' + esc(printfulOrderId) + ')' : ''}</p>`;
+  // In-house "make & dispatch" block (shown for in-house-only AND mixed carts).
+  const inhouseRows = inhouseLis.map((li) => `
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:14px;">${esc(li.description || 'Wall art')}<br><span style="color:#555;font-size:12px;">${esc(inhouseLineLabel(li))}</span></td>
+      <td style="padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:14px;text-align:center;">${li.quantity || 1}</td>
+    </tr>`).join('');
+  const inhouseSection = hasInhouse ? `
+          <div style="margin:0 0 16px;border:2px solid #1d4ed8;border-radius:8px;padding:14px 16px;">
+            <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;">&#128230; Make &amp; dispatch in-house</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><th align="left" style="font-size:11px;color:#888;text-transform:uppercase;padding-bottom:4px;">Piece / spec</th><th style="font-size:11px;color:#888;text-transform:uppercase;padding-bottom:4px;">Qty</th></tr>
+              ${inhouseRows}
+            </table>
+            <p style="margin:8px 0 0;font-size:12px;color:#555;">Print, frame and post to the address below. These are NOT in Printful.</p>
+          </div>` : '';
+  const subject = `${failed ? '\u26A0 ACTION NEEDED \u2014 ' : (hasInhouse ? '\uD83D\uDCE6 MAKE \u2014 ' : '')}New Fuglys order #${ref} \u2014 ${gbp(session.amount_total)}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:8px;padding:28px;">
@@ -212,6 +252,7 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId) {
             ${session.shipping_cost ? `<tr><td style="padding:8px 0;font-size:14px;color:#666;">Shipping</td><td></td><td style="padding:8px 0;font-size:14px;text-align:right;color:#666;">${gbp(session.shipping_cost.amount_total)}</td></tr>` : ''}
             <tr><td style="padding:10px 0 0;font-size:15px;font-weight:700;">Total</td><td></td><td style="padding:10px 0 0;font-size:15px;font-weight:700;text-align:right;">${gbp(session.amount_total)}</td></tr>
           </table>
+          ${inhouseSection}
           <p style="margin:0 0 4px;font-size:11px;color:#888;text-transform:uppercase;">Customer</p>
           <p style="margin:0 0 16px;font-size:14px;">${esc(cust.name || '\u2014')}<br><a href="mailto:${esc(cust.email || '')}">${esc(cust.email || '\u2014')}</a></p>
           <p style="margin:0 0 4px;font-size:11px;color:#888;text-transform:uppercase;">Ship to</p>
@@ -253,15 +294,22 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
   const ship = getShip(session);
   const a = ship && ship.address ? ship.address : null;
 
-  const items = (lineItems.data || []).map((li, i) => ({
-    _key: li.id || String(i),
-    _type: 'lineItem',
-    title: li.description || '',
-    colour: meta(li, 'fuglys_colour') || '',
-    size: meta(li, 'fuglys_size') || '',
-    quantity: li.quantity || 1,
-    price: (li.amount_total || 0) / 100,
-  }));
+  const items = (lineItems.data || []).map((li, i) => {
+    const inhouse = isInhouse(li);
+    return {
+      _key: li.id || String(i),
+      _type: 'lineItem',
+      title: li.description || '',
+      // For wall art, reuse colour/size to carry format/size so the existing
+      // order view stays readable without a schema change.
+      colour: inhouse ? (meta(li, 'wallart_format') || '') : (meta(li, 'fuglys_colour') || ''),
+      size: inhouse ? (meta(li, 'wallart_size') || '') : (meta(li, 'fuglys_size') || ''),
+      quantity: li.quantity || 1,
+      price: (li.amount_total || 0) / 100,
+      fulfilment: inhouse ? 'inhouse' : 'printful',
+    };
+  });
+  const inhouseCount = items.filter((it) => it.fulfilment === 'inhouse').length;
 
   const doc = {
     _id: `order-${String(session.id).slice(-32)}`,
@@ -272,6 +320,7 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
     customerName: (ship && ship.name) || (session.customer_details && session.customer_details.name) || '',
     customerEmail: (session.customer_details && session.customer_details.email) || '',
     items,
+    hasInhouse: inhouseCount > 0,
     shippingCost: session.shipping_cost ? (session.shipping_cost.amount_total || 0) / 100 : 0,
     total: (session.amount_total || 0) / 100,
     currency: (session.currency || 'gbp').toUpperCase(),
@@ -286,6 +335,7 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
     };
   }
   if (printfulOrderId) doc.printfulOrderId = String(printfulOrderId);
+  if (inhouseCount > 0) doc.inhouseStatus = 'to-make';
 
   try {
     const res = await fetch(
@@ -358,11 +408,14 @@ exports.handler = async (event) => {
     }
 
     const printfulItems = [];
+    const inhouseLines = [];
     const missing = [];
     for (const li of lineItems.data) {
       const id = readVariantId(li);
       if (id) {
         printfulItems.push({ sync_variant_id: Number(id) || id, quantity: li.quantity || 1 });
+      } else if (isInhouse(li)) {
+        inhouseLines.push(li);
       } else {
         missing.push(li.description || '(unnamed item)');
       }
@@ -370,13 +423,20 @@ exports.handler = async (event) => {
 
     if (missing.length > 0) {
       console.error(
-        `[FULFILMENT-FAIL] session ${session.id}: ${missing.length} item(s) had no printful_variant_id:`,
+        `[FULFILMENT-WARN] session ${session.id}: ${missing.length} item(s) had neither a Printful variant nor an in-house flag:`,
         missing
       );
     }
 
+    // No POD lines → in-house-only order. Valid: the owner email lists the
+    // pieces to make & dispatch. This is NOT a fulfilment failure.
     if (printfulItems.length === 0) {
-      console.error(`[FULFILMENT-FAIL] session ${session.id}: nothing to send to Printful — order NOT fulfilled. Place it manually.`);
+      if (inhouseLines.length > 0 && missing.length === 0) {
+        console.log(`[INHOUSE] session ${session.id}: ${inhouseLines.length} in-house item(s), no POD — owner will make & dispatch.`);
+        await finalize(session, lineItems, 'inhouse', null);
+        return { statusCode: 200, body: JSON.stringify({ received: true, inhouse: inhouseLines.length }) };
+      }
+      console.error(`[FULFILMENT-FAIL] session ${session.id}: nothing to send to Printful and no in-house items — place it manually.`);
       await finalize(session, lineItems, 'fulfilment-failed', null);
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }

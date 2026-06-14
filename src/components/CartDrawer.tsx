@@ -9,6 +9,8 @@
 import { useStore } from '@nanostores/react';
 import { useEffect, useState } from 'react';
 import { $cartItems, $cartOpen, $cartTotal, $cartCount, $qualifiesForFreeShipping, $amountToFreeShipping, FREE_SHIPPING_THRESHOLD, removeFromCart, toggleCart, addToCart, clearCart } from '../lib/cart';
+// @ts-ignore — shared CommonJS pricing module (no .d.ts; resolved by Vite at build)
+import { isWallArt, artworkVariantLabel } from '../lib/artwork-pricing.cjs';
 
 export default function CartDrawer() {
   const items = useStore($cartItems);
@@ -54,6 +56,7 @@ export default function CartDrawer() {
             price: item.price,
             size: item.size,
             colour: item.colour || '',
+            format: item.format || '',
             image: item.image,
             productType: item.productType || '',
             quantity: item.quantity,
@@ -249,7 +252,9 @@ export default function CartDrawer() {
                 <div>
                   <p style={styles.itemName}>{item.title}</p>
                   <p style={styles.itemVariant}>
-                    {item.colour ? `${item.colour} · ` : ''}Size: {item.size} · Qty: {item.quantity}
+                    {isWallArt(item)
+                      ? `${artworkVariantLabel(item.format || '', item.size)} · Qty: ${item.quantity}`
+                      : `${item.colour ? `${item.colour} · ` : ''}Size: ${item.size} · Qty: ${item.quantity}`}
                   </p>
                   <p style={styles.itemPrice}>&pound;{(item.price * item.quantity).toFixed(2)}</p>
                   <button style={styles.removeBtn} onClick={() => removeFromCart(item.id, item.size)}>

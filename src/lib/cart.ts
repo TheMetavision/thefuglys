@@ -2,11 +2,12 @@ import { atom, computed } from 'nanostores';
 import { persistentAtom } from '@nanostores/persistent';
 
 export interface CartItem {
-  id: string;        // product-{slug}-{type}-{colour}-{size}
+  id: string;        // POD: product-{slug}-{type}-{colour}-{size}  ·  wall art: wallart-{slug}-{format}-{size}
   title: string;
-  price: number;     // per-size price, already resolved on the PDP
+  price: number;     // per-size price, already resolved on the PDP (server re-prices wall art)
   size: string;
   colour?: string;
+  format?: string;   // wall art only: format id (poster | canvas-standard | canvas-gallery)
   image: string;
   productType?: string;
   quantity: number;

@@ -15,6 +15,7 @@ import character from './character';
 import product from './product';
 import printfulVariant from './printfulVariant';
 import order from './order';
+import wallArt from './wallArt';
 import blogPost from './blogPost';
 import episode from './episode';
 // import book from './book';                  // TODO: create book.js
@@ -33,6 +34,7 @@ export const schemaTypes = [
   product,
   printfulVariant,
   order,
+  wallArt,
   // Content types (cont.)
   blogPost,
   episode,
