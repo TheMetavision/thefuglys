@@ -42,6 +42,9 @@ export default defineType({
       description: 'The display artwork (the print itself). High-res; shown as the main PDP image.',
       validation: (r) => r.required(),
     }),
+    defineField({ name: 'posterMockup', title: 'Poster Mockup', type: 'image', options: { hotspot: true } }),
+    defineField({ name: 'roomMockup',   title: 'Room Mockup',   type: 'image', options: { hotspot: true } }),
+    defineField({ name: 'studioMockup', title: 'Studio Mockup', type: 'image', options: { hotspot: true } }),
     defineField({
       name: 'mockups', title: 'Mockup Gallery', type: 'array',
       description: 'Lifestyle / framed mockups shown in the PDP gallery (poster, standard, gallery frame on a wall, etc.).',
