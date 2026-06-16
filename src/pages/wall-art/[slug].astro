@@ -23,7 +23,7 @@ const defSize = (sizes[1] || sizes[0]).id;
 const defPence = ARTWORK_PRICES[defFormat][defSize];
 const fmtGBP = (p) => `£${(p / 100).toFixed(2)}`;
 
-const gallery = [piece.imageUrl, ...(piece.mockups || []).map((m) => m.url)].filter(Boolean);
+const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, piece.roomMockupUrl].filter(Boolean);
 ---
 
 <Layout title={`${piece.title} — Wall Art — The Fuglys`} description={piece.tagline || piece.description || `${piece.title} wall art — poster and canvas prints.`}>

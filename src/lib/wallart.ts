@@ -24,6 +24,9 @@ export interface WallArtPiece {
   accent?: string;
   featured?: boolean;
   imageUrl: string;
+  posterMockupUrl?: string;
+  roomMockupUrl?: string;
+  studioMockupUrl?: string;
   mockups: WallArtMockup[];
 }
 
@@ -35,6 +38,9 @@ const QUERY = `*[_type == "wallArt" && active == true] | order(coalesce(sortOrde
   accent,
   featured,
   "imageUrl": image.asset->url,
+  "posterMockupUrl": posterMockup.asset->url,
+  "roomMockupUrl": roomMockup.asset->url,
+  "studioMockupUrl": studioMockup.asset->url,
   "mockups": mockups[]{ "url": asset->url, "alt": alt }
 }`;
 
