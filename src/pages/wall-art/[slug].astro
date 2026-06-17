@@ -115,9 +115,9 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
   .wa-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: start; }
 
   /* Gallery */
-  .wa-stage { position: relative; aspect-ratio: 16 / 9; background: #16262b; border: 1px solid rgba(179,22,46,0.18); overflow: hidden; }
+  .wa-stage { position: relative; background: #16262b; border: 1px solid rgba(179,22,46,0.18); overflow: hidden; }
   .thumb-bg-noise { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E"); background-size: 200px 200px; pointer-events: none; }
-  .wa-main-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .wa-main-img { display: block; width: 100%; height: auto; object-fit: contain; }
   .wa-thumbs { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
   .wa-thumb { width: 64px; height: 64px; padding: 0; border: 1px solid rgba(179,22,46,0.25); background: #16262b; cursor: pointer; overflow: hidden; transition: border-color 0.2s; }
   .wa-thumb img { width: 100%; height: 100%; object-fit: cover; }

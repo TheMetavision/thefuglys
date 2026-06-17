@@ -10,6 +10,16 @@ import { ARTWORK_FROM_PRICE, formatGBP } from '../lib/artwork-pricing.cjs';
 const products = await getAllProducts();
 const wallArt = await getAllWallArt();
 
+/* Split wall art by orientation, read from the dimensions baked into each
+   Sanity image URL (...-WIDTHxHEIGHT.ext), so landscape and portrait pieces
+   sit in their own tidy grids instead of clashing at equal width. */
+function wallArtIsLandscape(url) {
+  const m = /-(\d+)x(\d+)\.\w+(?:[?#]|$)/.exec(url || '');
+  return !!m && Number(m[1]) >= Number(m[2]);
+}
+const wallArtLandscape = wallArt.filter((p) => wallArtIsLandscape(p.imageUrl));
+const wallArtPortrait  = wallArt.filter((p) => !wallArtIsLandscape(p.imageUrl));
+
 /* Deterministic per-build randomness so SSR output is stable. */
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -136,24 +146,55 @@ const defaultCat = categories[0]?.key || (wallArt.length ? 'wallart' : 'tshirt')
         ))}
 
         {wallArt.length > 0 && (
-          <div class={`products-grid ${defaultCat === 'wallart' ? 'active' : ''}`} data-grid="wallart">
-            {wallArt.map((piece: any) => (
-              <a href={`/wall-art/${piece.slug}`} class="product-card" style={`--card-accent: ${piece.accent || '#b3162e'};`}>
-                <div class="card-worn-edge top-edge"></div>
-                <div class="product-thumb">
-                  <div class="thumb-bg-noise"></div>
-                  <img class="card-img card-img--front active" src={piece.imageUrl} alt={piece.title} loading="lazy" />
+          <div class={`products-grid wallart-wrap ${defaultCat === 'wallart' ? 'active' : ''}`} data-grid="wallart">
+            {wallArtLandscape.length > 0 && (
+              <Fragment>
+                <h3 class="wa-section-title">Landscape</h3>
+                <div class="wa-grid wa-grid--land">
+                  {wallArtLandscape.map((piece: any) => (
+                    <a href={`/wall-art/${piece.slug}`} class="product-card" style={`--card-accent: ${piece.accent || '#b3162e'};`}>
+                      <div class="card-worn-edge top-edge"></div>
+                      <div class="product-thumb">
+                        <div class="thumb-bg-noise"></div>
+                        <img class="card-img card-img--front active" src={piece.imageUrl} alt={piece.title} loading="lazy" />
+                      </div>
+                      <div class="product-info">
+                        <h3>{piece.title}</h3>
+                        <span class="product-type-label">Poster &amp; Canvas</span>
+                        <div class="product-footer">
+                          <span class="product-price">from {formatGBP(ARTWORK_FROM_PRICE)}</span>
+                          <span class="shop-btn">Shop</span>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
                 </div>
-                <div class="product-info">
-                  <h3>{piece.title}</h3>
-                  <span class="product-type-label">Poster &amp; Canvas</span>
-                  <div class="product-footer">
-                    <span class="product-price">from {formatGBP(ARTWORK_FROM_PRICE)}</span>
-                    <span class="shop-btn">Shop</span>
-                  </div>
+              </Fragment>
+            )}
+            {wallArtPortrait.length > 0 && (
+              <Fragment>
+                <h3 class="wa-section-title">Portrait</h3>
+                <div class="wa-grid wa-grid--port">
+                  {wallArtPortrait.map((piece: any) => (
+                    <a href={`/wall-art/${piece.slug}`} class="product-card" style={`--card-accent: ${piece.accent || '#b3162e'};`}>
+                      <div class="card-worn-edge top-edge"></div>
+                      <div class="product-thumb">
+                        <div class="thumb-bg-noise"></div>
+                        <img class="card-img card-img--front active" src={piece.imageUrl} alt={piece.title} loading="lazy" />
+                      </div>
+                      <div class="product-info">
+                        <h3>{piece.title}</h3>
+                        <span class="product-type-label">Poster &amp; Canvas</span>
+                        <div class="product-footer">
+                          <span class="product-price">from {formatGBP(ARTWORK_FROM_PRICE)}</span>
+                          <span class="shop-btn">Shop</span>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
                 </div>
-              </a>
-            ))}
+              </Fragment>
+            )}
           </div>
         )}
 
@@ -224,10 +265,18 @@ const defaultCat = categories[0]?.key || (wallArt.length ? 'wallart' : 'tshirt')
   .card-img.active { opacity: 1; }
   .product-card:hover .card-img.active { transform: scale(1.04); }
 
-  /* Wall-art cards: landscape frame, show the whole piece (no crop). Scoped to
-     the wall-art grid so garment cards keep their square crop. */
-  .products-grid[data-grid="wallart"] .product-thumb { aspect-ratio: 16 / 9; }
-  .products-grid[data-grid="wallart"] .card-img { object-fit: contain; }
+  /* Wall art split into orientation sections so landscape and portrait pieces
+     each sit in a tidy uniform grid and never look mismatched side by side. */
+  .products-grid[data-grid="wallart"].active { display: block; }
+  .wa-section-title { font-family: var(--font-condensed); font-weight: 700; font-size: 1.1rem; letter-spacing: 2px; text-transform: uppercase; color: #fff; margin: 0 0 18px; padding-bottom: 8px; border-bottom: 2px solid rgba(179,22,46,0.6); }
+  .wa-grid + .wa-section-title { margin-top: 52px; }
+  .wa-grid { display: grid; gap: 32px; }
+  .wa-grid--land { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+  .wa-grid--port { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .wa-grid--land .product-thumb { aspect-ratio: 16 / 9; }
+  .wa-grid--port .product-thumb { aspect-ratio: 2 / 3; }
+  .wa-grid .card-img { object-fit: contain; }
+  @media (max-width: 768px) { .wa-grid--land, .wa-grid--port { grid-template-columns: 1fr; } }
 
   .card-carousel-controls { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; z-index: 3; opacity: 0; transition: opacity 0.25s; }
   .product-card:hover .card-carousel-controls { opacity: 1; }
