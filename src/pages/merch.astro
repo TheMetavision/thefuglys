@@ -275,7 +275,7 @@ const defaultCat = categories[0]?.key || (wallArt.length ? 'wallart' : 'tshirt')
   .wa-grid--port { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .wa-grid--land .product-thumb { aspect-ratio: 3 / 2; }
   .wa-grid--port .product-thumb { aspect-ratio: 2 / 3; }
-  .wa-grid .card-img { object-fit: contain; }
+  .wa-grid .card-img { object-fit: cover; }
   @media (max-width: 768px) { .wa-grid--land, .wa-grid--port { grid-template-columns: 1fr; } }
 
   .card-carousel-controls { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; z-index: 3; opacity: 0; transition: opacity 0.25s; }
