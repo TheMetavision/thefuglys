@@ -3,9 +3,13 @@
  *
  * On checkout.session.completed:
  *   1. Verify the Stripe signature (STRIPE_WEBHOOK_SECRET).
- *   2. Email the customer a branded order confirmation (RESEND_API_KEY).
- *   3. Create the Printful order (PRINTFUL_API_KEY), idempotent via external_id.
- *   4. Write an `order` document to Sanity (SANITY_TOKEN) with status of
+ *   2. BRAND GUARD — skip (200) unless session.metadata.brand === BRAND_KEY.
+ *      All four IP brands share one Stripe account and Stripe broadcasts every
+ *      event to every endpoint; without this, each brand processes the others'
+ *      orders. Requires the checkout to stamp metadata.brand — deploy together.
+ *   3. Email the customer a branded order confirmation (RESEND_API_KEY).
+ *   4. Create the Printful order (PRINTFUL_API_KEY), idempotent via external_id.
+ *   5. Write an `order` document to Sanity (SANITY_TOKEN) with status of
  *      fulfilled / fulfilment-failed / paid.
  *
  * Steps 2–4 are each non-fatal: a failure in one never blocks the others or
@@ -25,6 +29,12 @@
  */
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+/* Brand guard: all four IP brands share one Stripe account, and Stripe sends
+   every event to every registered webhook endpoint. Only process sessions the
+   checkout stamped with our brand key. MUST match the checkout's metadata.brand
+   and deploy together with the checkout change. */
+const BRAND_KEY = 'thefuglys';
 
 const PRINTFUL_ORDERS_URL = 'https://api.printful.com/orders';
 const RESEND_URL = 'https://api.resend.com/emails';
@@ -384,6 +394,18 @@ exports.handler = async (event) => {
   }
 
   const session = stripeEvent.data.object;
+
+  /* Brand guard — ignore other brands' sessions on the shared Stripe account.
+     Unstamped (legacy) sessions are also skipped: checkout + webhook deploy
+     together, so anything without a brand tag is not ours to process.
+     MUST return 200 — a non-2xx makes Stripe retry and eventually disable
+     this endpoint. */
+  const sessionBrand = (session.metadata && session.metadata.brand) || null;
+  if (sessionBrand !== BRAND_KEY) {
+    console.log(`[BRAND-GUARD] session ${session.id}: brand="${sessionBrand || 'none'}" — not ${BRAND_KEY}, skipping.`);
+    return { statusCode: 200, body: JSON.stringify({ received: true, skipped: 'other-brand' }) };
+  }
+
   console.log(`[ORDER] checkout.session.completed — session ${session.id}`);
 
   let lineItems;
