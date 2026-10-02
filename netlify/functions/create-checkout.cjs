@@ -1,5 +1,5 @@
 /**
- * netlify/functions/create-checkout.js  (The Fuglys)
+ * netlify/functions/create-checkout.cjs  (The Fuglys)
  *
  * Ported from the Cats On Crack / Wyrmfuel function. Matching/pricing logic is
  * brand-agnostic; only the marked CONFIG / SHIPPING / metadata values change.

@@ -1,5 +1,5 @@
 /**
- * netlify/functions/subscribe.js  (The Fuglys)
+ * netlify/functions/subscribe.cjs  (The Fuglys)
  *
  * FIX: this previously read process.env.MAILERLITE_TOKEN, but the env var
  * actually set on the Fuglys Netlify project is MAILERLITE_API_KEY — so the

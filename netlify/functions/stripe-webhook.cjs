@@ -1,5 +1,5 @@
 /**
- * netlify/functions/stripe-webhook.js  (The Fuglys — email + Sanity order log)
+ * netlify/functions/stripe-webhook.cjs  (The Fuglys — email + Sanity order log)
  *
  * On checkout.session.completed:
  *   1. Verify the Stripe signature (STRIPE_WEBHOOK_SECRET).
@@ -25,7 +25,7 @@
  *   SANITY_PROJECT_ID     — optional; default ngx60q2x
  *   SANITY_DATASET        — optional; default production
  *
- * Must be named stripe-webhook.js (not .cjs/.mjs); delete any stale duplicate.
+ * Must be named stripe-webhook.cjs (CommonJS in a "type": "module" repo); delete any stale duplicate.
  */
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
