@@ -294,6 +294,21 @@ async function finalize(session, lineItems, status, printfulOrderId) {
   await sendMerchantEmail(session, lineItems, status, printfulOrderId);
 }
 
+/* True if a document with this _id exists. Authenticated: order docs are
+   only readable with the token. A failed lookup counts as "no". */
+async function orderExists(id) {
+  try {
+    const q = encodeURIComponent('count(*[_id == $id])');
+    const res = await fetch(
+      `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${q}&$id=${encodeURIComponent(JSON.stringify(id))}`,
+      { headers: { Authorization: 'Bearer ' + process.env.SANITY_TOKEN } }
+    );
+    return res.ok && (await res.json()).result > 0;
+  } catch {
+    return false;
+  }
+}
+
 /* Write/overwrite the order doc in Sanity. Deterministic _id keyed on the
    session id makes webhook retries idempotent (createOrReplace). Non-fatal. */
 async function saveOrder(session, lineItems, status, printfulOrderId) {
@@ -321,8 +336,15 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
   });
   const inhouseCount = items.filter((it) => it.fulfilment === 'inhouse').length;
 
+  // The dot keeps the order (name, email, address) out of anonymous API reads.
+  // A retry for a session whose order predates that change overwrites the old
+  // doc in place (until tools/migrate-private-ids.mjs moves it) rather than
+  // creating a second one.
+  const sessionKey = String(session.id).slice(-32);
+  const orderId = (await orderExists(`order-${sessionKey}`)) ? `order-${sessionKey}` : `order.${sessionKey}`;
+
   const doc = {
-    _id: `order-${String(session.id).slice(-32)}`,
+    _id: orderId,
     _type: 'order',
     orderRef: String(session.id).slice(-8).toUpperCase(),
     placedAt: new Date(session.created ? session.created * 1000 : Date.now()).toISOString(),
