@@ -20,9 +20,7 @@ if (!rawEpisodes || rawEpisodes.length === 0) {
     status: ep.youtubeId ? 'LIVE' : 'COMING SOON',
     image: ep.thumbnail?.asset
       ? urlFor(ep.thumbnail).width(600).height(400).fit('crop').auto('format').url()
-      : ep.youtubeId
-        ? `https://img.youtube.com/vi/${ep.youtubeId}/hqdefault.jpg`
-        : '/images/fuglys-episode-placeholder.webp',
+      : '/images/fuglys-episode-placeholder.webp', // never YouTube's image server (privacy)
   }));
 }
 
@@ -65,11 +63,11 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
           <div class="trailer-embed" id="trailer-embed">
             <div class="trailer-thumbnail" id="trailer-thumbnail">
               <img
-                src="https://img.youtube.com/vi/XgwfSjIJre4/maxresdefault.jpg"
+                src="/video-thumbs/XgwfSjIJre4.jpg"
                 alt="The Fuglys Official Trailer thumbnail"
                 class="trailer-thumb-img"
               />
-              <button class="play-btn" id="play-btn" aria-label="Play trailer">
+              <button class="play-btn" id="play-btn" aria-label="Play trailer (loads from YouTube)">
                 <span class="play-circle">
                   <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="18" cy="18" r="18" fill="rgba(0,0,0,0.55)"/>
@@ -81,6 +79,7 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
           </div>
           <div class="trailer-glow"></div>
         </div>
+        <p class="video-note">Plays from YouTube, which may set cookies.</p>
       </div>
     </section>
 
@@ -184,14 +183,17 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
   function loadTrailer() {
     if (!embedWrap) return;
     const iframe = document.createElement('iframe');
-    iframe.src = 'https://www.youtube.com/embed/XgwfSjIJre4?autoplay=1&rel=0';
+    // Click-to-load: YouTube is only contacted after the visitor presses play.
+    iframe.src = 'https://www.youtube-nocookie.com/embed/XgwfSjIJre4?autoplay=1&rel=0';
     iframe.title = 'The Fuglys Official Trailer';
     iframe.setAttribute('frameborder', '0');
     iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
     iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
     iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
     embedWrap.innerHTML = '';
     embedWrap.appendChild(iframe);
+    iframe.focus();
   }
 
   thumbnail?.addEventListener('click', loadTrailer);
@@ -199,6 +201,13 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
 </script>
 
 <style>
+  .video-note {
+    margin: 16px 0 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
+  }
+
 
   .hero-media-img {
     width: 100%;

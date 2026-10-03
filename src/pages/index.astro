@@ -208,15 +208,16 @@ const pitsCards = worldLocations.map((loc: any) => ({
           <div class="series-thumb-col">
             <div class="series-thumb-wrap" id="seriesThumb">
               <img
-                src="https://img.youtube.com/vi/XgwfSjIJre4/hqdefault.jpg"
+                src="/video-thumbs/XgwfSjIJre4.jpg"
                 alt="The Fuglys Animated Series — Watch on YouTube"
                 class="series-thumb-img"
               />
               <div class="series-scanlines" aria-hidden="true"></div>
-              <button class="series-play-btn" aria-label="Play trailer">
+              <button class="series-play-btn" aria-label="Play trailer (loads from YouTube)">
                 <svg viewBox="0 0 24 24" fill="white" width="28" height="28"><path d="M8 5v14l11-7z"/></svg>
               </button>
             </div>
+            <p class="video-note">Plays from YouTube, which may set cookies.</p>
           </div>
 
           <div class="series-text-col">
@@ -237,10 +238,13 @@ const pitsCards = worldLocations.map((loc: any) => ({
 
     <script>
       (function () {
+        // Click-to-load: nothing is requested from YouTube until the visitor
+        // presses play (the thumbnail is self-hosted in /video-thumbs/).
         const wrap = document.getElementById('seriesThumb');
         if (!wrap) return;
         wrap.addEventListener('click', function () {
-          wrap.innerHTML = '<iframe src="https://www.youtube.com/embed/XgwfSjIJre4?autoplay=1&rel=0" frameborder="0" allowfullscreen allow="autoplay" style="position:absolute;inset:0;width:100%;height:100%;border-radius:4px;"></iframe>';
+          wrap.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/XgwfSjIJre4?autoplay=1&rel=0" title="The Fuglys Animated Series trailer" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;inset:0;width:100%;height:100%;border-radius:4px;"></iframe>';
+          wrap.querySelector('iframe')?.focus();
         });
       })();
     </script>
@@ -336,6 +340,13 @@ const pitsCards = worldLocations.map((loc: any) => ({
 </script>
 
 <style>
+  .video-note {
+    margin: 10px 0 0;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: center;
+  }
+
   main {
     padding-top: 0;
   }
