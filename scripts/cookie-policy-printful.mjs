@@ -22,7 +22,7 @@ const MENTION = /printful|__cf_bm/i;
 
 const client = createClient({
   projectId: 'ngx60q2x', dataset: 'production', apiVersion: '2024-01-01',
-  token: process.env.SANITY_TOKEN_FUGLYS || process.env.SANITY_API_TOKEN, useCdn: false, perspective: 'raw',
+  token: process.env.SANITY_API_TOKEN, useCdn: false, perspective: 'raw',
 });
 
 const textOf = (b) => (b.children || []).map((c) => c.text || '').join('');

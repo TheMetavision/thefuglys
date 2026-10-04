@@ -8,7 +8,7 @@
  * The dry run records each document's _rev. --apply patches a document only
  * if it is unchanged since then (ifRevisionID) and has no open draft, so
  * anything edited in Studio in between is skipped and reported, not
- * overwritten. Needs SANITY_TOKEN_FUGLYS (write) in .env.
+ * overwritten. Needs SANITY_API_TOKEN (write) in .env.
  */
 import fs from 'node:fs';
 import { createClient } from '@sanity/client';
@@ -36,7 +36,7 @@ const EDITS = [
 
 const client = createClient({
   projectId: 'ngx60q2x', dataset: 'production', apiVersion: '2024-12-01',
-  token: process.env.SANITY_TOKEN_FUGLYS || process.env.SANITY_API_TOKEN, useCdn: false, perspective: 'raw',
+  token: process.env.SANITY_API_TOKEN, useCdn: false, perspective: 'raw',
 });
 const get = (doc, path) => path.split('.').reduce((o, k) => o?.[k], doc);
 
