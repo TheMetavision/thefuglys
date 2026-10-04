@@ -1,13 +1,19 @@
+import { canonicalUrl } from './url';
+
 // ─── Organization Schema ──────────────────────────────────────
+// The real trader: The Fuglys is a trading name of The Metavision Multimedia
+// Limited (not a separate subsidiary), at its registered office.
 export function organizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
+    '@id': canonicalUrl('/') + '#organization',
     name: 'The Fuglys',
-    url: 'https://thefuglys.com',
+    legalName: 'The Metavision Multimedia Limited',
+    url: canonicalUrl('/'),
     logo: 'https://thefuglys.com/favicon.svg',
     description:
-      'Join The Fuglys — an unruly band of wasteland misfits — in animated adventures, blog stories & merch drops.',
+      'Join The Fuglys — an unruly band of wasteland misfits — in animated adventures, blog stories & merch drops. A trading name of The Metavision Multimedia Limited, registered in England & Wales.',
     sameAs: [
       'https://www.youtube.com/@TheFuglys',
       'https://www.instagram.com/the_fuglys',
@@ -15,11 +21,16 @@ export function organizationSchema() {
       'https://x.com/TheFuglysMedia',
       'https://www.facebook.com/thefuglysmedia',
     ],
-    parentOrganization: {
-      '@type': 'Organization',
-      name: 'The Metavision Multimedia Limited',
-      url: 'https://themetavision.co.uk',
+    email: 'chaos@thefuglys.com',
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: '167-169 Great Portland Street, 5th Floor',
+      addressLocality: 'London',
+      postalCode: 'W1W 5PF',
+      addressCountry: 'GB',
     },
+    vatID: 'GB503753017',
+    identifier: { '@type': 'PropertyValue', propertyID: 'Companies House', value: '16282479' },
   };
 }
 

@@ -1,4 +1,5 @@
 ---
+const year = new Date().getFullYear();
 import LegalLinks from './LegalLinks.astro';
 ---
 
@@ -88,7 +89,14 @@ import LegalLinks from './LegalLinks.astro';
       </div>
 
       <div class="footer-bottom">
-        <p>© The Fuglys 2026. <a href="https://www.themetavision.co.uk" target="_blank" rel="noopener noreferrer" class="metavision-link">Part of The Metavision IP Universe.</a> All rights reserved.</p>
+        <p>© {year} The Fuglys. <a href="https://www.themetavision.co.uk" target="_blank" rel="noopener noreferrer" class="metavision-link">Part of The Metavision IP Universe.</a> All rights reserved.</p>
+        <p class="footer-legal">
+          The Fuglys is a trading name of The Metavision Multimedia Limited.
+          Registered in England &amp; Wales, company no. 16282479.
+          Registered office: 167-169 Great Portland Street, 5th Floor, London, W1W 5PF.
+          VAT no. GB 503 7530 17.
+          <a href="mailto:chaos@thefuglys.com" class="metavision-link">chaos@thefuglys.com</a>
+        </p>
       </div>
 
     </div>
@@ -292,6 +300,13 @@ import LegalLinks from './LegalLinks.astro';
     color: rgba(255,255,255,0.3);
     letter-spacing: 0.04em;
     margin: 0;
+  }
+
+  .footer-bottom .footer-legal {
+    font-size: 0.72rem;
+    line-height: 1.6;
+    max-width: 60rem;
+    margin: 0.5rem auto 0;
   }
 
   .metavision-link {
