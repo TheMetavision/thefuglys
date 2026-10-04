@@ -1,4 +1,5 @@
 ---
+import { localImg } from '../lib/sanityImage';
 const year = new Date().getFullYear();
 import LegalLinks from './LegalLinks.astro';
 ---
@@ -32,7 +33,10 @@ import LegalLinks from './LegalLinks.astro';
         <div class="footer-brand-col">
           <a href="/">
             <img
-              src="/images/fuglys-episode-placeholder.webp"
+              src={localImg('/images/fuglys-episode-placeholder.webp', 80)}
+              srcset={`${localImg('/images/fuglys-episode-placeholder.webp', 80)} 1x, ${localImg('/images/fuglys-episode-placeholder.webp', 160)} 2x`}
+              width="80"
+              height="80"
               alt="The Fuglys"
               class="footer-logo"
             />

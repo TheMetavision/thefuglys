@@ -1,4 +1,5 @@
 ---
+import { sanityImg, sanityDims, sanityFull } from '../../lib/sanityImage';
 // src/pages/wall-art/[slug].astro  (The Fuglys)
 import Layout from '../../layouts/Layout.astro';
 import Nav from '../../components/Nav.astro';
@@ -38,13 +39,13 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
         <div class="wa-gallery">
           <div class="wa-stage">
             <div class="thumb-bg-noise"></div>
-            <img id="wa-main-img" class="wa-main-img" src={gallery[0]} alt={piece.title} />
+            <img id="wa-main-img" class="wa-main-img" src={sanityImg(gallery[0], 1000)} {...sanityDims(gallery[0], 1000)} fetchpriority="high" alt={piece.title} />
           </div>
           {gallery.length > 1 && (
             <div class="wa-thumbs">
               {gallery.map((url, i) => (
-                <button class={`wa-thumb ${i === 0 ? 'active' : ''}`} data-src={url} aria-label={`View ${i + 1}`}>
-                  <img src={url} alt={`${piece.title} view ${i + 1}`} loading="lazy" />
+                <button class={`wa-thumb ${i === 0 ? 'active' : ''}`} data-src={sanityImg(url, 1000)} aria-label={`View ${i + 1}`}>
+                  <img src={sanityImg(url, 128, { h: 128 })} width="64" height="64" alt={`${piece.title} view ${i + 1}`} loading="lazy" />
                 </button>
               ))}
             </div>
@@ -157,7 +158,7 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
   }
 </style>
 
-<script define:vars={{ prices: ARTWORK_PRICES, formatList: formats, sizeList: sizes, slug: piece.slug, title: piece.title, image: piece.imageUrl, defFormat, defSize }}>
+<script define:vars={{ prices: ARTWORK_PRICES, formatList: formats, sizeList: sizes, slug: piece.slug, title: piece.title, image: sanityFull(piece.imageUrl), defFormat, defSize }}>
   (function () {
     let selFormat = defFormat;
     let selSize = defSize;

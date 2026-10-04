@@ -6,6 +6,8 @@
  * text #FFFFFF. Headings Bebas Neue. Mounted by Layout.astro as <CartDrawer client:load />.
  */
 
+// Display only: the cart keeps the original image URL; productImg resizes it via the CDN.
+import { productImg } from '../lib/sanityImage';
 import { useStore } from '@nanostores/react';
 import { useEffect, useState } from 'react';
 import { $cartItems, $cartOpen, $cartTotal, $cartCount, $qualifiesForFreeShipping, $amountToFreeShipping, FREE_SHIPPING_THRESHOLD, removeFromCart, toggleCart, addToCart, clearCart } from '../lib/cart';
@@ -248,7 +250,7 @@ export default function CartDrawer() {
           ) : (
             items.map((item) => (
               <div style={styles.item} key={item.id + '-' + item.size}>
-                <img style={styles.itemImg} src={item.image} alt={item.title} />
+                <img style={styles.itemImg} src={productImg(item.image, 144)} alt={item.title} />
                 <div>
                   <p style={styles.itemName}>{item.title}</p>
                   <p style={styles.itemVariant}>

@@ -1,4 +1,6 @@
 ---
+import { sanityImg, sanitySrcset, sanityDims, localImg, localSrcset } from '../lib/sanityImage';
+const BOOK_COVER = 'https://cdn.sanity.io/images/ngx60q2x/production/f006d9cdfcd75fea1eacc2b9d16199623b912988-1360x2048.png';
 import Layout from '../layouts/Layout.astro';
 import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
@@ -48,6 +50,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
             <img
               class={`hero-char-img${i === 0 ? ' is-active' : ''}`}
               src={char.image}
+              {...sanityDims(char.image, 900)}
               alt={char.name}
               data-index={i}
               loading={i === 0 ? 'eager' : 'lazy'}
@@ -193,7 +196,11 @@ const pitsCards = worldLocations.map((loc: any) => ({
           </div>
           <div class="split-image">
             <img
-              src="https://cdn.sanity.io/images/ngx60q2x/production/f006d9cdfcd75fea1eacc2b9d16199623b912988-1360x2048.png"
+              src={sanityImg(BOOK_COVER, 480)}
+              srcset={sanitySrcset(BOOK_COVER, 480)}
+              sizes="(min-width: 900px) 480px, 100vw"
+              {...sanityDims(BOOK_COVER, 480)}
+              loading="lazy"
               alt="The Fuglys book series"
               class="section-img book-cover-img"
             />
@@ -208,7 +215,12 @@ const pitsCards = worldLocations.map((loc: any) => ({
           <div class="series-thumb-col">
             <div class="series-thumb-wrap" id="seriesThumb">
               <img
-                src="/video-thumbs/XgwfSjIJre4.jpg"
+                src={localImg('/video-thumbs/XgwfSjIJre4.jpg', 480)}
+                srcset={localSrcset('/video-thumbs/XgwfSjIJre4.jpg', 480, 720)}
+                sizes="(min-width: 900px) 480px, 100vw"
+                width="720"
+                height="1100"
+                loading="lazy"
                 alt="The Fuglys Animated Series — Watch on YouTube"
                 class="series-thumb-img"
               />

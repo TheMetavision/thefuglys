@@ -1,4 +1,5 @@
 ---
+import { sanityImg, sanitySrcset, sanityDims } from '../../lib/sanityImage';
 import Layout from '../../layouts/Layout.astro';
 import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
@@ -68,7 +69,7 @@ const bodyHtml = renderBody(post.body);
 
         {post.featuredImage && (
           <div class="post-cover">
-            <img src={post.featuredImage} alt={post.title} class="post-cover-img" />
+            <img src={sanityImg(post.featuredImage, 1100)} srcset={sanitySrcset(post.featuredImage, 1100)} sizes="(min-width: 1140px) 1100px, 100vw" {...sanityDims(post.featuredImage, 1100)} fetchpriority="high" alt={post.title} class="post-cover-img" />
           </div>
         )}
 

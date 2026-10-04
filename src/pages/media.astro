@@ -1,4 +1,5 @@
 ---
+import { localImg, localSrcset } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
@@ -43,7 +44,7 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
           </div>
           <div class="page-hero-visual">
             <img
-              src="/images/fuglys-media-hero.webp"
+              src={localImg('/images/fuglys-media-hero.webp', 800)} srcset={localSrcset('/images/fuglys-media-hero.webp', 600, 1200)} sizes="(min-width: 900px) 600px, 100vw" width="1200" height="669" fetchpriority="high"
               alt="Behind the cameras at The Pits — the Fuglys crew filming a scene in the wasteland"
               class="hero-media-img"
             />
@@ -63,7 +64,11 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
           <div class="trailer-embed" id="trailer-embed">
             <div class="trailer-thumbnail" id="trailer-thumbnail">
               <img
-                src="/video-thumbs/XgwfSjIJre4.jpg"
+                src={localImg('/video-thumbs/XgwfSjIJre4.jpg', 480)}
+                srcset={localSrcset('/video-thumbs/XgwfSjIJre4.jpg', 480, 720)}
+                sizes="(min-width: 900px) 480px, 100vw"
+                width="720"
+                height="1100"
                 alt="The Fuglys Official Trailer thumbnail"
                 class="trailer-thumb-img"
               />
@@ -99,7 +104,7 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
             return (
               <article class="episode-card">
                 <div class="episode-img-wrap">
-                  <img src={ep.image} alt={ep.title} class="episode-img" loading="lazy" />
+                  <img src={ep.image} width="600" height="400" alt={ep.title} class="episode-img" loading="lazy" />
                   <div class="episode-img-overlay"></div>
                   <span class="badge-season-ep">{seasonLabel}</span>
                   <span class={`badge-status ${isLive ? 'badge-live' : 'badge-coming-soon'}`}>

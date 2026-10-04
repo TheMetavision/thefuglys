@@ -1,4 +1,5 @@
 ---
+import { productImg, productSrcset, productDims } from '../lib/sanityImage';
 /**
  * MerchPromo.astro — homepage band promoting the live merch range.
  * Self-fetching: pulls real product mockups from Sanity via getAllProducts.
@@ -67,7 +68,7 @@ const picks = products.slice(0, count).map((p: any, i: number) => {
         {picks.map((item: any) => (
           <a href={`/products/${item.slug}`} class="merchpromo-card">
             <div class="merchpromo-thumb">
-              <img src={item.image} alt={item.name} loading="lazy" />
+              <img src={productImg(item.image, 320)} srcset={productSrcset(item.image, 280)} sizes="(min-width: 900px) 280px, 50vw" {...productDims(item.image, 320)} alt={item.name} loading="lazy" />
               <span class="merchpromo-view">View</span>
             </div>
             <div class="merchpromo-meta">

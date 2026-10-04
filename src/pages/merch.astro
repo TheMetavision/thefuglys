@@ -1,4 +1,5 @@
 ---
+import { sanityImg, sanitySrcset, sanityDims, localImg, localSrcset, productImg, productSrcset, productDims } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
@@ -122,8 +123,8 @@ const defaultCat = categories[0]?.key || (wallArt.length ? 'wallart' : 'tshirt')
                 <div class="card-worn-edge top-edge"></div>
                 <div class="product-thumb">
                   <div class="thumb-bg-noise"></div>
-                  <img class="card-img card-img--front active" src={item.image} alt={`${item.name} ${item.type}`} loading="lazy" />
-                  {item.backImage && <img class="card-img card-img--back" src={item.backImage} alt={`${item.name} ${item.type} back`} loading="lazy" />}
+                  <img class="card-img card-img--front active" src={productImg(item.image, 400)} srcset={productSrcset(item.image, 300)} sizes="(min-width: 1200px) 280px, (min-width: 600px) 45vw, 100vw" {...productDims(item.image, 400)} alt={`${item.name} ${item.type}`} loading="lazy" />
+                  {item.backImage && <img class="card-img card-img--back" src={productImg(item.backImage, 400)} srcset={productSrcset(item.backImage, 300)} sizes="(min-width: 1200px) 280px, (min-width: 600px) 45vw, 100vw" {...productDims(item.backImage, 400)} alt={`${item.name} ${item.type} back`} loading="lazy" />}
                   {item.backImage && (
                     <div class="card-carousel-controls">
                       <button class="card-arrow" data-dir="prev" aria-label="Show front" type="button">‹</button>
@@ -156,7 +157,7 @@ const defaultCat = categories[0]?.key || (wallArt.length ? 'wallart' : 'tshirt')
                       <div class="card-worn-edge top-edge"></div>
                       <div class="product-thumb">
                         <div class="thumb-bg-noise"></div>
-                        <img class="card-img card-img--front active" src={piece.imageUrl} alt={piece.title} loading="lazy" />
+                        <img class="card-img card-img--front active" src={sanityImg(piece.imageUrl, 600)} srcset={sanitySrcset(piece.imageUrl, 560)} sizes="(min-width: 900px) 560px, 100vw" {...sanityDims(piece.imageUrl, 600)} alt={piece.title} loading="lazy" />
                       </div>
                       <div class="product-info">
                         <h3>{piece.title}</h3>
@@ -180,7 +181,7 @@ const defaultCat = categories[0]?.key || (wallArt.length ? 'wallart' : 'tshirt')
                       <div class="card-worn-edge top-edge"></div>
                       <div class="product-thumb">
                         <div class="thumb-bg-noise"></div>
-                        <img class="card-img card-img--front active" src={piece.imageUrl} alt={piece.title} loading="lazy" />
+                        <img class="card-img card-img--front active" src={sanityImg(piece.imageUrl, 400)} srcset={sanitySrcset(piece.imageUrl, 300)} sizes="(min-width: 1200px) 280px, (min-width: 600px) 45vw, 100vw" {...sanityDims(piece.imageUrl, 400)} alt={piece.title} loading="lazy" />
                       </div>
                       <div class="product-info">
                         <h3>{piece.title}</h3>
