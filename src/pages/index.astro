@@ -41,7 +41,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
   <main>
     <section class="hero" id="hero">
       <div class="hero-tagline-bar">
-        <span class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</span>
+        <h1 class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</h1>
       </div>
 
       <div class="hero-body">
@@ -385,7 +385,10 @@ const pitsCards = worldLocations.map((loc: any) => ({
     z-index: 2;
   }
 
+  /* The page's one <h1>: keeps the tagline's look, not the global h1 size. */
   .hero-tagline {
+    margin: 0;
+    line-height: normal;
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 900;
     font-size: clamp(0.85rem, 1.8vw, 1.1rem);
