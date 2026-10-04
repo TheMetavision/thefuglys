@@ -9,6 +9,7 @@ import { getAllWallArt } from '../lib/wallart';
 import { ARTWORK_FROM_PRICE, formatGBP } from '../lib/artwork-pricing.cjs';
 
 const products = await getAllProducts();
+if (!products?.length) throw new Error('[merch] Sanity returned no active products'); // fail the build, not ship an empty shop
 const wallArt = await getAllWallArt();
 
 /* Split wall art by orientation, read from the dimensions baked into each

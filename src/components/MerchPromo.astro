@@ -37,7 +37,8 @@ const {
 function seededRandom(seed: number) { const x = Math.sin(seed) * 10000; return x - Math.floor(x); }
 
 let products: any[] = [];
-try { products = (await getAllProducts()) || []; } catch (_) { products = []; }
+// No catch: a Sanity failure fails the build (the live deploy stays) rather than hiding the strip.
+products = (await getAllProducts()) || [];
 
 /* Pick `count` products, each showing a (seeded-random) colourway mockup of its
    first garment. Falls back gracefully if a product has no mockups yet. */

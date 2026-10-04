@@ -1,5 +1,6 @@
 ---
-import { productImg, productSrcset, productDims, sanityFull } from '../../lib/sanityImage';
+import { productImg, productSrcset, productDims, sanityFull, socialImg } from '../../lib/sanityImage';
+import { canonicalUrl } from '../../lib/url';
 const HERO_SIZES = '(max-width: 900px) 100vw, 600px';
 /**
  * src/pages/product/[slug].astro  (The Fuglys — NESTED model)
@@ -16,6 +17,8 @@ import ImageZoom from '../../components/ImageZoom.astro';
 
 export async function getStaticPaths() {
   const products = await getAllProducts();
+  // Fail the build (Netlify keeps the live deploy) rather than ship no product pages.
+  if (!products?.length) throw new Error('[products] Sanity returned no active products');
   return products.map((p) => ({ params: { slug: p.slug }, props: { product: p } }));
 }
 
@@ -41,9 +44,33 @@ const variantsJson = JSON.stringify(
     thumbnail: variantImg(v),
   }))
 );
+
+/* Product JSON-LD: one Offer per garment type, at the price the page shows
+   first for it (basePrice - the same field the visible price and checkout use). */
+const productUrl = canonicalUrl(`/products/${design.slug}/`);
+const productImage = socialImg(variantImg(defaultVariant));
+const productDescription = design.seoDescription || design.description || design.backstory || design.tagline;
+const productJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: design.name,
+  description: productDescription,
+  image: productImage,
+  url: productUrl,
+  brand: { '@type': 'Brand', name: 'The Fuglys' },
+  offers: (design.variants || []).filter((v) => typeof v.basePrice === 'number').map((v) => ({
+    '@type': 'Offer',
+    name: `${design.name} ${v.label}`,
+    price: v.basePrice.toFixed(2),
+    priceCurrency: 'GBP',
+    availability: 'https://schema.org/InStock',
+    url: productUrl,
+    seller: { '@id': canonicalUrl('/') + '#organization' },
+  })),
+};
 ---
 
-<Layout title={design.seoTitle || design.name} description={design.seoDescription || design.description || design.backstory || design.tagline}>
+<Layout title={design.seoTitle || design.name} description={productDescription} ogImage={productImage} jsonLd={productJsonLd}>
   <main class="pdp" style={`--accent: ${design.accent || '#b3162e'};`}>
     <div class="pdp-grid">
       <!-- Gallery -->

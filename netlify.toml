@@ -19,12 +19,12 @@
 # Short URLs for the legal pages (they live under /legal/ in Sanity)
 [[redirects]]
   from = "/privacy-policy"
-  to = "/legal/privacy-policy"
+  to = "/legal/privacy-policy/"
   status = 301
 
 [[redirects]]
   from = "/cookie-policy"
-  to = "/legal/cookie-policy"
+  to = "/legal/cookie-policy/"
   status = 301
 
 [[headers]]

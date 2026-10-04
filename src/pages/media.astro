@@ -4,13 +4,15 @@ import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
-import { getAllEpisodes, FALLBACK_EPISODES, getAllBooks, FALLBACK_BOOKS, getBookCoverImage, urlFor } from '../lib/sanity';
+import { getAllEpisodes, getAllBooks, FALLBACK_BOOKS, getBookCoverImage, urlFor } from '../lib/sanity';
 
 const rawEpisodes = await getAllEpisodes();
 
 let episodes: any[];
+// No stand-in episodes (the old fallback used stock photos): an empty list
+// fails the build and the live deploy stays.
 if (!rawEpisodes || rawEpisodes.length === 0) {
-  episodes = FALLBACK_EPISODES;
+  throw new Error('[media] Sanity returned no episodes');
 } else {
   // Map Sanity field names to what the template expects
   episodes = rawEpisodes.map((ep: any, i: number) => ({

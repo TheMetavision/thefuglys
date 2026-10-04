@@ -3,6 +3,7 @@ import CartDrawer from '../components/CartDrawer';
 import FuglysTransmission from '../components/FuglysTransmission.astro';
 import { organizationSchema, websiteSchema } from '../lib/schema';
 import { canonicalUrl } from '../lib/url';
+import { socialImg } from '../lib/sanityImage';
 import { getThemeAudio } from '../lib/sanity';
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   description?: string;
   jsonLd?: Record<string, any> | Record<string, any>[];
   noIndex?: boolean;
+  /** Absolute social-card image; defaults to the media page hero. */
+  ogImage?: string;
 }
 
 const {
@@ -17,6 +20,7 @@ const {
   description = "Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild post-apocalyptic adventures.",
   jsonLd,
   noIndex = false,
+  ogImage = socialImg('/images/fuglys-media-hero.webp'),
 } = Astro.props;
 
 // Titles stay within 60 characters: the suffix shrinks (" | Post-Apocalyptic
@@ -91,6 +95,8 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
     <meta property="og:type" content="website" />
     <meta property="og:url" content={pageUrl} />
     <meta property="og:site_name" content="The Fuglys" />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:image" content={ogImage} />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
