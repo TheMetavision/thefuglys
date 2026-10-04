@@ -9,10 +9,10 @@ import { getAllEpisodes, getAllBooks, FALLBACK_BOOKS, getBookCoverImage, urlFor 
 const rawEpisodes = await getAllEpisodes();
 
 let episodes: any[];
-// No stand-in episodes (the old fallback used stock photos): an empty list
-// fails the build and the live deploy stays.
+// No stand-in episodes (the old fallback used stock photos): with none in
+// Sanity the page says new episodes are coming soon.
 if (!rawEpisodes || rawEpisodes.length === 0) {
-  throw new Error('[media] Sanity returned no episodes');
+  episodes = [];
 } else {
   // Map Sanity field names to what the template expects
   episodes = rawEpisodes.map((ep: any, i: number) => ({
@@ -97,6 +97,9 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
           <h2 class="episodes-title">Episodes</h2>
           <div class="trailer-rule"></div>
         </div>
+        {episodes.length === 0 && (
+          <p class="episodes-empty">New episodes coming soon.</p>
+        )}
         <div class="episodes-grid">
           {episodes.map((ep, i) => {
             const seasonNum = ep.season ?? 1;
@@ -323,6 +326,13 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
   }
 
   /* Episodes */
+  .episodes-empty {
+    margin: 0 0 24px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.05rem;
+    text-align: center;
+  }
+
   .episodes-section {
     background: #263F44;
     padding: 80px 0 96px;
