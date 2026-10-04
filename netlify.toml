@@ -6,6 +6,11 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Printful mockups are served through Netlify Image CDN (/.netlify/images?url=…),
+# so visitors load them from thefuglys.com, resized, and never contact printful.com.
+[images]
+  remote_images = ['https://files\.cdn\.printful\.com/.*']
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
