@@ -9,7 +9,7 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Order Confirmed" description="Your Fuglys order is locked in.">
+<Layout title="Order Confirmed" description="Your Fuglys order is locked in." noIndex={true}>
   {/* Empty the cart once Stripe redirects back with a session_id.
       is:inline so it runs during parse, before the CartDrawer island hydrates. */}
   <script is:inline>

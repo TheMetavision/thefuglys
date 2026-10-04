@@ -2,6 +2,7 @@
 import CartDrawer from '../components/CartDrawer';
 import FuglysTransmission from '../components/FuglysTransmission.astro';
 import { organizationSchema, websiteSchema } from '../lib/schema';
+import { canonicalUrl } from '../lib/url';
 import { getThemeAudio } from '../lib/sanity';
 
 interface Props {
@@ -17,6 +18,9 @@ const {
   jsonLd,
   noIndex = false,
 } = Astro.props;
+
+// Apex host, trailing slash: the address Netlify actually serves.
+const pageUrl = canonicalUrl(Astro.url.pathname);
 
 const allSchemas = [organizationSchema(), websiteSchema()];
 if (jsonLd) {
@@ -60,7 +64,7 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="canonical" href={Astro.url.href} />
+    <link rel="canonical" href={pageUrl} />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="preload" href="/fonts/barlow-condensed-700-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/fonts/fonts.css" />
@@ -70,7 +74,7 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
     <meta property="og:title" content={`${title} | The Fuglys`} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={Astro.url.href} />
+    <meta property="og:url" content={pageUrl} />
     <meta property="og:site_name" content="The Fuglys" />
 
     <!-- Twitter -->

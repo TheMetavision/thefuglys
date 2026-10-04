@@ -40,13 +40,10 @@ export function websiteSchema() {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'The Fuglys',
-    url: 'https://thefuglys.com',
+    url: canonicalUrl('/'),
     description:
       'Post-apocalyptic animated series, book universe, and official merch from The Fuglys.',
-    publisher: {
-      '@type': 'Organization',
-      name: 'The Fuglys',
-    },
+    publisher: { '@id': canonicalUrl('/') + '#organization' },
   };
 }
 
@@ -73,7 +70,7 @@ export function tvSeriesSchema() {
     description:
       'A post-apocalyptic animated series following a ragtag crew of misfits, scavengers, and troublemakers navigating the wasteland.',
     genre: ['Animation', 'Comedy', 'Post-Apocalyptic'],
-    url: 'https://thefuglys.com',
+    url: canonicalUrl('/'),
     productionCompany: {
       '@type': 'Organization',
       name: 'The Metavision Multimedia Limited',
@@ -222,7 +219,7 @@ export function collectionSchema(collection: {
     isPartOf: {
       '@type': 'WebSite',
       name: 'The Fuglys',
-      url: 'https://thefuglys.com',
+      url: canonicalUrl('/'),
     },
   };
 }
