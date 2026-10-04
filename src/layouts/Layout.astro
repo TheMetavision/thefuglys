@@ -19,6 +19,21 @@ const {
   noIndex = false,
 } = Astro.props;
 
+// Titles stay within 60 characters: the suffix shrinks (" | Post-Apocalyptic
+// Animation Series" → " | The Fuglys" → none) rather than the page's own words.
+// A title that already names the brand (many product SEO titles end "| The Fuglys") gets no suffix.
+const fullTitle = /the fuglys/i.test(title) && title !== 'The Fuglys' ? title
+  : [`${title} | Post-Apocalyptic Animation Series`, `${title} | The Fuglys`, title].find((t) => t.length <= 60) ?? title;
+// Safety net: descriptions over 155 are trimmed at a word boundary, never empty.
+const DESC_MAX = 155;
+function fitDescription(d: string): string {
+  const clean = String(d || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= DESC_MAX) return clean;
+  const cut = clean.slice(0, DESC_MAX - 1);
+  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[\s,;:—–-]+$/, '') + '…';
+}
+const metaDescription = fitDescription(description) || 'Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild post-apocalyptic adventures.';
+
 // Apex host, trailing slash: the address Netlify actually serves.
 const pageUrl = canonicalUrl(Astro.url.pathname);
 
@@ -59,7 +74,7 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
+    <meta name="description" content={metaDescription} />
     {noIndex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -68,11 +83,11 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="preload" href="/fonts/barlow-condensed-700-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/fonts/fonts.css" />
-    <title>{title} | Post-Apocalyptic Animation Series</title>
+    <title>{fullTitle}</title>
 
     <!-- Open Graph -->
     <meta property="og:title" content={`${title} | The Fuglys`} />
-    <meta property="og:description" content={description} />
+    <meta property="og:description" content={metaDescription} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={pageUrl} />
     <meta property="og:site_name" content="The Fuglys" />
@@ -81,7 +96,7 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@TheFuglysMedia" />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
+    <meta name="twitter:description" content={metaDescription} />
 
     <!-- JSON-LD Structured Data -->
     {allSchemas.map((schema) => (

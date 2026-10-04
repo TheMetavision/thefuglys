@@ -47,7 +47,7 @@ function renderBody(body: any): string {
 
 const bodyHtml = renderBody(post.body);
 ---
-<Layout title={`${post.title} — Wasteland Whispers`} description={post.excerpt ?? ''}>
+<Layout title={post.seoTitle || (`${post.title} — Wasteland Whispers`.length <= 60 ? `${post.title} — Wasteland Whispers` : post.title)} description={post.seoDescription || post.excerpt || ''}>
   <Nav />
 
   <main>
