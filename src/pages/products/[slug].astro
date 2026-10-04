@@ -1,4 +1,7 @@
 ---
+import { productImg, productSrcset, productDims, sanityFull, socialImg } from '../../lib/sanityImage';
+import { canonicalUrl } from '../../lib/url';
+const HERO_SIZES = '(max-width: 900px) 100vw, 600px';
 /**
  * src/pages/product/[slug].astro  (The Fuglys — NESTED model)
  *
@@ -14,6 +17,8 @@ import ImageZoom from '../../components/ImageZoom.astro';
 
 export async function getStaticPaths() {
   const products = await getAllProducts();
+  // Fail the build (Netlify keeps the live deploy) rather than ship no product pages.
+  if (!products?.length) throw new Error('[products] Sanity returned no active products');
   return products.map((p) => ({ params: { slug: p.slug }, props: { product: p } }));
 }
 
@@ -22,7 +27,9 @@ const design = product ?? (await getProductBySlug(Astro.params.slug || ''));
 const defaultVariant = design.variants?.[0];
 
 /* Variant has no printfulImageUrl in our data — fall back to first colour mockup */
-const variantImg = (v) => v?.printfulImageUrl || v?.colourImages?.[0]?.imageUrl || '';
+/* sanityFull: Sanity URLs leave the page (client swaps, cart) at full size with
+   explicit params; Printful URLs pass through untouched. */
+const variantImg = (v) => sanityFull(v?.printfulImageUrl || v?.colourImages?.[0]?.imageUrl || '');
 
 /* Serialise variants for the client island. We pass the matrix (size+colour)
    so the client can show only sizes that actually exist for the chosen colour. */
@@ -32,26 +39,50 @@ const variantsJson = JSON.stringify(
     label: v.label,
     basePrice: v.basePrice,
     sizePrices: v.sizePrices || [],
-    colourImages: (v.colourImages || []).map((ci) => ({ colour: ci.colour, imageUrl: ci.imageUrl })),
+    colourImages: (v.colourImages || []).map((ci) => ({ colour: ci.colour, imageUrl: sanityFull(ci.imageUrl) })),
     matrix: (v.printfulVariants || []).map((pv) => ({ size: pv.size, colour: pv.colour || '' })),
     thumbnail: variantImg(v),
   }))
 );
+
+/* Product JSON-LD: one Offer per garment type, at the price the page shows
+   first for it (basePrice - the same field the visible price and checkout use). */
+const productUrl = canonicalUrl(`/products/${design.slug}/`);
+const productImage = socialImg(variantImg(defaultVariant));
+const productDescription = design.seoDescription || design.description || design.backstory || design.tagline;
+const productJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: design.name,
+  description: productDescription,
+  image: productImage,
+  url: productUrl,
+  brand: { '@type': 'Brand', name: 'The Fuglys' },
+  offers: (design.variants || []).filter((v) => typeof v.basePrice === 'number').map((v) => ({
+    '@type': 'Offer',
+    name: `${design.name} ${v.label}`,
+    price: v.basePrice.toFixed(2),
+    priceCurrency: 'GBP',
+    availability: 'https://schema.org/InStock',
+    url: productUrl,
+    seller: { '@id': canonicalUrl('/') + '#organization' },
+  })),
+};
 ---
 
-<Layout title={design.seoTitle || design.name} description={design.seoDescription || design.description || design.backstory || design.tagline}>
+<Layout title={design.seoTitle || design.name} description={productDescription} ogImage={productImage} jsonLd={productJsonLd}>
   <main class="pdp" style={`--accent: ${design.accent || '#b3162e'};`}>
     <div class="pdp-grid">
       <!-- Gallery -->
       <div class="pdp-gallery">
         <div class="pdp-main">
-          <img id="pdp-hero" src={variantImg(defaultVariant)} alt={`${design.name} ${defaultVariant?.label}`} />
+          <img id="pdp-hero" src={productImg(variantImg(defaultVariant), 600)} srcset={productSrcset(variantImg(defaultVariant), 600)} sizes={HERO_SIZES} {...productDims(variantImg(defaultVariant), 600)} data-orig={variantImg(defaultVariant)} fetchpriority="high" alt={`${design.name} ${defaultVariant?.label}`} />
         </div>
         <div class="pdp-gallery-strip" id="pdp-gallery-strip" style="display:none;"></div>
         <div class="pdp-thumbs">
           {design.variants?.map((v, i) => (
             <button class={`pdp-thumb ${i === 0 ? 'active' : ''}`} data-type={v.productType} title={v.label}>
-              <img src={variantImg(v)} alt={`${design.name} ${v.label}`} loading="lazy" />
+              <img src={productImg(variantImg(v), 128)} srcset={productSrcset(variantImg(v), 64)} sizes="64px" {...productDims(variantImg(v), 64)} alt={`${design.name} ${v.label}`} loading="lazy" />
             </button>
           ))}
         </div>
@@ -115,6 +146,28 @@ const variantsJson = JSON.stringify(
     const sizeRank = (s) => { const i = SIZE_ORDER.indexOf(s); return i === -1 ? 999 : i; };
 
     const heroEl = document.getElementById('pdp-hero');
+
+    /* Display-only: Printful mockups load via Netlify Image CDN (same URLs as
+       productImg/productSrcset in src/lib/sanityImage.ts), so the browser never
+       contacts printful.com. Cart data keeps the original URL (data-orig). */
+    const PRINTFUL = /^https:\/\/files\.cdn\.printful\.com\//;
+    const SANITY = /^https:\/\/cdn\.sanity\.io\/images\//;
+    function cdn(url, w) {
+      if (PRINTFUL.test(url)) return `/.netlify/images?url=${encodeURIComponent(url)}&w=${w}&fm=webp`;
+      if (SANITY.test(url)) {
+        const u = new URL(url);
+        u.searchParams.set('w', String(w)); u.searchParams.set('auto', 'format'); u.searchParams.set('fit', 'max');
+        return u.href;
+      }
+      return url;
+    }
+    function setHero(url) {
+      if (!heroEl || !url) return;
+      heroEl.dataset.orig = url;
+      if (PRINTFUL.test(url) || SANITY.test(url)) heroEl.srcset = [320, 480, 640, 800].map((w) => `${cdn(url, w)} ${w}w`).join(', ');
+      else heroEl.removeAttribute('srcset');
+      heroEl.src = cdn(url, 600);
+    }
     const priceEl = document.getElementById('pdp-price');
     const colourWrap = document.getElementById('colour-wrap');
     const colourSelect = document.getElementById('colour-select');
@@ -188,7 +241,7 @@ const variantsJson = JSON.stringify(
       if (priceEl) priceEl.textContent = `£${(currentPrice || 0).toFixed(2)}`;
     }
     function updateHero() {
-      if (heroEl) heroEl.src = imageForColour(getVariant(), selectedColour);
+      setHero(imageForColour(getVariant(), selectedColour));
       renderGalleryStrip(getVariant());
     }
     /* Secondary image strip: shows every stored image for the CURRENT colour.
@@ -200,16 +253,16 @@ const variantsJson = JSON.stringify(
       if (!stripEl) return;
       const imgs = (variant.colourImages || []).filter((c) => c.colour === selectedColour && c.imageUrl);
       if (imgs.length <= 1) { stripEl.style.display = 'none'; stripEl.innerHTML = ''; return; }
-      const cur = heroEl ? heroEl.src : '';
+      const cur = heroEl ? heroEl.dataset.orig : '';
       stripEl.style.display = 'flex';
       stripEl.innerHTML = imgs.map((c) =>
-        `<button type="button" class="pdp-shot" data-src="${c.imageUrl}"><img src="${c.imageUrl}" alt="" loading="lazy" /></button>`
+        `<button type="button" class="pdp-shot" data-src="${c.imageUrl}"><img src="${cdn(c.imageUrl, 128)}" width="64" height="64" alt="" loading="lazy" /></button>`
       ).join('');
       const btns = [...stripEl.querySelectorAll('.pdp-shot')];
       const mark = (el) => btns.forEach((b) => b.classList.toggle('active', b === el));
       mark(btns.find((b) => b.dataset.src === cur) || btns[0]);
       btns.forEach((b) => b.addEventListener('click', () => {
-        if (heroEl) heroEl.src = b.dataset.src;
+        setHero(b.dataset.src);
         mark(b);
       }));
     }

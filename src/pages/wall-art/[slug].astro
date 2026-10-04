@@ -1,4 +1,6 @@
 ---
+import { sanityImg, sanityDims, sanityFull, socialImg } from '../../lib/sanityImage';
+import { canonicalUrl } from '../../lib/url';
 // src/pages/wall-art/[slug].astro  (The Fuglys)
 import Layout from '../../layouts/Layout.astro';
 import Nav from '../../components/Nav.astro';
@@ -21,12 +23,34 @@ const accent = piece.accent || '#b3162e';
 const defFormat = formats[0].id;
 const defSize = (sizes[1] || sizes[0]).id;
 const defPence = ARTWORK_PRICES[defFormat][defSize];
+
+/* Product JSON-LD: one Offer per format x size from the same price matrix the
+   page and checkout use. */
+const pageUrl = canonicalUrl(`/wall-art/${piece.slug}/`);
+const artDescription = piece.tagline || piece.description || `${piece.title} wall art — poster and canvas prints.`;
+const wallArtJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: `${piece.title} — Wall Art`,
+  description: artDescription,
+  image: socialImg(piece.imageUrl),
+  url: pageUrl,
+  brand: { '@type': 'Brand', name: 'The Fuglys' },
+  offers: formats.flatMap((f) => sizes.map((s) => ({
+    '@type': 'Offer',
+    name: `${f.label} — ${s.label} (${s.inches})`,
+    price: (ARTWORK_PRICES[f.id][s.id] / 100).toFixed(2),
+    priceCurrency: 'GBP',
+    availability: 'https://schema.org/InStock',
+    url: pageUrl,
+  }))),
+};
 const fmtGBP = (p) => `£${(p / 100).toFixed(2)}`;
 
 const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, piece.roomMockupUrl].filter(Boolean);
 ---
 
-<Layout title={`${piece.title} — Wall Art — The Fuglys`} description={piece.tagline || piece.description || `${piece.title} wall art — poster and canvas prints.`}>
+<Layout title={piece.title.length + 25 <= 60 ? `${piece.title} — Wall Art — The Fuglys` : `${piece.title} — Wall Art`} description={artDescription} ogImage={socialImg(piece.imageUrl)} jsonLd={wallArtJsonLd}>
   <Nav />
 
   <main class="wa-main">
@@ -38,13 +62,13 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
         <div class="wa-gallery">
           <div class="wa-stage">
             <div class="thumb-bg-noise"></div>
-            <img id="wa-main-img" class="wa-main-img" src={gallery[0]} alt={piece.title} />
+            <img id="wa-main-img" class="wa-main-img" src={sanityImg(gallery[0], 1000)} {...sanityDims(gallery[0], 1000)} fetchpriority="high" alt={piece.title} />
           </div>
           {gallery.length > 1 && (
             <div class="wa-thumbs">
               {gallery.map((url, i) => (
-                <button class={`wa-thumb ${i === 0 ? 'active' : ''}`} data-src={url} aria-label={`View ${i + 1}`}>
-                  <img src={url} alt={`${piece.title} view ${i + 1}`} loading="lazy" />
+                <button class={`wa-thumb ${i === 0 ? 'active' : ''}`} data-src={sanityImg(url, 1000)} aria-label={`View ${i + 1}`}>
+                  <img src={sanityImg(url, 128, { h: 128 })} width="64" height="64" alt={`${piece.title} view ${i + 1}`} loading="lazy" />
                 </button>
               ))}
             </div>
@@ -157,7 +181,7 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
   }
 </style>
 
-<script define:vars={{ prices: ARTWORK_PRICES, formatList: formats, sizeList: sizes, slug: piece.slug, title: piece.title, image: piece.imageUrl, defFormat, defSize }}>
+<script define:vars={{ prices: ARTWORK_PRICES, formatList: formats, sizeList: sizes, slug: piece.slug, title: piece.title, image: sanityFull(piece.imageUrl), defFormat, defSize }}>
   (function () {
     let selFormat = defFormat;
     let selSize = defSize;

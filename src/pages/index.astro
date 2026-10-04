@@ -1,4 +1,6 @@
 ---
+import { sanityImg, sanitySrcset, sanityDims, localImg, localSrcset } from '../lib/sanityImage';
+const BOOK_COVER = 'https://cdn.sanity.io/images/ngx60q2x/production/f006d9cdfcd75fea1eacc2b9d16199623b912988-1360x2048.png';
 import Layout from '../layouts/Layout.astro';
 import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
@@ -39,7 +41,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
   <main>
     <section class="hero" id="hero">
       <div class="hero-tagline-bar">
-        <span class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</span>
+        <h1 class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</h1>
       </div>
 
       <div class="hero-body">
@@ -48,6 +50,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
             <img
               class={`hero-char-img${i === 0 ? ' is-active' : ''}`}
               src={char.image}
+              {...sanityDims(char.image, 900)}
               alt={char.name}
               data-index={i}
               loading={i === 0 ? 'eager' : 'lazy'}
@@ -78,6 +81,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
                 aria-selected={i === 0 ? 'true' : 'false'}
               ></button>
             ))}
+            <button type="button" class="carousel-pause" id="carousel-pause" aria-pressed="false">Pause</button>
           </div>
 
           <div class="hero-ctas">
@@ -193,7 +197,11 @@ const pitsCards = worldLocations.map((loc: any) => ({
           </div>
           <div class="split-image">
             <img
-              src="https://cdn.sanity.io/images/ngx60q2x/production/f006d9cdfcd75fea1eacc2b9d16199623b912988-1360x2048.png"
+              src={sanityImg(BOOK_COVER, 480)}
+              srcset={sanitySrcset(BOOK_COVER, 480)}
+              sizes="(min-width: 900px) 480px, 100vw"
+              {...sanityDims(BOOK_COVER, 480)}
+              loading="lazy"
               alt="The Fuglys book series"
               class="section-img book-cover-img"
             />
@@ -208,7 +216,12 @@ const pitsCards = worldLocations.map((loc: any) => ({
           <div class="series-thumb-col">
             <div class="series-thumb-wrap" id="seriesThumb">
               <img
-                src="/video-thumbs/XgwfSjIJre4.jpg"
+                src={localImg('/video-thumbs/XgwfSjIJre4.jpg', 480)}
+                srcset={localSrcset('/video-thumbs/XgwfSjIJre4.jpg', 480, 720)}
+                sizes="(min-width: 900px) 480px, 100vw"
+                width="720"
+                height="1100"
+                loading="lazy"
                 alt="The Fuglys Animated Series — Watch on YouTube"
                 class="series-thumb-img"
               />
@@ -304,6 +317,12 @@ const pitsCards = worldLocations.map((loc: any) => ({
   const total = charImgs.length;
   let current = 0;
   let timer: ReturnType<typeof setInterval> | null = null;
+  // Stopped by the Pause button, or from the start under reduced motion; hover
+  // and focus pause it only while they last.
+  let stopped = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let held = false;
+  const pauseBtn = document.getElementById('carousel-pause');
+  const heroBody = document.querySelector<HTMLElement>('.hero-body');
 
   function goTo(index: number) {
     charImgs[current].classList.remove('is-active');
@@ -323,8 +342,23 @@ const pitsCards = worldLocations.map((loc: any) => ({
 
   function startTimer() {
     if (timer) clearInterval(timer);
-    timer = setInterval(() => goTo(current + 1), 5000);
+    timer = null;
+    if (stopped) return;
+    timer = setInterval(() => { if (!held) goTo(current + 1); }, 5000);
   }
+
+  function paintPause() {
+    if (!pauseBtn) return;
+    pauseBtn.textContent = stopped ? 'Play' : 'Pause';
+    pauseBtn.setAttribute('aria-pressed', String(stopped));
+    pauseBtn.setAttribute('aria-label', stopped ? 'Start the character slideshow' : 'Stop the character slideshow');
+  }
+  pauseBtn?.addEventListener('click', () => { stopped = !stopped; paintPause(); startTimer(); });
+  heroBody?.addEventListener('mouseenter', () => { held = true; });
+  heroBody?.addEventListener('mouseleave', () => { held = false; });
+  heroBody?.addEventListener('focusin', () => { held = true; });
+  heroBody?.addEventListener('focusout', () => { held = false; });
+  paintPause();
 
   prevBtn?.addEventListener('click', () => { goTo(current - 1); startTimer(); });
   nextBtn?.addEventListener('click', () => { goTo(current + 1); startTimer(); });
@@ -373,7 +407,10 @@ const pitsCards = worldLocations.map((loc: any) => ({
     z-index: 2;
   }
 
+  /* The page's one <h1>: keeps the tagline's look, not the global h1 size. */
   .hero-tagline {
+    margin: 0;
+    line-height: normal;
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 900;
     font-size: clamp(0.85rem, 1.8vw, 1.1rem);
@@ -494,6 +531,24 @@ const pitsCards = worldLocations.map((loc: any) => ({
     gap: 10px;
     align-items: center;
     margin-bottom: 32px;
+  }
+
+  .carousel-pause {
+    margin-left: 10px;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.75);
+    font: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-char-img, .hero-char-info, .carousel-dot { transition: none; }
   }
 
   .carousel-dot {

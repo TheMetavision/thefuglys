@@ -6,6 +6,11 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Printful mockups are served through Netlify Image CDN (/.netlify/images?url=…),
+# so visitors load them from thefuglys.com, resized, and never contact printful.com.
+[images]
+  remote_images = ['https://files\.cdn\.printful\.com/.*']
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
@@ -14,12 +19,12 @@
 # Short URLs for the legal pages (they live under /legal/ in Sanity)
 [[redirects]]
   from = "/privacy-policy"
-  to = "/legal/privacy-policy"
+  to = "/legal/privacy-policy/"
   status = 301
 
 [[redirects]]
   from = "/cookie-policy"
-  to = "/legal/cookie-policy"
+  to = "/legal/cookie-policy/"
   status = 301
 
 [[headers]]
@@ -28,3 +33,7 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Nothing on the site uses the camera or microphone.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(self \"https://js.stripe.com\")"
+    # Report-only for now: violations appear in the browser console; nothing is blocked.
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.sanity.io; font-src 'self'; connect-src 'self' https://cdn.sanity.io https://*.api.sanity.io; media-src 'self' https://cdn.sanity.io; frame-src https://www.youtube-nocookie.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

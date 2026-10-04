@@ -10,6 +10,9 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const pages = await sanityClient.fetch(
     `*[_type == "legalPage" && defined(slug.current)]{ slug }`
   )
+  // Legal pages have dotted (private) ids, so a build without a read token gets
+  // none. Fail rather than publish a site with no terms, privacy or cookie policy.
+  if (!pages?.length) throw new Error('[legal] Sanity returned no legal pages (is SANITY_API_TOKEN set?)')
   return pages.map((p: any) => ({ params: { slug: p.slug.current } }))
 }
 

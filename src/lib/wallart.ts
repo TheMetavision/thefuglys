@@ -44,26 +44,21 @@ const QUERY = `*[_type == "wallArt" && active == true] | order(coalesce(sortOrde
   "mockups": mockups[]{ "url": asset->url, "alt": alt }
 }`;
 
-async function runQuery<T>(query: string): Promise<T | null> {
+/* Fails loud: an unreachable Sanity or a malformed reply throws, so the build
+   fails and Netlify keeps the live deploy, instead of publishing a merch page
+   with the wall art silently missing. (Zero active pieces is still allowed.) */
+async function runQuery<T>(query: string): Promise<T> {
   const url = `https://${PROJECT_ID}.api.sanity.io/v${API_VER}/data/query/${DATASET}?query=${encodeURIComponent(query)}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.error(`[wallart] Sanity query failed (${res.status})`);
-      return null;
-    }
-    const json = await res.json();
-    return (json && json.result) as T;
-  } catch (err) {
-    console.error('[wallart] Sanity query error:', err instanceof Error ? err.message : err);
-    return null;
-  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`[wallart] Sanity query failed (${res.status} ${res.statusText})`);
+  const json = await res.json();
+  if (!json || !Array.isArray(json.result)) throw new Error('[wallart] Sanity returned no result array');
+  return json.result as T;
 }
 
-/** All active wall-art pieces, ordered by sortOrder then newest. Never throws —
- *  returns [] on failure so the merch page still builds. */
+/** All active wall-art pieces, ordered by sortOrder then newest. Throws if Sanity cannot be read. */
 export async function getAllWallArt(): Promise<WallArtPiece[]> {
   const result = await runQuery<WallArtPiece[]>(QUERY);
-  return (result || []).filter((p) => p && p.slug && p.imageUrl)
+  return result.filter((p) => p && p.slug && p.imageUrl)
     .map((p) => ({ ...p, mockups: (p.mockups || []).filter((m) => m && m.url) }));
 }

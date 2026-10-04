@@ -1,4 +1,5 @@
 ---
+import { localImg, localSrcset, sanityImg, sanitySrcset, sanityDims } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
@@ -28,7 +29,7 @@ function formatDate(dateStr: string): string {
           </div>
           <div class="page-hero-visual">
             <img
-              src="/images/wasteland-whispers-hero.webp"
+              src={localImg('/images/wasteland-whispers-hero.webp', 800)} srcset={localSrcset('/images/wasteland-whispers-hero.webp', 600, 1200)} sizes="(min-width: 900px) 600px, 100vw" width="1200" height="669" fetchpriority="high"
               alt="Two Fuglys characters chatting in a wasteland workshop"
               class="hero-whispers-img"
             />
@@ -57,7 +58,7 @@ function formatDate(dateStr: string): string {
               <a href={`/wasteland-whispers/${post.slug}`} class="post-card">
                 <div class="post-image">
                   {post.featuredImage ? (
-                    <img src={post.featuredImage} alt={post.title} class="post-img" loading="lazy" />
+                    <img src={sanityImg(post.featuredImage, 640)} srcset={sanitySrcset(post.featuredImage, 560)} sizes="(min-width: 900px) 560px, 100vw" {...sanityDims(post.featuredImage, 640)} alt={post.title} class="post-img" loading="lazy" />
                   ) : (
                     <div class="post-img-placeholder"></div>
                   )}

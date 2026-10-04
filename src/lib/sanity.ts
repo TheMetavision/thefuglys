@@ -5,7 +5,8 @@ export const client = createClient({
   projectId: import.meta.env.SANITY_PROJECT_ID || 'ngx60q2x',
   dataset: import.meta.env.SANITY_DATASET || 'production',
   apiVersion: '2024-01-01',
-  useCdn: true,
+  // Never the CDN: a build triggered by a Sanity publish must read what was just published.
+  useCdn: false,
   token: import.meta.env.SANITY_API_TOKEN,
   perspective: 'published', // only ever serve published docs — keeps sync drafts out of the static build
 });
