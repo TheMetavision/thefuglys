@@ -6,10 +6,15 @@
  *
  * Flow: resolve every cart item to its exact Printful sync_variant_id (by id
  * prefix product-{slug}- then productType+size+colour against the
- * printfulVariants matrix), reject the whole checkout (422) if anything is
- * unresolvable, then build Stripe line items with ad-hoc price_data (NO Stripe
- * Price objects) and stash printful_variant_id on each line item's product
- * metadata for the webhook to read.
+ * printfulVariants matrix) and PRICE it from that same Sanity variant (the
+ * size's sizePrices entry, else basePrice). The browser's price is never
+ * charged, only compared and logged. Products not marked active, quantities
+ * outside 1-99 (on every line, wall art included), and anything unresolvable or
+ * unpriced reject the whole checkout (422). buildPodLineItems() is pure and
+ * tested (tests/create-checkout.test.mjs), as on Wyrmfuel. Wall art keeps its
+ * price matrix (src/lib/artwork-pricing.cjs). Then build Stripe line items with
+ * ad-hoc price_data (NO Stripe Price objects) and stash printful_variant_id on
+ * each line item's product metadata for the webhook to read.
  */
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -73,10 +78,15 @@ const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
 
 async function fetchSanityVariantData() {
   const groq = `*[_type == "product"]{
-    _id, "slug": slug.current, name,
-    variants[]{ label, productType, printfulVariantId, printfulVariants[]{ size, colour, syncVariantId } }
+    _id, "slug": slug.current, name, active,
+    variants[]{
+      label, productType, printfulVariantId, basePrice,
+      sizePrices[]{ size, price },
+      printfulVariants[]{ size, colour, syncVariantId }
+    }
   }`;
-  const url = `https://${SANITY_PROJECT_ID}.apicdn.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${encodeURIComponent(groq)}`;
+  // The API host, not apicdn: prices and the active flag must be what is published now.
+  const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${encodeURIComponent(groq)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Sanity query failed (${res.status})`);
   return (await res.json()).result || [];
@@ -94,8 +104,11 @@ function findProduct(products, item) {
   return best;
 }
 
-function findSyncVariantId(product, item) {
-  const wantType = norm(item.productType), wantSize = norm(item.size), wantColour = norm(item.colour);
+/* Within a product, the printfulVariants entry for productType + size + colour.
+   Returns the sync id and the Sanity variant it came from (which carries the price). */
+function findVariantMatch(product, item) {
+  const wantType = norm(item.productType);
+  const wantSize = norm(item.size), wantColour = norm(item.colour);
   const narrowed = (product.variants || []).filter((v) =>
     !wantType ? true : norm(v.productType) === wantType || norm(v.label) === wantType
   );
@@ -105,14 +118,72 @@ function findSyncVariantId(product, item) {
     let hit = matrix.find((pv) => norm(pv.size) === wantSize && norm(pv.colour) === wantColour);
     if (!hit && !wantColour) hit = matrix.find((pv) => norm(pv.size) === wantSize && !norm(pv.colour));
     if (!hit && matrix.length === 1) hit = matrix[0];
-    if (hit && hit.syncVariantId) return String(hit.syncVariantId);
+    if (hit && hit.syncVariantId) return { syncVariantId: String(hit.syncVariantId), variant: v };
   }
   return null;
 }
 
-function resolveSyncVariantId(products, item) {
-  const product = findProduct(products, item);
-  return product ? findSyncVariantId(product, item) : null;
+/* Cart quantity as a whole number from 1 to 99 (missing = 1), else null.
+   Applies to both tracks: print-on-demand and wall art. */
+function cartQuantity(item) {
+  const quantity = item.quantity == null ? 1 : Number(item.quantity);
+  return Number.isInteger(quantity) && quantity >= 1 && quantity <= 99 ? quantity : null;
+}
+
+/* The price for this size, in pence, from Sanity: the matching sizePrices
+   entry, else basePrice. null if Sanity has no usable price. */
+function sanityPricePence(variant, item) {
+  const wantSize = norm(item.size);
+  const sizePrice = (variant.sizePrices || []).find((sp) => norm(sp.size) === wantSize);
+  const price = sizePrice ? sizePrice.price : variant.basePrice;
+  return typeof price === 'number' && Number.isFinite(price) && price > 0 ? Math.round(price * 100) : null;
+}
+
+/**
+ * Resolve every print-on-demand cart line against Sanity and build its Stripe
+ * line item at the Sanity price (Wyrmfuel's buildLineItems). Pure (no network).
+ * Returns { line_items, cartTotalPence, unresolved, invalid, inactive, corrections }.
+ */
+function buildPodLineItems(products, items) {
+  const unresolved = [], invalid = [], inactive = [], corrections = [], line_items = [];
+  let cartTotalPence = 0;
+
+  for (const item of items) {
+    const label = `${item.title || item.name || item.id || 'item'} — ${item.colour || ''} ${item.size || ''}`.trim();
+    const quantity = cartQuantity(item);
+    if (quantity == null) { invalid.push(label); continue; }
+
+    const product = findProduct(products, item);
+    if (product && product.active !== true) { inactive.push(label); continue; }
+    const match = product ? findVariantMatch(product, item) : null;
+    const unitPence = match ? sanityPricePence(match.variant, item) : null;
+    if (!match || unitPence == null) { unresolved.push(label); continue; }
+
+    const clientPence = Math.round(Number(item.price) * 100);
+    if (clientPence !== unitPence) {
+      corrections.push({ item: label, clientPence: Number.isFinite(clientPence) ? clientPence : null, unitPence });
+    }
+
+    const title = item.title || item.name || 'The Fuglys item';
+    const colourLabel = item.colour ? ` — ${item.colour}` : '';
+    line_items.push({
+      price_data: {
+        currency: 'gbp',
+        unit_amount: unitPence, // SANITY price, in pence
+        product_data: {
+          name: `${title}${colourLabel} (${item.size})`,
+          metadata: {
+            printful_variant_id: match.syncVariantId,
+            fuglys_size: String(item.size || ''),
+            fuglys_colour: String(item.colour || ''),
+          },
+        },
+      },
+      quantity,
+    });
+    cartTotalPence += unitPence * quantity;
+  }
+  return { line_items, cartTotalPence, unresolved, invalid, inactive, corrections };
 }
 
 exports.handler = async (event) => {
@@ -135,8 +206,8 @@ exports.handler = async (event) => {
     const podItems = items.filter((it) => !isWallArt(it));
     const artItems = items.filter((it) => isWallArt(it));
 
-    // ── POD: resolve each line to its exact Printful sync_variant_id ─────────
-    let resolvedPod = [];
+    // ── POD: resolve each line to its Printful sync variant and Sanity price ─
+    let pod = { line_items: [], cartTotalPence: 0, unresolved: [], invalid: [], inactive: [], corrections: [] };
     if (podItems.length > 0) {
       let sanityProducts;
       try {
@@ -146,23 +217,44 @@ exports.handler = async (event) => {
         return { statusCode: 503, headers, body: JSON.stringify({ error: 'Could not verify product availability. Please try again in a moment.' }) };
       }
 
-      const unresolved = [];
-      resolvedPod = podItems.map((item) => {
-        const syncVariantId = resolveSyncVariantId(sanityProducts, item);
-        if (!syncVariantId) unresolved.push(`${item.title || item.id || 'item'} — ${item.colour || ''} ${item.size || ''}`.trim());
-        return { item, syncVariantId };
-      });
+      pod = buildPodLineItems(sanityProducts, podItems);
 
-      if (unresolved.length > 0) {
-        console.error('Checkout blocked — unresolved Printful variants:', unresolved);
+      if (pod.inactive.length > 0) {
+        return { statusCode: 422, headers, body: JSON.stringify({
+          error: 'Some items in your cart are no longer available. Please remove them to continue.',
+          items: pod.inactive,
+        }) };
+      }
+      if (pod.invalid.length > 0) {
+        return { statusCode: 422, headers, body: JSON.stringify({
+          error: 'Some quantities in your cart are not valid. Please update your cart.',
+          items: pod.invalid,
+        }) };
+      }
+      if (pod.unresolved.length > 0) {
+        console.error('Checkout blocked — unresolved Printful variants or prices:', pod.unresolved);
         return { statusCode: 422, headers, body: JSON.stringify({
           error: 'Some items in your cart are temporarily unavailable. Please remove and re-add them, or contact us.',
-          items: unresolved,
+          items: pod.unresolved,
         }) };
+      }
+      if (pod.corrections.length > 0) {
+        console.warn('Checkout: cart prices differed from Sanity; charging Sanity prices:', pod.corrections);
       }
     }
 
     // ── WALL ART: price server-side from the matrix; never trust client price ─
+    // Quantity bound first (1-99, as for POD); pricing below is unchanged.
+    const badArtQty = artItems
+      .filter((item) => cartQuantity(item) == null)
+      .map((item) => `${item.title || item.name || item.id || 'wall art'} — ${item.format || '?'} / ${item.size || '?'}`);
+    if (badArtQty.length > 0) {
+      return { statusCode: 422, headers, body: JSON.stringify({
+        error: 'Some quantities in your cart are not valid. Please update your cart.',
+        items: badArtQty,
+      }) };
+    }
+
     const badArt = [];
     const resolvedArt = artItems.map((item) => {
       try {
@@ -190,25 +282,6 @@ exports.handler = async (event) => {
     }
 
     // ── Build Stripe line items ──────────────────────────────────────────────
-    const podLineItems = resolvedPod.map(({ item, syncVariantId }) => {
-      const colourLabel = item.colour ? ` — ${item.colour}` : '';
-      return {
-        price_data: {
-          currency: 'gbp',
-          unit_amount: Math.round(item.price * 100),
-          product_data: {
-            name: `${item.title}${colourLabel} (${item.size})`,
-            metadata: {
-              printful_variant_id: syncVariantId,
-              fuglys_size: String(item.size || ''),
-              fuglys_colour: String(item.colour || ''),
-            },
-          },
-        },
-        quantity: item.quantity || 1,
-      };
-    });
-
     const artLineItems = resolvedArt.map(({ item, pricePence, label, slug }) => ({
       price_data: {
         currency: 'gbp',
@@ -223,16 +296,16 @@ exports.handler = async (event) => {
           },
         },
       },
-      quantity: item.quantity || 1,
+      quantity: cartQuantity(item),
     }));
 
-    const line_items = [...podLineItems, ...artLineItems];
+    const line_items = [...pod.line_items, ...artLineItems];
 
-    // Cart total for the free-shipping threshold: POD at client price (existing
-    // behaviour), wall art at the authoritative server price.
+    // Cart total for the free-shipping threshold: both tracks at server prices
+    // (POD from Sanity, wall art from the matrix).
     const cartTotalPence =
-      podItems.reduce((sum, item) => sum + Math.round(item.price * 100) * (item.quantity || 1), 0) +
-      resolvedArt.reduce((sum, { item, pricePence }) => sum + pricePence * (item.quantity || 1), 0);
+      pod.cartTotalPence +
+      resolvedArt.reduce((sum, { item, pricePence }) => sum + pricePence * cartQuantity(item), 0);
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -250,3 +323,6 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message || 'Checkout failed' }) };
   }
 };
+
+// For tests: the pure resolver/pricer.
+exports.buildPodLineItems = buildPodLineItems;
