@@ -1,7 +1,9 @@
 import {defineType, defineField, defineArrayMember} from 'sanity';
 
 // Ported from Cats On Crack live schema (project 8ksun996), extended for The Fuglys
-// with a `shipped` status + tracking fields written by the printful-webhook.
+// with a `shipped` status + tracking / failure fields written by the printful-webhook,
+// and the in-house wall-art fields stripe-webhook writes (status "inhouse",
+// `fulfilment` per line, `hasInhouse`, `inhouseStatus`).
 // readOnly: orders are written only by the webhooks via SANITY_TOKEN.
 
 export default defineType({
@@ -20,6 +22,7 @@ export default defineType({
         list: [
           {title: 'Paid (not yet fulfilled)', value: 'paid'},
           {title: 'Fulfilled (sent to Printful)', value: 'fulfilled'},
+          {title: 'In-house (make & dispatch)', value: 'inhouse'},
           {title: 'Shipped (tracking sent)', value: 'shipped'},
           {title: 'Fulfilment FAILED — action needed', value: 'fulfilment-failed'},
         ],
@@ -43,12 +46,28 @@ export default defineType({
             defineField({name: 'size', title: 'Size', type: 'string'}),
             defineField({name: 'quantity', title: 'Qty', type: 'number'}),
             defineField({name: 'price', title: 'Line Total (£)', type: 'number'}),
+            defineField({name: 'fulfilment', title: 'Fulfilment', type: 'string', options: {list: ['printful', 'inhouse']}}),
           ],
           preview: {
             select: {title: 'title', subtitle: 'size'},
           },
         }),
       ],
+    }),
+    defineField({name: 'hasInhouse', title: 'Has In-house Items', type: 'boolean'}),
+    defineField({
+      name: 'inhouseStatus',
+      title: 'In-house Status',
+      type: 'string',
+      description: 'Wall art made & dispatched by us. Set to "to-make" when the order comes in.',
+      hidden: ({document}) => !document?.hasInhouse,
+      options: {
+        list: [
+          {title: 'To make', value: 'to-make'},
+          {title: 'Made', value: 'made'},
+          {title: 'Dispatched', value: 'dispatched'},
+        ],
+      },
     }),
     defineField({name: 'shippingCost', title: 'Shipping (£)', type: 'number'}),
     defineField({name: 'total', title: 'Total (£)', type: 'number'}),
@@ -69,11 +88,12 @@ export default defineType({
     }),
     defineField({name: 'stripeSessionId', title: 'Stripe Session ID', type: 'string'}),
     defineField({name: 'printfulOrderId', title: 'Printful Order ID', type: 'string'}),
-    // ── Tracking (written by printful-webhook on package_shipped) ──
+    // ── Written by printful-webhook on package_shipped / order_failed ──
     defineField({name: 'carrier', title: 'Carrier', type: 'string', readOnly: true}),
     defineField({name: 'trackingNumber', title: 'Tracking Number', type: 'string', readOnly: true}),
     defineField({name: 'trackingUrl', title: 'Tracking URL', type: 'url', readOnly: true}),
     defineField({name: 'shippedAt', title: 'Shipped At', type: 'datetime', readOnly: true}),
+    defineField({name: 'failureReason', title: 'Printful Failure Reason', type: 'string', readOnly: true}),
   ],
   orderings: [
     {
@@ -89,6 +109,7 @@ export default defineType({
         status === 'fulfilment-failed' ? '⚠️ '
         : status === 'shipped' ? '📦 '
         : status === 'fulfilled' ? '✅ '
+        : status === 'inhouse' ? '🛠️ '
         : '🟡 ';
       return {title: `${flag}${title || 'Order'}`, subtitle};
     },

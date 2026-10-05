@@ -8,9 +8,12 @@
  *      event to every endpoint; without this, each brand processes the others'
  *      orders. Requires the checkout to stamp metadata.brand — deploy together.
  *   3. Email the customer a branded order confirmation (RESEND_API_KEY).
+ *      Skipped on a retry for an order already in the Sanity log, as is the
+ *      merchant alert, so Stripe retries don't resend either.
  *   4. Create the Printful order (PRINTFUL_API_KEY), idempotent via external_id.
  *   5. Write an `order` document to Sanity (SANITY_API_TOKEN, else SANITY_TOKEN) with status of
- *      fulfilled / fulfilment-failed / paid.
+ *      fulfilled / inhouse / fulfilment-failed / paid. A Stripe retry updates
+ *      the payment fields only (see saveOrder).
  *   6. Send a GA4 Measurement Protocol purchase (src/lib/ga4-purchase.cjs) if
  *      the shopper accepted analytics. Skipped on Stripe retries: an order
  *      already in the Sanity log before this attempt means it was sent.
@@ -23,6 +26,9 @@
  *   RESEND_API_KEY        — Resend key (FROM domain must be verified in it)
  *   ORDER_EMAIL_FROM      — optional; default "The Fuglys <orders@thefuglys.com>"
  *   LOGO_URL, EMAIL_HEADER_BG — optional branding for the email header
+ *   BRAND_ACCENT          — optional accent colour (EMAIL_ACCENT is the fallback name;
+ *                           default #99132F, the site's --color-accent);
+ *                           printful-webhook's shipped email reads the same pair
  *   NOTIFICATION_FROM, ORDER_NOTIFICATION_TO / NOTIFICATION_TO — merchant alert
  *   SANITY_API_TOKEN      — Sanity *write* (Editor) token for the order log
  *                           (the name the site and Netlify use; SANITY_TOKEN still works as a fallback)
@@ -40,13 +46,15 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
    checkout stamped with our brand key (src/lib/brand-guard.cjs, shared with
    create-checkout so the two cannot drift). */
 const { BRAND_KEY, isOurSession } = require('../../src/lib/brand-guard.cjs');
-const { sendPurchase, purchaseSkipReason } = require('../../src/lib/ga4-purchase.cjs');
+const { sendPurchase } = require('../../src/lib/ga4-purchase.cjs');
 
 const PRINTFUL_ORDERS_URL = 'https://api.printful.com/orders';
 const RESEND_URL = 'https://api.resend.com/emails';
 const FROM = process.env.ORDER_EMAIL_FROM || 'The Fuglys <orders@thefuglys.com>';
 const LOGO_URL = process.env.LOGO_URL || '';
 const HEADER_BG = process.env.EMAIL_HEADER_BG || '#263F44';
+// Same source as the shipped email in printful-webhook.mjs.
+const ACCENT = process.env.BRAND_ACCENT || process.env.EMAIL_ACCENT || '#99132F';
 const MERCHANT_TO = process.env.ORDER_NOTIFICATION_TO || process.env.NOTIFICATION_TO || '';
 const MERCHANT_FROM = process.env.NOTIFICATION_FROM || 'The Fuglys <orders@thefuglys.com>';
 const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID || 'ngx60q2x';
@@ -118,7 +126,7 @@ function buildOrderEmailHtml(session, lineItems) {
     <tr>
       <td style="padding:12px 0;border-bottom:1px solid #2e4a51;color:#ffffff;font-size:14px;">${esc(li.description)}</td>
       <td style="padding:12px 0;border-bottom:1px solid #2e4a51;color:#9aa8aa;font-size:14px;text-align:center;">${li.quantity || 1}</td>
-      <td style="padding:12px 0;border-bottom:1px solid #2e4a51;color:#b3162e;font-size:14px;text-align:right;font-weight:700;">${gbp(li.amount_total)}</td>
+      <td style="padding:12px 0;border-bottom:1px solid #2e4a51;color:${ACCENT};font-size:14px;text-align:right;font-weight:700;">${gbp(li.amount_total)}</td>
     </tr>`).join('');
 
   const shipCost = session.shipping_cost ? gbp(session.shipping_cost.amount_total) : null;
@@ -127,15 +135,15 @@ function buildOrderEmailHtml(session, lineItems) {
 <html><body style="margin:0;padding:0;background:#16262b;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#16262b;padding:32px 16px;">
     <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#1e3238;border:1px solid #b3162e;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#1e3238;border:1px solid ${ACCENT};">
         <tr><td style="background:${HEADER_BG};padding:22px 28px;text-align:center;">
           ${LOGO_URL
             ? `<img src="${LOGO_URL}" alt="The Fuglys" width="240" style="max-width:240px;width:240px;height:auto;display:inline-block;border:0;" />`
-            : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:#b3162e;text-transform:uppercase;">The Fuglys</span>`}
+            : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:${ACCENT};text-transform:uppercase;">The Fuglys</span>`}
         </td></tr>
         <tr><td style="padding:32px 28px 8px;">
           <h1 style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:24px;letter-spacing:1px;color:#ffffff;text-transform:uppercase;">Order locked in</h1>
-          <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#9aa8aa;">Order ref <strong style="color:#b3162e;">#${ref}</strong></p>
+          <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#9aa8aa;">Order ref <strong style="color:${ACCENT};">#${ref}</strong></p>
           <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#c4d0d1;">
             Thanks for the haul. Your gear's heading into production — we'll send tracking the moment it ships out of the wasteland.
           </p>
@@ -155,7 +163,7 @@ function buildOrderEmailHtml(session, lineItems) {
             ${shipCost ? `<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#9aa8aa;padding:4px 0;">Shipping</td><td align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#ffffff;padding:4px 0;">${shipCost}</td></tr>` : ''}
             <tr>
               <td style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:800;color:#ffffff;text-transform:uppercase;letter-spacing:1px;padding:10px 0 0;">Total</td>
-              <td align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;color:#b3162e;padding:10px 0 0;">${gbp(session.amount_total)}</td>
+              <td align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;color:${ACCENT};padding:10px 0 0;">${gbp(session.amount_total)}</td>
             </tr>
           </table>
         </td></tr>
@@ -297,21 +305,28 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId) {
 }
 
 /* Persist the order, alert the merchant, then report the purchase to GA4.
-   gaDuplicate: promise of "this order was already logged before this attempt". */
-async function finalize(session, lineItems, status, printfulOrderId, gaDuplicate) {
+   alreadyRecorded: "this order was already in the log before this attempt"
+   (a Stripe retry) — no second merchant alert and no second GA4 purchase. */
+async function finalize(session, lineItems, status, printfulOrderId, alreadyRecorded) {
   await saveOrder(session, lineItems, status, printfulOrderId);
-  await sendMerchantEmail(session, lineItems, status, printfulOrderId);
-  const ga = await sendPurchase({ session, lineItems, stripe, alreadySent: gaDuplicate });
+  if (alreadyRecorded) {
+    console.log(`[MERCHANT-SKIP] session ${session.id}: order already in the Sanity log (Stripe retry) — alert not resent.`);
+  } else {
+    await sendMerchantEmail(session, lineItems, status, printfulOrderId);
+  }
+  const ga = await sendPurchase({ session, lineItems, stripe, alreadySent: alreadyRecorded });
   if (ga.sent) console.log(`[GA4] session ${session.id}: purchase sent.`);
   else if (ga.reason !== 'not-configured' && ga.reason !== 'no-client-id' && ga.reason !== 'not-livemode') {
     console.warn(`[GA4] session ${session.id}: purchase not sent (${ga.reason}).`);
   }
 }
 
-/* Was this session's order already in the Sanity log (an earlier attempt)?
-   Checked before anything is saved; only when a GA purchase would be sent. */
-async function orderAlreadyLogged(session) {
-  if (purchaseSkipReason(session)) return false;
+/* True if this session's order is already in the Sanity log, i.e. this is a
+   Stripe retry of an order a previous delivery handled. Checked before the
+   order is (re)written. False when the log can't be read, so the emails
+   still go (twice beats never). */
+async function orderAlreadyRecorded(session) {
+  if (!sanityWriteToken()) return false;
   const sessionKey = String(session.id).slice(-32);
   const [dotted, dashed] = await Promise.all([orderExists(`order.${sessionKey}`), orderExists(`order-${sessionKey}`)]);
   return dotted || dashed;
@@ -332,8 +347,15 @@ async function orderExists(id) {
   }
 }
 
-/* Write/overwrite the order doc in Sanity. Deterministic _id keyed on the
-   session id makes webhook retries idempotent (createOrReplace). Non-fatal. */
+/* Write the order doc in Sanity. Deterministic _id keyed on the session id
+   makes webhook retries idempotent. One atomic transaction:
+     createIfNotExists  — an empty order shell, only on the first delivery;
+     patch.set          — the payment fields from the Stripe session;
+     patch.setIfMissing — status, printfulOrderId, inhouseStatus: written once.
+   So a Stripe retry refreshes the payment details but never undoes what
+   happened since — a "shipped" status, the owner's in-house progress — and
+   never touches the fields printful-webhook owns (carrier, trackingNumber,
+   trackingUrl, shippedAt, failureReason). Non-fatal. */
 async function saveOrder(session, lineItems, status, printfulOrderId) {
   if (!sanityWriteToken()) {
     console.warn(`[ORDER-SKIP] session ${session.id}: neither SANITY_API_TOKEN nor SANITY_TOKEN is set.`);
@@ -360,18 +382,15 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
   const inhouseCount = items.filter((it) => it.fulfilment === 'inhouse').length;
 
   // The dot keeps the order (name, email, address) out of anonymous API reads.
-  // A retry for a session whose order predates that change overwrites the old
+  // A retry for a session whose order predates that change updates the old
   // doc in place (until tools/migrate-private-ids.mjs moves it) rather than
   // creating a second one.
   const sessionKey = String(session.id).slice(-32);
   const orderId = (await orderExists(`order-${sessionKey}`)) ? `order-${sessionKey}` : `order.${sessionKey}`;
 
-  const doc = {
-    _id: orderId,
-    _type: 'order',
+  const payment = {
     orderRef: String(session.id).slice(-8).toUpperCase(),
     placedAt: new Date(session.created ? session.created * 1000 : Date.now()).toISOString(),
-    status,
     customerName: (ship && ship.name) || (session.customer_details && session.customer_details.name) || '',
     customerEmail: (session.customer_details && session.customer_details.email) || '',
     items,
@@ -382,15 +401,17 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
     stripeSessionId: session.id,
   };
   if (a) {
-    doc.shippingAddress = {
+    payment.shippingAddress = {
       name: (ship && ship.name) || '',
       line1: a.line1 || '', line2: a.line2 || '',
       city: a.city || '', state: a.state || '',
       postalCode: a.postal_code || '', country: a.country || '',
     };
   }
-  if (printfulOrderId) doc.printfulOrderId = String(printfulOrderId);
-  if (inhouseCount > 0) doc.inhouseStatus = 'to-make';
+
+  const once = { status };
+  if (printfulOrderId) once.printfulOrderId = String(printfulOrderId);
+  if (inhouseCount > 0) once.inhouseStatus = 'to-make';
 
   try {
     const res = await fetch(
@@ -398,14 +419,17 @@ async function saveOrder(session, lineItems, status, printfulOrderId) {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sanityWriteToken() },
-        body: JSON.stringify({ mutations: [{ createOrReplace: doc }] }),
+        body: JSON.stringify({ mutations: [
+          { createIfNotExists: { _id: orderId, _type: 'order' } },
+          { patch: { id: orderId, set: payment, setIfMissing: once } },
+        ] }),
       }
     );
     if (!res.ok) {
       const t = await res.text();
       console.error(`[ORDER-SAVE-FAIL] session ${session.id}: Sanity ${res.status} — ${t}`);
     } else {
-      console.log(`[ORDER-SAVED] session ${session.id}: ${doc.orderRef} (${status}).`);
+      console.log(`[ORDER-SAVED] session ${session.id}: ${payment.orderRef} (${status}).`);
     }
   } catch (err) {
     console.error(`[ORDER-SAVE-FAIL] session ${session.id}:`, err && err.message ? err.message : err);
@@ -453,8 +477,11 @@ exports.handler = async (event) => {
 
   console.log(`[ORDER] checkout.session.completed — session ${session.id}`);
 
-  // Started now, before this attempt saves the order; never rejects.
-  const gaDuplicate = orderAlreadyLogged(session).catch(() => false);
+  /* Stripe retry check: was this order already in the Sanity log BEFORE this
+     delivery saves it? A retry gets no customer confirmation, merchant alert
+     or GA4 purchase again. Started now, alongside the line-item fetch, and
+     awaited before the confirmation; never rejects. */
+  const alreadyRecordedCheck = orderAlreadyRecorded(session).catch(() => false);
 
   let lineItems;
   try {
@@ -467,13 +494,19 @@ exports.handler = async (event) => {
     lineItems = { data: [] };
   }
 
+  const alreadyRecorded = await alreadyRecordedCheck;
+
   /* Customer confirmation email — independent of Printful, never fatal. */
-  await sendCustomerEmail(session, lineItems);
+  if (alreadyRecorded) {
+    console.log(`[EMAIL-SKIP] session ${session.id}: order already in the Sanity log (Stripe retry) — confirmation not resent.`);
+  } else {
+    await sendCustomerEmail(session, lineItems);
+  }
 
   try {
     if (!process.env.PRINTFUL_API_KEY) {
       console.error(`[FULFILMENT-FAIL] session ${session.id}: PRINTFUL_API_KEY not set.`);
-      await finalize(session, lineItems, 'paid', null, gaDuplicate);
+      await finalize(session, lineItems, 'paid', null, alreadyRecorded);
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
 
@@ -503,18 +536,18 @@ exports.handler = async (event) => {
     if (printfulItems.length === 0) {
       if (inhouseLines.length > 0 && missing.length === 0) {
         console.log(`[INHOUSE] session ${session.id}: ${inhouseLines.length} in-house item(s), no POD — owner will make & dispatch.`);
-        await finalize(session, lineItems, 'inhouse', null, gaDuplicate);
+        await finalize(session, lineItems, 'inhouse', null, alreadyRecorded);
         return { statusCode: 200, body: JSON.stringify({ received: true, inhouse: inhouseLines.length }) };
       }
       console.error(`[FULFILMENT-FAIL] session ${session.id}: nothing to send to Printful and no in-house items — place it manually.`);
-      await finalize(session, lineItems, 'fulfilment-failed', null, gaDuplicate);
+      await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded);
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
 
     const ship = getShip(session);
     if (!ship || !ship.address) {
       console.error(`[FULFILMENT-FAIL] session ${session.id}: no shipping address on session — order NOT fulfilled. Place it manually.`);
-      await finalize(session, lineItems, 'fulfilment-failed', null, gaDuplicate);
+      await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded);
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
 
@@ -548,7 +581,7 @@ exports.handler = async (event) => {
       console.error(
         `[FULFILMENT-FAIL] session ${session.id}: Printful API ${res.status} — order NOT created. Response: ${bodyText}`
       );
-      await finalize(session, lineItems, 'fulfilment-failed', null, gaDuplicate);
+      await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded);
       return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'failed' }) };
     }
 
@@ -556,11 +589,11 @@ exports.handler = async (event) => {
     try { printfulId = JSON.parse(bodyText).result?.id; } catch (_) { /* ignore */ }
     console.log(`[FULFILMENT-OK] session ${session.id}: Printful order created${printfulId ? ' #' + printfulId : ''} (${printfulItems.length} item(s)).`);
 
-    await finalize(session, lineItems, 'fulfilled', printfulId, gaDuplicate);
+    await finalize(session, lineItems, 'fulfilled', printfulId, alreadyRecorded);
     return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'created' }) };
   } catch (err) {
     console.error(`[FULFILMENT-FAIL] session ${session.id}: unexpected error —`, err && err.message ? err.message : err);
-    await finalize(session, lineItems, 'fulfilment-failed', null, gaDuplicate);
+    await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded);
     return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'error' }) };
   }
 };
