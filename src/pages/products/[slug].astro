@@ -133,13 +133,23 @@ const productJsonLd = {
     <ImageZoom accent="#b3162e" />
 </main>
 
-  <script define:vars={{ designId: design._id, designName: design.name, variantsJson, defaultType: defaultVariant?.productType || '' }}>
+  <script define:vars={{ designId: design._id, designSlug: design.slug, designName: design.name, variantsJson, defaultType: defaultVariant?.productType || '' }}>
     const variants = JSON.parse(variantsJson);
     const qp = new URLSearchParams(window.location.search).get('type');
     let currentType = (qp && variants.some((v) => v.type === qp)) ? qp : defaultType;
     let selectedColour = '';
     let selectedSize = '';
     let currentPrice = 0;
+    let viewedType = null;
+
+    /* GA4 view_item for the selected variant (src/lib/analytics.ts drains the
+       queue; sent only with analytics consent). */
+    function trackView() {
+      (window.fuglysShop = window.fuglysShop || []).push(['view_item', {
+        slug: designSlug, name: designName, productType: currentType,
+        colour: selectedColour, size: selectedSize, price: currentPrice,
+      }]);
+    }
 
     const SIZE_ORDER = ['XS','S','M','L','XL','2XL','3XL','4XL','5XL','One Size',
       '11 oz','15 oz','16 oz','16 oz With Lid & Straw','20oz','20 oz'];
@@ -275,6 +285,7 @@ const productJsonLd = {
       renderSizes(v);
       updateHero();
       updatePrice();
+      if (type !== viewedType) { viewedType = type; trackView(); }
     }
 
     document.querySelectorAll('.pdp-type').forEach((b) => b.addEventListener('click', () => selectType(b.dataset.type)));
@@ -292,6 +303,8 @@ const productJsonLd = {
       window.dispatchEvent(new CustomEvent('add-to-cart', { detail: {
         id: `${designId}-${currentType}-${selectedColour}-${selectedSize}`,
         title: `${designName} ${v?.label || ''}`.trim(),
+        slug: designSlug,
+        productName: designName,
         price: currentPrice,
         size: selectedSize,
         colour: selectedColour,

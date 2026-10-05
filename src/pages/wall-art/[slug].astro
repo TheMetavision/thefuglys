@@ -196,6 +196,16 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
     const penceFor = (f, s) => (prices[f] && prices[f][s]) || 0;
     const gbp = (p) => '£' + (p / 100).toFixed(2);
 
+    /* GA4 view_item for the selected format + size, on load and when the format
+       changes (src/lib/analytics.ts drains the queue; consent only). */
+    function trackView() {
+      (window.fuglysShop = window.fuglysShop || []).push(['view_item', {
+        slug: slug, name: title, productType: 'wallart',
+        format: selFormat, size: selSize, price: penceFor(selFormat, selSize) / 100,
+      }]);
+    }
+    trackView();
+
     function refreshPrice() {
       if (priceEl) priceEl.textContent = gbp(penceFor(selFormat, selSize));
     }
@@ -203,11 +213,13 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
     if (formatWrap) {
       formatWrap.querySelectorAll('[data-format]').forEach((btn) => {
         btn.addEventListener('click', () => {
+          const changed = selFormat !== btn.getAttribute('data-format');
           selFormat = btn.getAttribute('data-format');
           formatWrap.querySelectorAll('[data-format]').forEach((b) => b.classList.toggle('active', b === btn));
           const f = formatList.find((x) => x.id === selFormat);
           if (blurbEl && f) blurbEl.textContent = f.blurb;
           refreshPrice();
+          if (changed) trackView();
         });
       });
     }
@@ -236,6 +248,8 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
         const detail = {
           id: `wallart-${slug}-${selFormat}-${selSize}`,
           title: title,
+          slug: slug,
+          productName: title,
           price: pence / 100,            // £ for display; server re-prices at checkout
           size: selSize,                  // size id
           format: selFormat,              // format id

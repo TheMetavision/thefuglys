@@ -89,6 +89,7 @@ import LegalLinks from './LegalLinks.astro';
         <div class="footer-legal-col">
           <p class="footer-col-heading">Legal</p>
           <LegalLinks />
+          <a href="/legal/cookie-policy/" class="footer-cookie-settings" data-cookie-settings>Cookie settings</a>
         </div>
       </div>
 
@@ -288,6 +289,19 @@ import LegalLinks from './LegalLinks.astro';
   }
 
   .footer-nav-list a:hover {
+    color: #ffffff;
+  }
+
+  .footer-cookie-settings {
+    display: block;
+    padding: 4px 0;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.55);
+    transition: color 0.2s ease;
+  }
+
+  .footer-cookie-settings:hover {
     color: #ffffff;
   }
 

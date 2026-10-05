@@ -10,7 +10,8 @@
  * Every step is non-fatal — we always return 200 so Printful doesn't retry-storm.
  *
  * Env vars:
- *   SANITY_TOKEN          — Sanity *write* (Editor) token (same one the Stripe webhook uses)
+ *   SANITY_API_TOKEN      — Sanity *write* (Editor) token (same one the Stripe webhook uses;
+ *                           SANITY_TOKEN still works as a fallback)
  *   SANITY_PROJECT_ID     — optional; default ngx60q2x
  *   SANITY_DATASET        — optional; default production
  *   RESEND_API_KEY        — optional; if set, customer gets a tracking email
@@ -25,6 +26,8 @@
 const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID || 'ngx60q2x';
 const SANITY_DATASET = process.env.SANITY_DATASET || 'production';
 const SANITY_API_VER = '2024-01-01';
+// Read per call: SANITY_API_TOKEN is the name Netlify and the site use; SANITY_TOKEN is the older one.
+const sanityWriteToken = () => process.env.SANITY_API_TOKEN || process.env.SANITY_TOKEN || '';
 const RESEND_URL = 'https://api.resend.com/emails';
 const FROM = process.env.ORDER_EMAIL_FROM || 'The Fuglys <orders@thefuglys.com>';
 
@@ -40,7 +43,7 @@ async function findOrderByPrintfulId(printfulOrderId) {
   const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}` +
     `?query=${encodeURIComponent(groq)}&$pid=${params}`;
   const res = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + process.env.SANITY_TOKEN },
+    headers: { Authorization: 'Bearer ' + sanityWriteToken() },
   });
   if (!res.ok) throw new Error(`Sanity query ${res.status}: ${await res.text()}`);
   return (await res.json()).result || null;
@@ -51,7 +54,7 @@ async function patchOrder(orderId, set) {
     `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/mutate/${SANITY_DATASET}`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.SANITY_TOKEN },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sanityWriteToken() },
       body: JSON.stringify({ mutations: [{ patch: { id: orderId, set } }] }),
     }
   );
@@ -123,8 +126,8 @@ export default async function handler(req) {
   const printfulOrderId = body.data?.order?.id;
 
   try {
-    if (!process.env.SANITY_TOKEN) {
-      console.warn('[PRINTFUL-WEBHOOK] SANITY_TOKEN not set — cannot update orders.');
+    if (!sanityWriteToken()) {
+      console.warn('[PRINTFUL-WEBHOOK] neither SANITY_API_TOKEN nor SANITY_TOKEN is set — cannot update orders.');
       return new Response('OK', { status: 200 });
     }
 

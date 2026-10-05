@@ -123,12 +123,12 @@ test('inactive product is rejected; active items still resolve', () => {
 
 /* ── handler (Stripe and Sanity stubbed) ───────────────────────────────── */
 
-async function post(items, products = PRODUCTS) {
+async function post(items, products = PRODUCTS, extra = {}) {
   sessionParams = null;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async () => ({ ok: true, json: async () => ({ result: products }) });
   try {
-    const res = await handler({ httpMethod: 'POST', body: JSON.stringify({ items }) });
+    const res = await handler({ httpMethod: 'POST', body: JSON.stringify({ items, ...extra }) });
     return { status: res.statusCode, body: JSON.parse(res.body || '{}') };
   } finally {
     globalThis.fetch = realFetch;
@@ -179,4 +179,29 @@ test('handler: inactive, unknown and bad-quantity lines are refused with 422', a
   assert.equal((await post([{ ...tee('M', 25), id: 'product-nope-tshirt-Black-M' }])).status, 422);
   assert.equal((await post([tee('M', 25, { quantity: 500 })])).status, 422);
   assert.equal(sessionParams, null); // no Stripe session was created
+});
+
+/* ── GA4: ids in session metadata, item details on each line ───────────── */
+
+test('handler: stores valid GA ids only, and a session id only with a client id', async () => {
+  const meta = async (ga) => { await post([tee('M', 25)], PRODUCTS, ga === undefined ? {} : { ga }); return sessionParams.metadata; };
+  assert.deepEqual(await meta({ clientId: '123.456', sessionId: '1700000000' }),
+    { source: 'thefuglys-web', brand: 'thefuglys', ga_client_id: '123.456', ga_session_id: '1700000000' });
+  assert.deepEqual(await meta({ clientId: '123.456', sessionId: 'abc' }),
+    { source: 'thefuglys-web', brand: 'thefuglys', ga_client_id: '123.456' });
+  assert.deepEqual(await meta({ clientId: 'GA1.2.3', sessionId: '1700000000' }), { source: 'thefuglys-web', brand: 'thefuglys' });
+  assert.deepEqual(await meta(undefined), { source: 'thefuglys-web', brand: 'thefuglys' });
+});
+
+test('handler: each line carries slug, type, colour, size and wall-art format', async () => {
+  await post([tee('M', 25), badge(8), art('canvas-gallery', 'large', 46.99)]);
+  const m = sessionParams.line_items.map((l) => l.price_data.product_data.metadata);
+  assert.deepEqual(
+    m.map(({ item_slug, item_name, item_type, item_colour, item_size, item_format }) => ({ item_slug, item_name, item_type, item_colour, item_size, item_format })),
+    [
+      { item_slug: 'axel-run-fast', item_name: 'Axel - Run Fast', item_type: 'tshirt', item_colour: 'Black', item_size: 'M', item_format: undefined },
+      { item_slug: 'badge-set-1', item_name: 'Badge Set 1', item_type: 'badge', item_colour: '', item_size: 'One Size', item_format: undefined },
+      { item_slug: 'axel-run-fast', item_name: 'Axel - Run Fast', item_type: 'wallart', item_colour: undefined, item_size: 'large', item_format: 'canvas-gallery' },
+    ],
+  );
 });

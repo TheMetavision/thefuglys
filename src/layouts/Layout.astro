@@ -1,6 +1,7 @@
 ---
 import CartDrawer from '../components/CartDrawer';
 import FuglysTransmission from '../components/FuglysTransmission.astro';
+import CookieConsent from '../components/CookieConsent.astro';
 import { organizationSchema, websiteSchema } from '../lib/schema';
 import { canonicalUrl } from '../lib/url';
 import { socialImg } from '../lib/sanityImage';
@@ -125,6 +126,9 @@ const showTransmission = themeAudioReady && !isSuppressedRoute;
 
     <!-- Cart Drawer (React island) -->
     <CartDrawer client:load />
+
+    <!-- Cookie banner + GA4 (nothing from Google loads until Accept) -->
+    <CookieConsent />
 
     <!-- Theme tune (Transmission Signal — Harlan's radio rig) -->
     {showTransmission && (

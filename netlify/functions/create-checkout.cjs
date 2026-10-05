@@ -27,8 +27,9 @@ const { artworkPrice, artworkVariantLabel, isWallArt } = require('../../src/lib/
 /* Brand key stamped on every Checkout Session. The stripe-webhook's BRAND
    GUARD only processes sessions where metadata.brand matches — this is what
    stops the other IP brands' webhooks (shared Stripe account) from firing on
-   Fuglys orders and vice versa. Deploy together with stripe-webhook.js. */
-const BRAND_KEY = 'thefuglys';
+   Fuglys orders and vice versa. Shared with the webhook via brand-guard.cjs. */
+const { BRAND_KEY } = require('../../src/lib/brand-guard.cjs');
+const { validGaIds } = require('../../src/lib/ga4-item.cjs');
 
 const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID || 'ngx60q2x';
 const SANITY_DATASET    = process.env.SANITY_DATASET || 'production';
@@ -176,6 +177,12 @@ function buildPodLineItems(products, items) {
             printful_variant_id: match.syncVariantId,
             fuglys_size: String(item.size || ''),
             fuglys_colour: String(item.colour || ''),
+            // GA4 purchase (stripe-webhook): item_id, item_name, item_category, item_variant
+            item_slug: product.slug,
+            item_name: String(product.name || title),
+            item_type: String(match.variant.productType || item.productType || ''),
+            item_colour: String(item.colour || ''),
+            item_size: String(item.size || ''),
           },
         },
       },
@@ -197,7 +204,7 @@ exports.handler = async (event) => {
   if (!process.env.STRIPE_SECRET_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Stripe not configured' }) };
 
   try {
-    const { items } = JSON.parse(event.body || '{}');
+    const { items, ga } = JSON.parse(event.body || '{}');
     if (!items || items.length === 0) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Cart is empty' }) };
 
     const SITE_URL = process.env.SITE_URL || process.env.PUBLIC_SITE_URL || 'https://thefuglys.com';
@@ -293,6 +300,12 @@ exports.handler = async (event) => {
             wallart_slug: slug,
             wallart_format: String(item.format || ''),
             wallart_size: String(item.size || ''),
+            // GA4 purchase (stripe-webhook): item_id, item_name, item_category, item_variant
+            item_slug: slug,
+            item_name: String(item.title || ''),
+            item_type: 'wallart',
+            item_format: String(item.format || ''),
+            item_size: String(item.size || ''),
           },
         },
       },
@@ -314,7 +327,8 @@ exports.handler = async (event) => {
       shipping_options: buildShippingOptions(cartTotalPence),
       success_url: `${SITE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/merch`,
-      metadata: { source: 'thefuglys-web', brand: BRAND_KEY },
+      // GA ids are only sent by browsers that accepted analytics; invalid ones are dropped.
+      metadata: { source: 'thefuglys-web', brand: BRAND_KEY, ...validGaIds(ga && ga.clientId, ga && ga.sessionId) },
     });
 
     return { statusCode: 200, headers, body: JSON.stringify({ url: session.url }) };

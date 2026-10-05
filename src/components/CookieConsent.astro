@@ -1,0 +1,156 @@
+---
+/**
+ * src/components/CookieConsent.astro  (The Fuglys — UK PECR cookie banner)
+ *
+ * Mounted once by Layout.astro on every page. Shows until the visitor picks
+ * Accept or Reject (stored in localStorage `fuglys-consent`); any element with
+ * [data-cookie-settings] reopens it. The Footer carries one; pages without the
+ * Footer (product pages, order success) get the fallback link below, which
+ * CSS hides wherever the Footer's link exists. GA itself is loaded by
+ * src/lib/analytics.ts, only after Accept.
+ */
+---
+
+<div id="cc-banner" class="cc-banner" role="region" aria-label="Cookie consent" hidden>
+  <div class="cc-inner">
+    <p class="cc-text">
+      Can we use Google Analytics cookies to see how the wasteland gets explored? They're only set if you accept.
+      <a href="/legal/privacy-policy/" class="cc-link">Privacy policy</a>
+    </p>
+    <div class="cc-actions">
+      <button type="button" class="cc-btn" data-consent="granted">Accept</button>
+      <button type="button" class="cc-btn" data-consent="denied">Reject</button>
+    </div>
+  </div>
+</div>
+
+<p class="cc-fallback">
+  <a href="/legal/cookie-policy/" data-cookie-settings>Cookie settings</a>
+</p>
+
+<script>
+  import { getConsent, setConsent, initAnalytics, type Consent } from '../lib/analytics';
+
+  initAnalytics();
+
+  const banner = document.getElementById('cc-banner');
+  const root = document.documentElement;
+
+  function show() {
+    if (!banner) return;
+    banner.hidden = false;
+    root.classList.add('cc-open');
+    root.style.setProperty('--cc-height', `${banner.offsetHeight}px`);
+    banner.querySelector<HTMLButtonElement>('.cc-btn')?.focus({ preventScroll: true });
+  }
+  function hide() {
+    if (!banner) return;
+    banner.hidden = true;
+    root.classList.remove('cc-open');
+  }
+
+  banner?.querySelectorAll<HTMLButtonElement>('[data-consent]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setConsent(btn.dataset.consent as Consent);
+      hide();
+    });
+  });
+
+  // Footer link or the fallback: reopen the banner instead of following the link.
+  document.addEventListener('click', (e) => {
+    const link = (e.target as Element | null)?.closest?.('[data-cookie-settings]');
+    if (!link) return;
+    e.preventDefault();
+    show();
+  });
+
+  window.addEventListener('resize', () => {
+    if (banner && !banner.hidden) root.style.setProperty('--cc-height', `${banner.offsetHeight}px`);
+  });
+
+  if (!getConsent()) show();
+</script>
+
+<style>
+  .cc-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1500; /* under the cart drawer (2000) and image zoom (3000) */
+    background: #1e3238;
+    border-top: 2px solid #99132F;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
+    padding: 16px 24px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  }
+  .cc-banner[hidden] { display: none; }
+  .cc-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .cc-text {
+    flex: 1;
+    margin: 0;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.82);
+  }
+  .cc-link {
+    color: #fff;
+    text-decoration: underline;
+    text-decoration-color: rgba(179, 22, 46, 0.8);
+    text-underline-offset: 3px;
+    white-space: nowrap;
+  }
+  .cc-link:hover { color: #b3162e; }
+  .cc-actions { display: flex; gap: 12px; flex-shrink: 0; }
+  /* Accept and Reject are deliberately identical. */
+  .cc-btn {
+    min-width: 120px;
+    padding: 11px 22px;
+    background: transparent;
+    color: #fff;
+    border: 2px solid #99132F;
+    border-radius: 2px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .cc-btn:hover,
+  .cc-btn:focus-visible { background: #99132F; outline: none; }
+
+  .cc-fallback {
+    margin: 0;
+    padding: 20px 24px 28px;
+    text-align: center;
+    background: var(--color-bg, #263F44);
+  }
+  .cc-fallback a {
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .cc-fallback a:hover { color: #fff; }
+
+  @media (max-width: 768px) {
+    .cc-banner { padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 14px); }
+    .cc-inner { flex-direction: column; align-items: stretch; gap: 12px; }
+    .cc-actions .cc-btn { flex: 1; min-width: 0; }
+  }
+</style>
+
+<style is:global>
+  /* Pages with the Footer already have its Cookie settings link. */
+  body:has(.footer [data-cookie-settings]) .cc-fallback { display: none; }
+  /* Keep the theme-tune player clear of the open banner. */
+  html.cc-open .fg-transmission { bottom: calc(var(--cc-height, 120px) + 16px); }
+</style>

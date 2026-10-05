@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { $cartItems, $cartOpen, $cartTotal, $cartCount, $qualifiesForFreeShipping, $amountToFreeShipping, FREE_SHIPPING_THRESHOLD, removeFromCart, toggleCart, addToCart, clearCart } from '../lib/cart';
 // @ts-ignore — shared CommonJS pricing module (no .d.ts; resolved by Vite at build)
 import { isWallArt, artworkVariantLabel } from '../lib/artwork-pricing.cjs';
+import { prepareCheckout } from '../lib/analytics';
 
 export default function CartDrawer() {
   const items = useStore($cartItems);
@@ -48,6 +49,8 @@ export default function CartDrawer() {
   async function handleCheckout() {
     if (items.length === 0) return;
     try {
+      // begin_checkout + GA ids (consented visitors only), together at most 0.8 s.
+      const ga = await prepareCheckout(items);
       const res = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,6 +66,7 @@ export default function CartDrawer() {
             productType: item.productType || '',
             quantity: item.quantity,
           })),
+          ga,
         }),
       });
       const data = await res.json();
