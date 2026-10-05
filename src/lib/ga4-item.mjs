@@ -1,10 +1,10 @@
-// ga4-item.cjs
+// ga4-item.mjs
 // -----------------------------------------------------------------------------
 // The GA4 item_variant rule and id checks, shared by the browser (view_item,
 // add_to_cart, begin_checkout via src/lib/analytics.ts) and the server
-// (create-checkout stores the ids, stripe-webhook sends the purchase). CommonJS
-// for the same reason as artwork-pricing.cjs: Netlify functions require() it and
-// Vite imports it.
+// (create-checkout stores the ids, stripe-webhook sends the purchase via
+// ga4-purchase.cjs). An ES module for the same reason as artwork-pricing.mjs:
+// Vite imports it, and Netlify functions require() it (bundled by esbuild).
 // -----------------------------------------------------------------------------
 
 /**
@@ -34,4 +34,4 @@ function validGaIds(clientId, sessionId) {
   return SESSION_ID.test(sid) ? { ga_client_id: cid, ga_session_id: sid } : { ga_client_id: cid };
 }
 
-module.exports = { itemVariant, validGaIds, CLIENT_ID, SESSION_ID };
+export { itemVariant, validGaIds, CLIENT_ID, SESSION_ID };

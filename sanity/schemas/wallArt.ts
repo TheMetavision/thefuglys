@@ -6,7 +6,7 @@ import { defineType, defineField } from 'sanity';
  * Identical across all four IP brands. Unlike `product` (POD via Printful),
  * Wall Art is manufactured and shipped in-house. So there is NO Printful variant
  * matrix here and NO prices on the document: every piece shares the global
- * format × size matrix (see src/lib/artwork-pricing.cjs — mirrored from CSC):
+ * format × size matrix (see src/lib/artwork-pricing.mjs — mirrored from CSC):
  *
  *   Poster Print            12x8 £9.99   16x12 £12.99  24x16 £16.99
  *   Canvas Standard Frame   12x8 £26.99  16x12 £31.99  24x16 £44.99

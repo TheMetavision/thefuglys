@@ -12,7 +12,7 @@
  * [eventName, rawItem] onto window.fuglysShop; initAnalytics() drains it.
  */
 // @ts-ignore — shared CommonJS module (no .d.ts; resolved by Vite at build)
-import { itemVariant, validGaIds } from './ga4-item.cjs';
+import { itemVariant, validGaIds } from './ga4-item.mjs';
 import type { CartItem } from './cart';
 
 export const GA_ID = 'G-DHY9KR4CZK';

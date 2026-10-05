@@ -6,6 +6,17 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# These two functions require() ES modules the Astro pages and browser code also
+# import: src/lib/artwork-pricing.mjs and src/lib/ga4-item.mjs (the webhook
+# reaches ga4-item through ga4-purchase.cjs). esbuild bundles them into each
+# function at build time, so the deployed function does not depend on the
+# runtime's require(esm).
+[functions."create-checkout"]
+  node_bundler = "esbuild"
+
+[functions."stripe-webhook"]
+  node_bundler = "esbuild"
+
 # Printful mockups are served through Netlify Image CDN (/.netlify/images?url=…),
 # so visitors load them from thefuglys.com, resized, and never contact printful.com.
 [images]

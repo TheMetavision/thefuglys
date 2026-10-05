@@ -6,7 +6,7 @@ import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
 import { getAllProducts, urlFor } from '../lib/sanity';
 import { getAllWallArt } from '../lib/wallart';
-import { ARTWORK_FROM_PRICE, formatGBP } from '../lib/artwork-pricing.cjs';
+import { ARTWORK_FROM_PRICE, formatGBP } from '../lib/artwork-pricing.mjs';
 
 const products = await getAllProducts();
 if (!products?.length) throw new Error('[merch] Sanity returned no active products'); // fail the build, not ship an empty shop

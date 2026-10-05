@@ -11,7 +11,7 @@
 // call. Never throws.
 // -----------------------------------------------------------------------------
 
-const { itemVariant, validGaIds } = require('./ga4-item.cjs');
+const { itemVariant, validGaIds } = require('./ga4-item.mjs');
 
 const MP_URL = 'https://www.google-analytics.com/mp/collect';
 const DEFAULT_TIMEOUT_MS = 2500;

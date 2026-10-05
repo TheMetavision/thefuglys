@@ -1,5 +1,5 @@
 // Tests for the GA4 server-side purchase (src/lib/ga4-purchase.cjs), the shared
-// item_variant rule (src/lib/ga4-item.cjs) and the webhook brand guard
+// item_variant rule (src/lib/ga4-item.mjs) and the webhook brand guard
 // (src/lib/brand-guard.cjs). fetch is stubbed, so nothing leaves the machine.
 //
 //   npm test
@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { sendPurchase, buildPurchasePayload } = require('../src/lib/ga4-purchase.cjs');
-const { itemVariant, validGaIds } = require('../src/lib/ga4-item.cjs');
+const { itemVariant, validGaIds } = require('../src/lib/ga4-item.mjs');
 const { isOurSession } = require('../src/lib/brand-guard.cjs');
 
 const ENV = { GA4_MEASUREMENT_ID: 'G-TEST', GA4_API_SECRET: 'secret' };

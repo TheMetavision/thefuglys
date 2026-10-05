@@ -1,20 +1,20 @@
-// artwork-pricing.cjs
+// artwork-pricing.mjs
 // -----------------------------------------------------------------------------
 // Single source of truth for in-house WALL ART pricing, formats and sizes.
 // Mirrored from Comic Strip Canvas (ready-made prints; no personalisation).
 //
-// CommonJS so BOTH consumers work:
-//   - Netlify functions (CJS):   const { artworkPrice } = require('../../src/lib/artwork-pricing.cjs')
-//   - Astro / Vite (ESM):        import { artworkPrice } from '../lib/artwork-pricing.cjs'
-//     (Vite resolves CJS named exports; if your setup objects, use a default
-//      import: `import pricing from '...'; pricing.artworkPrice(...)`.)
+// An ES module so BOTH consumers load this one file:
+//   - Astro / Vite (ESM):        import { artworkPrice } from '../lib/artwork-pricing.mjs'
+//   - Netlify functions (CJS):   const { artworkPrice } = require('../../src/lib/artwork-pricing.mjs')
+//     (esbuild bundles it into each function — netlify.toml [functions]
+//      node_bundler = "esbuild"; Node 22.12+ also loads it with require().)
 //
 // Money is in GBP **pence** (integers) to match Stripe and avoid float drift.
 //
 // SHIPPING IS NOT DEFINED HERE.
 // Wall art ships in-house but WORLDWIDE, using the brand's EXISTING cart-level
 // shipping options (free over £75, else £6.95 UK; plus EU / USA / RoW rates),
-// exactly like POD. See netlify/functions/create-checkout.js. No geo restriction.
+// exactly like POD. See netlify/functions/create-checkout.cjs. No geo restriction.
 // -----------------------------------------------------------------------------
 
 const ARTWORK_FORMATS = [
@@ -84,7 +84,7 @@ const ARTWORK_FROM_PRICE = Math.min(
   ...Object.values(ARTWORK_PRICES).flatMap((row) => Object.values(row))
 );
 
-module.exports = {
+export {
   ARTWORK_FORMATS,
   ARTWORK_SIZES,
   ARTWORK_PRICES,

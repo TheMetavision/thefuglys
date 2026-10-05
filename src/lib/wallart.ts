@@ -4,7 +4,7 @@
 // Sanity at build time for the merch grid and the /wall-art/[slug] PDP.
 // Tokenless read against the public dataset (same as create-checkout.js).
 //
-// Pricing/formats/sizes live in artwork-pricing.cjs, not here.
+// Pricing/formats/sizes live in artwork-pricing.mjs, not here.
 // -----------------------------------------------------------------------------
 
 const PROJECT_ID = import.meta.env.PUBLIC_SANITY_PROJECT_ID || 'ngx60q2x';
