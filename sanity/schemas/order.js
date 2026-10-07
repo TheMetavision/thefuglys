@@ -50,6 +50,22 @@ export default defineType({
         }),
       ],
     }),
+    defineField({
+      name: 'crossBrandCode', title: '⚠ Other brand’s code', type: 'text', rows: 3, readOnly: true,
+      description: 'A promotion code that belongs to another IP brand (shared Stripe account). The order stands; decide whether to follow up.',
+      hidden: ({value}) => !value,
+    }),
+    defineField({
+      name: 'repeatWelcomeCode', title: '⚠ Repeat welcome code', type: 'text', rows: 3, readOnly: true,
+      description: 'A first-order welcome code (CHAOS10) used by an email that already has a paid order. The order stands; decide whether to follow up.',
+      hidden: ({value}) => !value,
+    }),
+    defineField({
+      name: 'discountAmount', title: 'Discount (£)', type: 'number', readOnly: true,
+      description: 'Promotion code discount on the goods, from Stripe. Line totals above are before it; shipping is never discounted.',
+      hidden: ({value}) => !value,
+    }),
+    defineField({name: 'discountCode', title: 'Discount Code', type: 'string', readOnly: true, hidden: ({value}) => !value}),
     defineField({name: 'shippingCost', title: 'Shipping (£)', type: 'number'}),
     defineField({name: 'total', title: 'Total (£)', type: 'number'}),
     defineField({name: 'currency', title: 'Currency', type: 'string'}),
