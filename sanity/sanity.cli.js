@@ -6,4 +6,7 @@ export default defineCliConfig({
     dataset: 'production',
   },
   studioHost: 'thefuglys',
+  deployment: {
+    appId: 'ztpujf090p7o6cx6vdw2axhb',
+  },
 });
