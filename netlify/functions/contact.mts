@@ -160,7 +160,9 @@ function buildAckHtml(brand, { firstName, refCode, subject, message }) {
       </td></tr>
     </table>
     <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#6b7280;">No need to reply to this email &mdash; it&rsquo;s just confirmation we&rsquo;ve received your enquiry. Quote <strong>${escapeHtml(refCode)}</strong> if you contact us about it.</p>`;
-  return renderEmailShell({ ...brand, preheader: `We&rsquo;ve received your message — ${brand.brandName}`, innerHtml: inner });
+  // Plain text: inbox previews show it as-is and renderEmailShell escapes it,
+  // so an HTML entity here would appear literally ("We&rsquo;ve...").
+  return renderEmailShell({ ...brand, preheader: `We’ve received your message — ${brand.brandName}`, innerHtml: inner });
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────
