@@ -327,6 +327,11 @@ exports.handler = async (event) => {
       shipping_options: buildShippingOptions(cartTotalPence),
       success_url: `${SITE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/merch`,
+      // The customer types a code (CHAOS10) on Stripe's page. Coupons apply to
+      // line items only, so the shipping rates above are never discounted, and
+      // the Printful order is by variant id with no prices, so a discount
+      // can't change what's made or shipped. stripe-webhook reads it back.
+      allow_promotion_codes: true,
       // GA ids are only sent by browsers that accepted analytics; invalid ones are dropped.
       metadata: { source: 'thefuglys-web', brand: BRAND_KEY, ...validGaIds(ga && ga.clientId, ga && ga.sessionId) },
     });
