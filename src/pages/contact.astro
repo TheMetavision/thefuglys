@@ -40,22 +40,26 @@ import Newsletter from '../components/Newsletter.astro';
 
               <div class="form-group">
                 <label for="name" class="form-label">Name</label>
-                <input type="text" id="name" name="name" class="form-input" placeholder="Your name" required />
+                <input type="text" id="name" name="name" class="form-input" placeholder="Your name" required aria-describedby="name-error" />
+                <p class="field-error" id="name-error" hidden>Tell us your name.</p>
               </div>
 
               <div class="form-group">
                 <label for="email" class="form-label">Email</label>
-                <input type="email" id="email" name="email" class="form-input" placeholder="your@email.com" required />
+                <input type="email" id="email" name="email" class="form-input" placeholder="your@email.com" required aria-describedby="email-error" />
+                <p class="field-error" id="email-error" hidden>That email address doesn&rsquo;t look right.</p>
               </div>
 
               <div class="form-group">
                 <label for="subject" class="form-label">Subject</label>
-                <input type="text" id="subject" name="subject" class="form-input" placeholder="What's this about?" required />
+                <input type="text" id="subject" name="subject" class="form-input" placeholder="What's this about?" required aria-describedby="subject-error" />
+                <p class="field-error" id="subject-error" hidden>Give it a subject.</p>
               </div>
 
               <div class="form-group">
                 <label for="message" class="form-label">Message</label>
-                <textarea id="message" name="message" class="form-input form-textarea" placeholder="Tell us what's on your mind..." required></textarea>
+                <textarea id="message" name="message" class="form-input form-textarea" placeholder="Tell us what's on your mind..." required aria-describedby="message-error"></textarea>
+                <p class="field-error" id="message-error" hidden>Write us a message.</p>
               </div>
 
               <button type="submit" class="btn btn-primary form-submit" id="form-submit">
@@ -84,6 +88,7 @@ import Newsletter from '../components/Newsletter.astro';
                   <div class="transmission__actions">
                     <a class="transmission__btn transmission__btn--ghost" href="/meet-the-misfits">Meet the Crew</a>
                     <a class="transmission__btn transmission__btn--solid" href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener">Watch the Chaos</a>
+                    <button type="button" class="transmission__btn transmission__btn--ghost" id="send-another-btn">Send Another</button>
                   </div>
                 </div>
               </div>
@@ -101,6 +106,7 @@ import Newsletter from '../components/Newsletter.astro';
                     <div class="transmission__label">Couldn't send</div>
                     <h3 class="transmission__headline">Something jammed the signal.</h3>
                     <p class="transmission__sub">Try again, or email <a href="mailto:chaos@thefuglys.com" style="color:inherit;text-decoration:underline;">chaos@thefuglys.com</a> directly.</p>
+                    <p class="transmission__sub" id="form-error-detail" hidden></p>
                   </div>
                 </div>
 
@@ -181,6 +187,8 @@ import Newsletter from '../components/Newsletter.astro';
     var successEl = document.getElementById('form-success');
     var errorEl = document.getElementById('form-error');
     var retryBtn = document.getElementById('retry-btn');
+    var sendAnotherBtn = document.getElementById('send-another-btn');
+    var errorDetail = document.getElementById('form-error-detail');
 
     function showSending(on) {
       if (submitBtn) submitBtn.disabled = on;
@@ -191,18 +199,90 @@ import Newsletter from '../components/Newsletter.astro';
     function show(el) { if (el) el.style.display = 'block'; }
     function hide(el) { if (el) el.style.display = 'none'; }
 
-    function resetToForm() {
+    // One result at a time: every attempt hides both panels first and shows
+    // only this attempt's outcome. Previously the success branch never hid the
+    // error panel left by an earlier failed (e.g. empty, 400) attempt, so
+    // "Signal received" and "Try again" ended up on screen together.
+    function showResult(kind, detail) {
       hide(successEl);
       hide(errorEl);
-      show(form);
-      form.reset();
+      if (errorDetail) {
+        errorDetail.textContent = detail || '';
+        errorDetail.hidden = !detail;
+      }
+      if (kind === 'success') show(successEl);
+      if (kind === 'error') show(errorEl);
+      if (kind) hide(form); else show(form);
+    }
+
+    // Required fields, checked here before anything is sent, so an empty
+    // submit says which fields are missing. The function still validates.
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    var REQUIRED = [
+      { id: 'name', ok: function (v) { return v.length > 0; } },
+      { id: 'email', ok: function (v) { return EMAIL_RE.test(v); } },
+      { id: 'subject', ok: function (v) { return v.length > 0; } },
+      { id: 'message', ok: function (v) { return v.length > 0; } },
+    ];
+
+    function markField(id, bad) {
+      var field = document.getElementById(id);
+      var msg = document.getElementById(id + '-error');
+      if (!field) return;
+      field.classList.toggle('is-invalid', bad);
+      if (bad) field.setAttribute('aria-invalid', 'true');
+      else field.removeAttribute('aria-invalid');
+      if (msg) msg.hidden = !bad;
+    }
+
+    function validateFields() {
+      var firstBad = null;
+      REQUIRED.forEach(function (r) {
+        var field = document.getElementById(r.id);
+        if (!field) return;
+        var bad = !r.ok(field.value.trim());
+        markField(r.id, bad);
+        if (bad && !firstBad) firstBad = field;
+      });
+      if (firstBad) firstBad.focus();
+      return !firstBad;
+    }
+
+    // Clear a field's mark as soon as it is fixed.
+    REQUIRED.forEach(function (r) {
+      var field = document.getElementById(r.id);
+      if (!field) return;
+      field.addEventListener('input', function () {
+        if (field.getAttribute('aria-invalid') && r.ok(field.value.trim())) markField(r.id, false);
+      });
+    });
+
+    // Try Again keeps what was typed; Send Another starts a clean form.
+    function backToForm() {
+      showResult(null);
       showSending(false);
     }
 
-    if (retryBtn) retryBtn.addEventListener('click', resetToForm);
+    var inFlight = false;
+    var sent = false;
+
+    if (retryBtn) retryBtn.addEventListener('click', backToForm);
+    if (sendAnotherBtn) sendAnotherBtn.addEventListener('click', function () {
+      sent = false;
+      form.reset();
+      REQUIRED.forEach(function (r) { markField(r.id, false); });
+      backToForm();
+      var first = document.getElementById('name');
+      if (first) first.focus();
+    });
 
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
+      // One submission at a time, and none after a success until Send Another.
+      if (inFlight || sent) return;
+      showResult(null);
+      if (!validateFields()) return;
+      inFlight = true;
       showSending(true);
 
       var data = new FormData(form);
@@ -225,15 +305,16 @@ import Newsletter from '../components/Newsletter.astro';
         });
         var json = await res.json().catch(function () { return {}; });
         if (res.ok && json.success) {
-          hide(form);
-          show(successEl);
+          sent = true;
+          showResult('success');
         } else {
-          throw new Error((json && json.error) || 'Submission failed');
+          // The function's own message, as text, under the generic copy.
+          showResult('error', json && typeof json.error === 'string' ? json.error : '');
         }
       } catch (err) {
-        hide(form);
-        show(errorEl);
+        showResult('error');
       } finally {
+        inFlight = false;
         showSending(false);
       }
     });
@@ -311,6 +392,18 @@ import Newsletter from '../components/Newsletter.astro';
   .form-textarea {
     min-height: 160px;
     resize: vertical;
+  }
+
+  .form-input.is-invalid {
+    border-color: #c92a45;
+    box-shadow: 0 0 0 2px rgba(201, 42, 69, 0.25);
+  }
+
+  .field-error {
+    margin: 8px 0 0;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.85rem;
+    color: #ff8a9b;
   }
 
   .form-submit {
