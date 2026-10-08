@@ -127,8 +127,23 @@ function findVariantMatch(product, item) {
 /* Cart quantity as a whole number from 1 to 99 (missing = 1), else null.
    Applies to both tracks: print-on-demand and wall art. */
 function cartQuantity(item) {
-  const quantity = item.quantity == null ? 1 : Number(item.quantity);
-  return Number.isInteger(quantity) && quantity >= 1 && quantity <= 99 ? quantity : null;
+  const quantity = parseQuantity(item.quantity);
+  return Number.isInteger(quantity) && quantity >= 1 && quantity <= MAX_LINE_QTY ? quantity : null;
+}
+
+/* Most of one item per line Stripe is asked to charge. The cart's own
+   selector stops at 10 (src/lib/cart-quantity.ts); older saved baskets could
+   go higher, so the server allows up to this. */
+const MAX_LINE_QTY = 99;
+
+/* A cart line's quantity: a JSON number, or a string of digits. Missing means
+   1 (very old carts). Anything else (true, [3], "1e1", "2.5", {}) is NaN,
+   which cartQuantity rejects together with 0, negatives, fractions and > 99. */
+function parseQuantity(raw) {
+  if (raw == null) return 1;
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string' && /^\d{1,4}$/.test(raw.trim())) return Number(raw.trim());
+  return NaN;
 }
 
 /* The price for this size, in pence, from Sanity: the matching sizePrices

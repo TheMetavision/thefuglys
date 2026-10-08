@@ -95,10 +95,19 @@ test('single-size product falls back to basePrice', () => {
 });
 
 test('rejects quantities that are not whole numbers from 1 to 99', () => {
-  for (const quantity of [0, -1, 1.5, 100, 'lots']) {
+  for (const quantity of [0, -1, 1.5, 100, 'lots', 1e9, NaN, '', '-2', '2.5', '1e1', true, [3], { n: 2 }]) {
     const r = buildPodLineItems(PRODUCTS, [tee('M', 25, { quantity })]);
     assert.equal(r.invalid.length, 1, `quantity ${quantity}`);
     assert.equal(r.line_items.length, 0);
+  }
+});
+
+test('accepts whole-number quantities sent as numbers or digit strings', () => {
+  for (const quantity of [2, '2', ' 2 ']) {
+    const r = buildPodLineItems(PRODUCTS, [tee('M', 25, { quantity })]);
+    assert.equal(r.invalid.length, 0, `quantity ${JSON.stringify(quantity)}`);
+    assert.equal(r.line_items[0].quantity, 2);
+    assert.equal(typeof r.line_items[0].quantity, 'number');
   }
 });
 
@@ -158,7 +167,8 @@ test('handler: free UK shipping only when server prices reach £75', async () =>
 });
 
 test('handler: wall-art quantities outside 1-99 are refused; valid ones keep the matrix price', async () => {
-  for (const quantity of [0, -1, 1.5, 100, 'lots']) {
+  // (NaN is not listed here: JSON sends it as null, which means "missing" = 1)
+  for (const quantity of [0, -1, 1.5, 100, 'lots', 1e9, '', '-2', '2.5', '1e1', true, [3], { n: 2 }]) {
     const r = await post([art('poster', 'small', 9.99, { quantity })]);
     assert.equal(r.status, 422, `quantity ${quantity}`);
     assert.equal(sessionParams, null);

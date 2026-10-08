@@ -10,7 +10,7 @@
 import { productImg } from '../lib/sanityImage';
 import { useStore } from '@nanostores/react';
 import { useEffect, useState } from 'react';
-import { $cartItems, $cartOpen, $cartTotal, $cartCount, $qualifiesForFreeShipping, $amountToFreeShipping, FREE_SHIPPING_THRESHOLD, removeFromCart, toggleCart, addToCart, clearCart } from '../lib/cart';
+import { $cartItems, $cartOpen, $cartTotal, $cartCount, $qualifiesForFreeShipping, $amountToFreeShipping, FREE_SHIPPING_THRESHOLD, removeFromCart, setQuantity, MAX_QTY_PER_LINE, toggleCart, addToCart, clearCart } from '../lib/cart';
 // @ts-ignore — shared CommonJS pricing module (no .d.ts; resolved by Vite at build)
 import { isWallArt, artworkVariantLabel } from '../lib/artwork-pricing.mjs';
 import { prepareCheckout } from '../lib/analytics';
@@ -26,7 +26,11 @@ export default function CartDrawer() {
   const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
-    function handleAdd(e: any) { addToCart(e.detail); }
+    function handleAdd(e: any) {
+      // detail.quantity comes from the product page's selector (absent = 1)
+      const { quantity, ...item } = e.detail || {};
+      addToCart(item, quantity);
+    }
     window.addEventListener('add-to-cart', handleAdd);
     return () => window.removeEventListener('add-to-cart', handleAdd);
   }, []);
@@ -90,6 +94,15 @@ export default function CartDrawer() {
   const danger = '#ff5a5a';
   const bebas = "'Bebas Neue', sans-serif";
 
+  // − / + buttons in the drawer; dimmed when they can't be used
+  const qtyBtn = (disabled: boolean): React.CSSProperties => ({
+    width: '30px', height: '30px', display: 'inline-flex',
+    alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(255,255,255,0.06)', color: disabled ? 'rgba(255,255,255,0.3)' : '#fff',
+    border: 'none', fontSize: '16px', fontWeight: 700, lineHeight: 1,
+    cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+  });
+
   const styles: Record<string, React.CSSProperties> = {
     overlay: {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
@@ -148,6 +161,18 @@ export default function CartDrawer() {
       fontSize: '12px', cursor: 'pointer', padding: 0,
       textDecoration: 'underline',
     },
+    qtyRow: {
+      display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' as const,
+    },
+    qtyControl: {
+      display: 'inline-flex', alignItems: 'center',
+      border: '1px solid rgba(255,255,255,0.18)', borderRadius: '3px', overflow: 'hidden' as const,
+    },
+    qtyValue: {
+      minWidth: '34px', textAlign: 'center' as const, fontSize: '14px',
+      fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' as const,
+    },
+    maxNote: { fontSize: '11px', color: 'rgba(255,255,255,0.6)', margin: '6px 0 0' },
     footer: {
       padding: '20px 24px', borderTop: `1px solid ${accent}22`,
     },
@@ -259,13 +284,41 @@ export default function CartDrawer() {
                   <p style={styles.itemName}>{item.title}</p>
                   <p style={styles.itemVariant}>
                     {isWallArt(item)
-                      ? `${artworkVariantLabel(item.format || '', item.size)} · Qty: ${item.quantity}`
-                      : `${item.colour ? `${item.colour} · ` : ''}Size: ${item.size} · Qty: ${item.quantity}`}
+                      ? artworkVariantLabel(item.format || '', item.size)
+                      : `${item.colour ? `${item.colour} · ` : ''}Size: ${item.size}`}
                   </p>
                   <p style={styles.itemPrice}>&pound;{(item.price * item.quantity).toFixed(2)}</p>
-                  <button style={styles.removeBtn} onClick={() => removeFromCart(item.id, item.size)}>
-                    Remove
-                  </button>
+                  {/* − stops at 1 rather than removing the line, so tapping it a few
+                      times too many can't empty the basket; Remove does that. */}
+                  <div style={styles.qtyRow}>
+                    <div style={styles.qtyControl} role="group" aria-label={`Quantity of ${item.title}`}>
+                      <button
+                        type="button"
+                        style={qtyBtn(item.quantity <= 1)}
+                        disabled={item.quantity <= 1}
+                        onClick={() => setQuantity(item.id, item.size, item.quantity - 1)}
+                        aria-label={`Decrease quantity of ${item.title}`}
+                      >
+                        &minus;
+                      </button>
+                      <span style={styles.qtyValue} aria-live="polite">{item.quantity}</span>
+                      <button
+                        type="button"
+                        style={qtyBtn(item.quantity >= MAX_QTY_PER_LINE)}
+                        disabled={item.quantity >= MAX_QTY_PER_LINE}
+                        onClick={() => setQuantity(item.id, item.size, item.quantity + 1)}
+                        aria-label={`Increase quantity of ${item.title}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button style={styles.removeBtn} onClick={() => removeFromCart(item.id, item.size)}>
+                      Remove
+                    </button>
+                  </div>
+                  {item.quantity >= MAX_QTY_PER_LINE && (
+                    <p style={styles.maxNote}>Max {MAX_QTY_PER_LINE} per item. Need more? Get in touch.</p>
+                  )}
                 </div>
               </div>
             ))
