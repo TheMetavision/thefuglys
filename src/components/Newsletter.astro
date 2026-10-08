@@ -22,7 +22,9 @@
             aria-label="Email address"
             id="newsletter-email"
           />
-          <button type="submit" class="newsletter-btn">I'm In</button>
+          {/* Disabled until the script below is listening, so an early press is
+              not a native GET with the email in the URL. */}
+          <button type="submit" class="newsletter-btn" disabled>I'm In</button>
         </div>
       </form>
 
@@ -85,6 +87,10 @@
       alert('Failed to subscribe. Please try again.');
     }
   });
+
+  // Listening now; the button was rendered disabled until this point.
+  const nlBtn = nlForm?.querySelector('.newsletter-btn') as HTMLButtonElement | null;
+  if (nlBtn) nlBtn.disabled = false;
 </script>
 
 <style>

@@ -62,7 +62,8 @@ import Newsletter from '../components/Newsletter.astro';
                 <p class="field-error" id="message-error" hidden>Write us a message.</p>
               </div>
 
-              <button type="submit" class="btn btn-primary form-submit" id="form-submit">
+              <!-- Disabled until the script at the end of the page is listening. -->
+              <button type="submit" class="btn btn-primary form-submit" id="form-submit" disabled>
                 <span class="submit-text">Send Message</span>
                 <span class="submit-sending" style="display:none;">Sending...</span>
               </button>
@@ -318,6 +319,10 @@ import Newsletter from '../components/Newsletter.astro';
         showSending(false);
       }
     });
+
+    // Listening now; the button was rendered disabled so an early press could
+    // not be a native GET with the message in the URL.
+    showSending(false);
   })();
 </script>
 
