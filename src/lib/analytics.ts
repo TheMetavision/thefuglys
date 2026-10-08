@@ -166,9 +166,9 @@ export function trackViewItem(i: ShopItem) {
   track('view_item', { currency: CURRENCY, value: item.price, items: [item] });
 }
 
-export function trackAddToCart(cartItem: CartItem) {
-  const item = cartGaItem(cartItem, 1);
-  track('add_to_cart', { currency: CURRENCY, value: item.price, items: [item] });
+export function trackAddToCart(cartItem: CartItem, quantity = 1) {
+  const item = cartGaItem(cartItem, quantity);
+  track('add_to_cart', { currency: CURRENCY, value: Math.round(item.price * quantity * 100) / 100, items: [item] });
 }
 
 /**

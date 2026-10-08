@@ -1,0 +1,100 @@
+---
+/**
+ * − / qty / + selector for product pages. Whole numbers 1..max (10, matching
+ * MAX_QTY_PER_LINE in src/lib/cart-quantity.ts; the cart clamps again and
+ * checkout re-checks). The page reads the input's value when adding to the
+ * cart and fires a 'qty-reset' event on the input afterwards to go back to 1.
+ */
+interface Props {
+  id?: string;
+  max?: number;
+}
+const { id = 'qty-input', max = 10 } = Astro.props;
+---
+
+<div class="qty-sel" role="group" aria-label="Quantity" data-qty-selector data-max={max}>
+  <button type="button" class="qty-sel__btn" data-qty-step="-1" aria-label="Decrease quantity" disabled>&minus;</button>
+  <input
+    type="number"
+    class="qty-sel__input"
+    id={id}
+    name="quantity"
+    value="1"
+    min="1"
+    max={max}
+    step="1"
+    inputmode="numeric"
+    aria-label="Quantity"
+  />
+  <button type="button" class="qty-sel__btn" data-qty-step="1" aria-label="Increase quantity">+</button>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-qty-selector]').forEach((root) => {
+    const input = root.querySelector('input') as HTMLInputElement;
+    const [dec, inc] = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-qty-step]'));
+    const max = Number(root.dataset.max) || 10;
+    const set = (n: number) => {
+      const q = Math.min(max, Math.max(1, Number.isFinite(n) ? Math.floor(n) : 1));
+      input.value = String(q);
+      dec.disabled = q <= 1;
+      inc.disabled = q >= max;
+    };
+    dec.addEventListener('click', () => set(Number(input.value) - 1));
+    inc.addEventListener('click', () => set(Number(input.value) + 1));
+    // Typed values are tidied when the shopper leaves the field (or presses Enter)
+    input.addEventListener('change', () => set(Number(input.value)));
+    input.addEventListener('qty-reset', () => set(1));
+  });
+</script>
+
+<style>
+  .qty-sel {
+    display: inline-flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+  }
+  .qty-sel__btn {
+    width: 40px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .qty-sel__btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .qty-sel__btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .qty-sel__input {
+    width: 44px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .qty-sel__input::-webkit-outer-spin-button,
+  .qty-sel__input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .qty-sel__input:focus {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+  }
+</style>
