@@ -20,6 +20,14 @@
 //   7. Our own double opt-in. Nothing is written to MailerLite here; the
 //      subscriber is created only by /api/newsletter-confirm.
 //
+// Speed: 5, 6 and the MailerLite lookup run in parallel once Turnstile has
+// passed, every outside call has a hard limit (_shared/timing.mjs: Turnstile,
+// MailerLite and Resend 4s, MX 2s, Blobs 2.5s a check), and the confirmation
+// email is sent after the response where the platform allows it
+// (context.waitUntil). What a timeout means is unchanged: Turnstile and the
+// MailerLite lookup fail closed, Blobs and DNS fail open. Each request logs one
+// "[subscribe] timing ..." line with the time every step took.
+//
 // Double opt-in is ours, not MailerLite's account-wide "double opt-in for API"
 // (that sends one account-branded email for every brand on the account). The
 // address is looked up (read only) and:
@@ -42,7 +50,8 @@
 
 import type { Context } from "@netlify/functions";
 import { verifyTurnstile } from "./_shared/turnstile.mjs";
-import { hashKey, takeSlot } from "./_shared/rate-limit.mjs";
+import { hashKey, takeSlot, releaseSlot } from "./_shared/rate-limit.mjs";
+import { LIMITS_MS, fetchWithTimeout, stopwatch } from "./_shared/timing.mjs";
 import { checkEmailDomain } from "./_shared/email-domain.mjs";
 import { makeToken } from "./_shared/newsletter-token.mjs";
 import { brandFromEnv, confirmationEmail } from "./_shared/newsletter-email.mjs";
@@ -81,12 +90,19 @@ function clientIp(req: Request, context: Context): string {
 
 /**
  * Should this address get a confirmation email? Read only: never writes to
- * MailerLite. Returns true/false, or null when MailerLite could not answer.
+ * MailerLite. Returns true/false, or null when MailerLite could not answer
+ * (including not within LIMITS_MS.mailerlite) -- the caller fails closed.
  */
 async function needsConfirmation(key: string, groupId: string, email: string): Promise<boolean | null> {
-  const res = await fetch(`${ML}/subscribers/${encodeURIComponent(email)}`, {
-    headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(`${ML}/subscribers/${encodeURIComponent(email)}`, {
+      headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+    }, LIMITS_MS.mailerlite, "MailerLite lookup");
+  } catch (err: any) {
+    console.error("[subscribe] MailerLite lookup failed", err?.message || err);
+    return null;
+  }
   if (res.status === 404) return true;
   if (res.status !== 200) {
     console.error("[subscribe] MailerLite lookup failed", res.status, await res.text().catch(() => ""));
@@ -100,7 +116,24 @@ async function needsConfirmation(key: string, groupId: string, email: string): P
   return true;
 }
 
+/** Send the confirmation email. True when Resend accepted it in time. */
+async function sendConfirmation(resendKey: string, message: Record<string, unknown>): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(message),
+    }, LIMITS_MS.resend, "Resend send");
+    if (res.ok) return true;
+    console.error("[subscribe] confirmation email failed", res.status, await res.text().catch(() => ""));
+  } catch (err: any) {
+    console.error("[subscribe] confirmation email failed", err?.message || err);
+  }
+  return false;
+}
+
 export default async (req: Request, context: Context) => {
+  const clock = stopwatch("[subscribe]");
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
   let body: any;
@@ -133,8 +166,11 @@ export default async (req: Request, context: Context) => {
   const token = String(body.turnstileToken || body["cf-turnstile-response"] || "").slice(0, 2048);
   if (!token) return json(400, { error: "Please complete the anti-spam check and try again" });
   const ip = clientIp(req, context);
-  const verdict = await verifyTurnstile(turnstileSecret, token, ip);
-  if (!verdict.ok) return json(verdict.status, { error: verdict.error });
+  const verdict = await clock.time("turnstile", verifyTurnstile(turnstileSecret, token, ip));
+  if (!verdict.ok) {
+    clock.log(`turnstile ${verdict.status}`);
+    return json(verdict.status, { error: verdict.error });
+  }
 
   // 4. Format.
   const email = String(body.email ?? "").trim().toLowerCase().slice(0, 254);
@@ -156,15 +192,24 @@ export default async (req: Request, context: Context) => {
     return json(503, { error: UNAVAILABLE });
   }
 
-  // 5. Per IP, hashed with the day so it is never stored raw.
+  // 5, 6 and the MailerLite lookup are independent of each other: run them
+  // together. The IP is hashed with the day so it is never stored raw.
   const day = new Date().toISOString().slice(0, 10);
-  if (!(await takeSlot(RATE_STORE, hashKey("ip", ip, day), IP_LIMIT, IP_WINDOW_MS))) {
+  const [ipSlot, domain, needed] = await Promise.all([
+    clock.time("ip", takeSlot(RATE_STORE, hashKey("ip", ip, day), IP_LIMIT, IP_WINDOW_MS)),
+    clock.time("mx", checkEmailDomain(email)),
+    clock.time("lookup", needsConfirmation(key, groupId!, email)),
+  ]);
+
+  // 5. Per IP.
+  if (!ipSlot) {
+    clock.log("429");
     return json(429, { error: "Too many sign-ups from your connection. Please try again later" });
   }
 
   // 6. Domain.
-  const domain = await checkEmailDomain(email);
   if (!domain.ok) {
+    clock.log(`domain ${domain.reason}`);
     return json(400, {
       error:
         domain.reason === "disposable"
@@ -174,40 +219,50 @@ export default async (req: Request, context: Context) => {
   }
 
   // 7. Double opt-in.
-  try {
-    const needed = await needsConfirmation(key, groupId!, email);
-    if (needed === null) return json(502, { error: FAILED });
-    if (!needed) {
-      console.info("[subscribe] already subscribed or opted out - nothing sent");
-      return json(200, { ok: true });
-    }
-
-    // At most one confirmation per address per day, whichever IPs ask.
-    if (!(await takeSlot(RATE_STORE, hashKey("addr", email), ADDRESS_LIMIT, ADDRESS_WINDOW_MS))) {
-      console.info("[subscribe] confirmation already sent to this address today - nothing sent");
-      return json(200, { ok: true });
-    }
-
-    const { token: confirmToken } = makeToken(confirmSecret, email);
-    const mail = confirmationEmail({
-      brand: brandFromEnv(),
-      copy: COPY,
-      confirmUrl: `${site}/newsletter/confirm/?t=${encodeURIComponent(confirmToken)}`,
-    });
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [email], subject: mail.subject, html: mail.html, text: mail.text }),
-    });
-    if (!res.ok) {
-      console.error("[subscribe] confirmation email failed", res.status, await res.text().catch(() => ""));
-      return json(502, { error: FAILED });
-    }
-  } catch (err: any) {
-    console.error("[subscribe] request failed", err?.message || err);
+  if (needed === null) {
+    clock.log("lookup failed");
     return json(502, { error: FAILED });
   }
-  return json(200, { ok: true });
+  if (!needed) {
+    clock.log("already subscribed or opted out - nothing sent");
+    return json(200, { ok: true });
+  }
+
+  // At most one confirmation per address per day, whichever IPs ask.
+  const addrKey = hashKey("addr", email);
+  const addrSlot = await clock.time("addr", takeSlot(RATE_STORE, addrKey, ADDRESS_LIMIT, ADDRESS_WINDOW_MS));
+  if (!addrSlot) {
+    clock.log("confirmation already sent to this address today - nothing sent");
+    return json(200, { ok: true });
+  }
+
+  const { token: confirmToken } = makeToken(confirmSecret!, email);
+  const mail = confirmationEmail({
+    brand: brandFromEnv(),
+    copy: COPY,
+    confirmUrl: `${site}/newsletter/confirm/?t=${encodeURIComponent(confirmToken)}`,
+  });
+  // A failed send gives the address its slot back, so the visitor can simply
+  // try again rather than wait out the day.
+  const send = (async () => {
+    const t0 = Date.now();
+    const sent = await sendConfirmation(resendKey!, { from, to: [email], subject: mail.subject, html: mail.html, text: mail.text });
+    if (!sent) await releaseSlot(RATE_STORE, addrKey, addrSlot);
+    console.info(`[subscribe] confirmation email ${sent ? "sent" : "NOT sent"} in ${Date.now() - t0}ms`);
+    return sent;
+  })();
+
+  // After the response where the platform allows it, so the visitor is not
+  // kept waiting on Resend. Elsewhere (tests, older runtimes) wait and report.
+  const waitUntil = (context as any)?.waitUntil;
+  if (typeof waitUntil === "function") {
+    waitUntil.call(context, send);
+    clock.log("confirmation queued");
+    return json(200, { ok: true });
+  }
+  const sent = await send;
+  clock.log(sent ? "confirmation sent" : "confirmation failed");
+  return sent ? json(200, { ok: true }) : json(502, { error: FAILED });
 };
 
 function json(status: number, body: unknown) {
