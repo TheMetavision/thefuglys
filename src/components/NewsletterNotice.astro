@@ -1,0 +1,65 @@
+---
+/**
+ * The layout the newsletter's confirm pages share (/newsletter/confirm,
+ * /newsletter/confirmed, /newsletter/link-expired), in the order-success
+ * page's style. Copy and buttons come in through the slot and use the site's
+ * global .btn classes; the text classes are styled with :global() below
+ * because scoped styles do not reach slotted content.
+ */
+import Layout from '../layouts/Layout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  heading: string;
+}
+const { title, description, heading } = Astro.props;
+---
+
+<Layout title={title} description={description} noIndex={true}>
+  <section class="nl-section">
+    <div class="nl-inner">
+      <h1 class="nl-title">{heading}</h1>
+      <div class="heading-rule nl-rule"></div>
+      <slot />
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .nl-section {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    text-align: center;
+  }
+  .nl-inner { max-width: 520px; }
+  .nl-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: var(--color-text);
+    margin-bottom: 16px;
+  }
+  .nl-rule { margin: 0 auto 24px; }
+  .nl-section :global(.nl-body) {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--color-text-muted);
+    margin: 0 0 32px;
+  }
+  .nl-section :global(.nl-small) {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin: 28px 0 0;
+  }
+  .nl-section :global(.nl-small a) { color: var(--color-primary-hover); text-decoration: underline; }
+  .nl-section :global(.nl-actions) {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .nl-section :global(.btn:disabled) { opacity: 0.6; cursor: not-allowed; }
+  .nl-section :global([hidden]) { display: none !important; }
+</style>

@@ -1,0 +1,39 @@
+---
+/**
+ * /newsletter/link-expired/?r=expired|used|invalid|error  (The Fuglys) -- where
+ * /api/newsletter-confirm sends any link it cannot use. Static: the reason only
+ * picks which line of copy shows, and every version offers the form again.
+ */
+import NewsletterNotice from '../../components/NewsletterNotice.astro';
+---
+
+<NewsletterNotice
+  title="That link didn't work"
+  description="Your newsletter confirmation link could not be used."
+  heading="That Link's Gone Feral"
+>
+  <p data-reason="expired" class="reason nl-body" hidden>
+    Confirmation links last 48 hours, and this one has run out. Sign up again and we'll send you a fresh one.
+  </p>
+  <p data-reason="used" class="reason nl-body" hidden>
+    This link has already been used. If that was you, you're on the list already and there's nothing more to do.
+    If not, sign up again below.
+  </p>
+  <p data-reason="error" class="reason nl-body" hidden>
+    Something went wrong on our side. Please try the link from your email again in a few minutes.
+  </p>
+  <p data-reason="invalid" class="reason nl-body">
+    We couldn't read this link. It may have been cut short when it was copied. Sign up again and we'll send you a fresh one.
+  </p>
+  <div class="nl-actions">
+    <a href="/#newsletter" class="btn btn-primary">Sign Up Again</a>
+  </div>
+</NewsletterNotice>
+
+<script>
+  const reason = new URLSearchParams(location.search).get('r');
+  const match = reason && document.querySelector<HTMLElement>(`.reason[data-reason="${CSS.escape(reason)}"]`);
+  if (match) {
+    document.querySelectorAll<HTMLElement>('.reason').forEach((p) => { p.hidden = p !== match; });
+  }
+</script>

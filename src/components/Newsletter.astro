@@ -1,4 +1,9 @@
 ---
+// Cloudflare Turnstile site key: public, baked in at build time, so a change
+// in Netlify needs a rebuild. Without it the form renders no widget and the
+// subscribe function refuses its sign-ups.
+const TURNSTILE_SITE_KEY =
+  import.meta.env.TURNSTILE_SITE_KEY || process.env.TURNSTILE_SITE_KEY || '';
 ---
 
 <section class="newsletter-section" id="newsletter">
@@ -26,6 +31,22 @@
               not a native GET with the email in the URL. */}
           <button type="submit" class="newsletter-btn" disabled>I'm In</button>
         </div>
+        {/* Honeypot: off-screen, unreachable by pointer, keyboard or screen
+            reader, with a name autofill does not recognise. Checked in
+            netlify/functions/subscribe.mts. */}
+        <div class="newsletter-extra" aria-hidden="true">
+          <label for="fg-nl-extra">Extra</label>
+          <input type="text" id="fg-nl-extra" name="fg_nl_extra" tabindex="-1" autocomplete="off" />
+        </div>
+        {TURNSTILE_SITE_KEY && (
+          <div
+            class="cf-turnstile newsletter-turnstile"
+            data-sitekey={TURNSTILE_SITE_KEY}
+            data-theme="dark"
+            data-action="newsletter"
+            data-response-field-name="cf-turnstile-response"
+          ></div>
+        )}
       </form>
 
       <div class="newsletter-success" id="newsletter-success" style="display:none;">
@@ -34,9 +55,9 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
           </div>
           <div>
-            <div class="signal__label">You're on the list</div>
-            <div class="signal__headline">Welcome to the wasteland, weirdo.</div>
-            <div class="signal__sub">Check your inbox. Or don't. We'll find you either way.</div>
+            <div class="signal__label">Almost on the list</div>
+            <div class="signal__headline">Check your inbox, survivor.</div>
+            <div class="signal__sub">If you're new, click the link we just sent to confirm. Didn't get one? Check your spam.</div>
           </div>
         </div>
       </div>
@@ -46,19 +67,40 @@
   </div>
 </section>
 
+{TURNSTILE_SITE_KEY && (
+  <script is:inline async defer src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+)}
+
 <script>
-  /* Posts to the subscribe Netlify function — NO API token in the browser.
-     The function (netlify/functions/subscribe.js) holds MAILERLITE_TOKEN and
-     adds the subscriber to the Fuglys group server-side. */
+  /* Posts to the subscribe Netlify function -- no API token in the browser.
+     The function (netlify/functions/subscribe.mts) checks the honeypot, the
+     time on page and the Turnstile token, then sends a confirmation email;
+     the subscriber is added only once they click its link. */
   const nlForm = document.getElementById('newsletter-form') as HTMLFormElement;
   const nlSuccess = document.getElementById('newsletter-success');
   const nlEmail = document.getElementById('newsletter-email') as HTMLInputElement;
+  // Time on page: stamped now, compared with the submit time by the function.
+  const nlLoadedAt = Date.now();
+  const nlWidget = nlForm?.querySelector('.cf-turnstile') as HTMLElement | null;
+  const nlToken = () =>
+    (nlForm?.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement | null)?.value?.trim() || '';
+  // A Turnstile token is single use: reset the widget after any failed attempt.
+  const resetTurnstile = () => {
+    const ts = (window as any).turnstile;
+    if (nlWidget && ts && typeof ts.reset === 'function') {
+      try { ts.reset(nlWidget); } catch { /* not rendered yet */ }
+    }
+  };
 
   nlForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const email = nlEmail?.value?.trim();
     if (!email) return;
+    if (nlWidget && !nlToken()) {
+      alert('Please complete the anti-spam check first.');
+      return;
+    }
 
     const btn = nlForm.querySelector('.newsletter-btn') as HTMLButtonElement;
     const originalText = btn.textContent;
@@ -69,7 +111,13 @@
       const response = await fetch('/.netlify/functions/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          turnstileToken: nlToken(),
+          fg_nl_extra: (nlForm.querySelector('input[name="fg_nl_extra"]') as HTMLInputElement | null)?.value || '',
+          fg_nl_ts_load: nlLoadedAt,
+          fg_nl_ts_submit: Date.now(),
+        }),
       });
 
       if (response.ok) {
@@ -79,11 +127,13 @@
         const data = await response.json().catch(() => ({}));
         btn.textContent = originalText;
         btn.disabled = false;
+        resetTurnstile();
         alert((data && data.error) || 'Something went wrong. Please try again.');
       }
     } catch (err) {
       btn.textContent = originalText;
       btn.disabled = false;
+      resetTurnstile();
       alert('Failed to subscribe. Please try again.');
     }
   });
@@ -94,6 +144,22 @@
 </script>
 
 <style>
+  .newsletter-extra {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .newsletter-turnstile {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+    min-height: 65px;
+  }
+
   .newsletter-section {
     background: #1e3238;
     padding: 80px 0;
