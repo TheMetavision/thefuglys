@@ -92,8 +92,16 @@ const TURNSTILE_SITE_KEY =
     }
   };
 
-  nlForm?.addEventListener('submit', async (e) => {
+  // One listener, bound once, one request at a time, and none after a
+  // success: a second submit must never re-post the same single-use Turnstile
+  // token (it would fail and show an error over the success message).
+  let nlInFlight = false;
+  let nlDone = false;
+  if (nlForm && !nlForm.dataset.nlBound) {
+  nlForm.dataset.nlBound = '1';
+  nlForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (nlInFlight || nlDone) return;
 
     const email = nlEmail?.value?.trim();
     if (!email) return;
@@ -106,6 +114,7 @@ const TURNSTILE_SITE_KEY =
     const originalText = btn.textContent;
     btn.textContent = 'Sending...';
     btn.disabled = true;
+    nlInFlight = true;
 
     try {
       const response = await fetch('/.netlify/functions/subscribe', {
@@ -121,6 +130,7 @@ const TURNSTILE_SITE_KEY =
       });
 
       if (response.ok) {
+        nlDone = true;
         nlForm.style.display = 'none';
         if (nlSuccess) nlSuccess.style.display = 'block';
       } else {
@@ -135,8 +145,11 @@ const TURNSTILE_SITE_KEY =
       btn.disabled = false;
       resetTurnstile();
       alert('Failed to subscribe. Please try again.');
+    } finally {
+      nlInFlight = false;
     }
   });
+  }
 
   // Listening now; the button was rendered disabled until this point.
   const nlBtn = nlForm?.querySelector('.newsletter-btn') as HTMLButtonElement | null;
