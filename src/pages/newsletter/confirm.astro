@@ -1,0 +1,57 @@
+---
+/**
+ * /newsletter/confirm/?t=...  (The Fuglys) -- where the confirmation email's link lands.
+ *
+ * Deliberately a page with a button rather than a link that subscribes on
+ * arrival: mail scanners open links in emails by themselves, and must not be
+ * able to confirm for the recipient. The button POSTs the token to
+ * /api/newsletter-confirm, which subscribes and redirects to /newsletter/confirmed/.
+ *
+ * Static page: the token is copied from the address bar into the form by the
+ * script below, and Confirm stays disabled until it has been.
+ */
+import NewsletterNotice from '../../components/NewsletterNotice.astro';
+---
+
+<NewsletterNotice
+  title="Confirm your subscription"
+  description="Confirm your Wasteland Whispers subscription."
+  heading="One More Step, Survivor"
+>
+  <p class="nl-body">Press the button to join Wasteland Whispers. Your welcome dispatch follows straight after.</p>
+  <form id="nl-confirm-form" method="post" action="/api/newsletter-confirm" class="nl-actions">
+    <input type="hidden" name="t" id="nl-confirm-token" value="" />
+    <button type="submit" id="nl-confirm-btn" class="btn btn-primary" disabled>Confirm My Subscription</button>
+  </form>
+  <p id="nl-confirm-missing" class="nl-small" hidden>
+    This link is missing its code. Open the link from your email again, or <a href="/#newsletter">sign up again</a>.
+  </p>
+  <noscript><p class="nl-small">This page needs JavaScript to confirm. Please turn it on and reload.</p></noscript>
+  <p class="nl-small">Didn’t sign up? Just close this page. You won’t be added to anything.</p>
+</NewsletterNotice>
+
+<script>
+  const t = new URLSearchParams(location.search).get('t') || '';
+  const field = document.getElementById('nl-confirm-token') as HTMLInputElement | null;
+  const btn = document.getElementById('nl-confirm-btn') as HTMLButtonElement | null;
+  const form = document.getElementById('nl-confirm-form') as HTMLFormElement | null;
+  if (t && field && btn && form) {
+    field.value = t;
+    btn.disabled = false;
+    // One press: a double click must not post twice.
+    form.addEventListener('submit', () => {
+      btn.disabled = true;
+      btn.textContent = 'Confirming...';
+    });
+    // Back from the next page (bfcache): usable again.
+    window.addEventListener('pageshow', (ev) => {
+      if (!(ev as PageTransitionEvent).persisted) return;
+      btn.disabled = false;
+      btn.textContent = 'Confirm My Subscription';
+    });
+  } else {
+    if (form) form.hidden = true;
+    const missing = document.getElementById('nl-confirm-missing');
+    if (missing) missing.hidden = false;
+  }
+</script>

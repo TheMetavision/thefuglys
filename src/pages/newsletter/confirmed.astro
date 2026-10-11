@@ -1,0 +1,19 @@
+---
+/** /newsletter/confirmed/  (The Fuglys) -- where /api/newsletter-confirm sends a confirmed subscriber. */
+import NewsletterNotice from '../../components/NewsletterNotice.astro';
+---
+
+<NewsletterNotice
+  title="You're in"
+  description="Your Wasteland Whispers subscription is confirmed."
+  heading="You're In, Weirdo"
+>
+  <p class="nl-body">
+    Welcome to Wasteland Whispers. Your welcome dispatch is on its way, so keep an eye on your inbox
+    (and your spam folder, just in case).
+  </p>
+  <div class="nl-actions">
+    <a href="/merch" class="btn btn-primary">Keep Scavenging</a>
+    <a href="/" class="btn btn-outline">Back to Base</a>
+  </div>
+</NewsletterNotice>
