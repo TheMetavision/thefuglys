@@ -5,6 +5,7 @@ import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
 import Newsletter from '../../components/Newsletter.astro';
 import { getAllBlogPosts, getBlogPostBySlug } from '../../lib/sanity';
+import { articleSchema, breadcrumbSchema } from '../../lib/schema';
 
 export async function getStaticPaths() {
   const posts = await getAllBlogPosts();
@@ -46,8 +47,23 @@ function renderBody(body: any): string {
 }
 
 const bodyHtml = renderBody(post.body);
+
+// Publish date falls back to the document's creation date; "Updated" shows only for edits made 7+ days after publishing.
+const publishedAt: string = post.publishedAt || post._createdAt;
+const modifiedAt: string = post._updatedAt || publishedAt;
+const showUpdated = !!post._updatedAt &&
+  new Date(post._updatedAt).getTime() - new Date(publishedAt).getTime() > 7 * 24 * 60 * 60 * 1000;
+const pageUrl = new URL(Astro.url.pathname, Astro.site).href;
+const jsonLd = [
+  articleSchema({ title: post.title, excerpt: post.excerpt || post.title, publishedAt, modifiedAt, image: post.featuredImage || undefined, url: pageUrl }),
+  breadcrumbSchema([
+    { name: 'Home', url: new URL('/', Astro.site).href },
+    { name: 'Wasteland Whispers', url: new URL('/wasteland-whispers', Astro.site).href },
+    { name: post.title, url: pageUrl },
+  ]),
+];
 ---
-<Layout title={post.seoTitle || (`${post.title} — Wasteland Whispers`.length <= 60 ? `${post.title} — Wasteland Whispers` : post.title)} description={post.seoDescription || post.excerpt || ''}>
+<Layout title={post.seoTitle || (`${post.title} — Wasteland Whispers`.length <= 60 ? `${post.title} — Wasteland Whispers` : post.title)} description={post.seoDescription || post.excerpt || ''} jsonLd={jsonLd}>
   <Nav />
 
   <main>
@@ -57,8 +73,9 @@ const bodyHtml = renderBody(post.body);
 
         <div class="post-header">
           <div class="post-meta-row">
-            {post.publishedAt && (
-              <span class="post-date">{formatDate(post.publishedAt)}</span>
+            <span class="post-date"><time datetime={publishedAt}>{formatDate(publishedAt)}</time></span>
+            {showUpdated && (
+              <span class="post-date">Updated <time datetime={post._updatedAt}>{formatDate(post._updatedAt)}</time></span>
             )}
             {post.category && (
               <span class="post-category">{post.category}</span>

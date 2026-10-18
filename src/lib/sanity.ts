@@ -190,7 +190,7 @@ export async function getAllBlogPosts() {
 export async function getBlogPostBySlug(slug: string) {
   return client.fetch(`
     *[_type == "blogPost" && slug.current == $slug][0] {
-      _id,
+      _id, _createdAt, _updatedAt,
       title,
       "slug": slug.current,
       category,
