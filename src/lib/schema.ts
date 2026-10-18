@@ -137,6 +137,7 @@ export function articleSchema(post: {
   title: string;
   excerpt: string;
   publishedAt: string;
+  modifiedAt?: string;
   image?: string;
   url: string;
 }) {
@@ -146,6 +147,7 @@ export function articleSchema(post: {
     headline: post.title,
     description: post.excerpt,
     datePublished: post.publishedAt,
+    dateModified: post.modifiedAt || post.publishedAt,
     image: post.image,
     url: post.url,
     author: {
