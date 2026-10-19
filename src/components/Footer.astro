@@ -1,7 +1,30 @@
 ---
 import { localImg } from '../lib/sanityImage';
+import { getSocialLinks, type SocialPlatform } from '../lib/sanity';
 const year = new Date().getFullYear();
 import LegalLinks from './LegalLinks.astro';
+
+// Icon + label per platform; the links themselves come from siteSettings.socialLinks.
+const SOCIAL_META: Record<SocialPlatform, { label: string; path: string }> = {
+  youtube: { label: 'YouTube', path: 'M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z' },
+  tiktok: { label: 'TikTok', path: 'M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z' },
+  instagram: { label: 'Instagram', path: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z' },
+  facebook: { label: 'Facebook', path: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' },
+  x: { label: 'X', path: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z' },
+};
+
+// Same links the footer hard-coded before, used only if siteSettings has none.
+const FALLBACK_SOCIALS: { platform: SocialPlatform; url: string }[] = [
+  { platform: 'youtube', url: 'https://www.youtube.com/@TheFuglys' },
+  { platform: 'tiktok', url: 'https://www.tiktok.com/@thefuglys' },
+  { platform: 'instagram', url: 'https://www.instagram.com/the_fuglys' },
+  { platform: 'facebook', url: 'https://www.facebook.com/thefuglysmedia' },
+  { platform: 'x', url: 'https://x.com/TheFuglysMedia' },
+];
+
+const sanitySocials = await getSocialLinks().catch(() => []);
+const socialLinks = sanitySocials.length ? sanitySocials : FALLBACK_SOCIALS;
+const youtubeUrl = socialLinks.find((l) => l.platform === 'youtube')?.url ?? 'https://www.youtube.com/@TheFuglys';
 ---
 
 <footer class="footer">
@@ -9,7 +32,7 @@ import LegalLinks from './LegalLinks.astro';
     <div class="container">
 
       <a
-        href="https://www.youtube.com/@TheFuglys"
+        href={youtubeUrl}
         target="_blank"
         rel="noopener noreferrer"
         class="yt-banner"
@@ -44,31 +67,12 @@ import LegalLinks from './LegalLinks.astro';
           <p class="footer-tagline">A wasteland full of misfits. Someone had to tell their story.</p>
           <a href="mailto:chaos@thefuglys.com" class="footer-email">chaos@thefuglys.com</a>
           <div class="footer-socials">
-            <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="YouTube">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-              </svg>
-            </a>
-            <a href="https://www.instagram.com/the_fuglys" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Instagram">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
-              </svg>
-            </a>
-            <a href="https://www.tiktok.com/@thefuglys" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="TikTok">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/>
-              </svg>
-            </a>
-            <a href="https://x.com/TheFuglysMedia" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="X (Twitter)">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-              </svg>
-            </a>
-            <a href="https://www.facebook.com/thefuglysmedia" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Facebook">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-            </a>
+            {socialLinks.map((link) => (
+              <a href={link.url} target="_blank" rel="noopener noreferrer" class={`social-btn social-${link.platform}`}>
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><path d={SOCIAL_META[link.platform].path} /></svg>
+                <span>{SOCIAL_META[link.platform].label}</span>
+              </a>
+            ))}
           </div>
         </div>
 
@@ -241,22 +245,42 @@ import LegalLinks from './LegalLinks.astro';
     flex-wrap: wrap;
   }
 
-  .social-link {
+  /* Icon + label buttons with a per-platform hover, as on catsoncrack.co.uk. */
+  .social-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    color: rgba(255,255,255,0.45);
+    gap: 8px;
+    padding: 8px 14px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 4px;
-    transition: color 0.2s, border-color 0.2s, background 0.2s;
+    font-family: var(--font-condensed);
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.2s;
   }
 
-  .social-link:hover {
-    color: #99132F;
-    border-color: #99132F;
-    background: rgba(153, 19, 47, 0.1);
+  .social-btn svg {
+    flex-shrink: 0;
+  }
+
+  .social-btn:hover,
+  .social-btn:focus-visible {
+    transform: translateY(-2px);
+  }
+
+  .social-youtube:hover, .social-youtube:focus-visible { color: #FF0000; background: rgba(255, 0, 0, 0.1); border-color: rgba(255, 0, 0, 0.35); }
+  .social-tiktok:hover, .social-tiktok:focus-visible { color: #69C9D0; background: rgba(105, 201, 208, 0.1); border-color: rgba(105, 201, 208, 0.35); }
+  .social-instagram:hover, .social-instagram:focus-visible { color: #E1306C; background: rgba(225, 48, 108, 0.1); border-color: rgba(225, 48, 108, 0.35); }
+  .social-facebook:hover, .social-facebook:focus-visible { color: #1877F2; background: rgba(24, 119, 242, 0.1); border-color: rgba(24, 119, 242, 0.35); }
+  .social-x:hover, .social-x:focus-visible { color: #fff; background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.35); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .social-btn:hover, .social-btn:focus-visible { transform: none; }
   }
 
   .footer-col-heading {

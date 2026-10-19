@@ -24,6 +24,12 @@ export default {
       initialValue: 'Wasteland Weirdos, Wild Adventures, Zero Regrets!',
     },
     {
+      name: 'positioningLine',
+      title: 'Positioning line',
+      type: 'string',
+      description: 'One plain line under the homepage headline saying what The Fuglys is. Leave empty to use the built-in line.',
+    },
+    {
       name: 'siteDescription',
       title: 'Site Description',
       type: 'text',
@@ -41,6 +47,12 @@ export default {
       name: 'youtubeChannel',
       title: 'YouTube Channel URL',
       type: 'url',
+    },
+    {
+      name: 'trailerYoutubeId',
+      title: 'Trailer YouTube ID',
+      type: 'string',
+      description: 'Video ID for the homepage trailer (e.g. XgwfSjIJre4). Needs a matching thumbnail at public/video-thumbs/<id>.jpg, otherwise the homepage keeps the current trailer.',
     },
     {
       name: 'socialLinks',

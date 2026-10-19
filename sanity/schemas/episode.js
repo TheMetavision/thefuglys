@@ -80,6 +80,20 @@ export default {
       of: [{ type: 'reference', to: [{ type: 'character' }] }],
     },
     {
+      name: 'status',
+      title: 'Status',
+      type: 'string',
+      description: 'The homepage says "Watch now" once any episode is Live.',
+      options: {
+        list: [
+          { title: 'Coming Soon', value: 'coming-soon' },
+          { title: 'Live', value: 'live' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'coming-soon',
+    },
+    {
       name: 'publishedAt',
       title: 'Published Date',
       type: 'datetime',

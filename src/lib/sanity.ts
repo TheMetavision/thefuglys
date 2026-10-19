@@ -370,6 +370,50 @@ export async function getSiteSettings() {
   `);
 }
 
+// ─── Homepage settings ────────────────────────────────────────
+// Pinned to the canonical singleton (`_id == "siteSettings"`), like getThemeAudio
+// below: the dataset also holds a stray UUID-keyed siteSettings doc.
+export async function getHomeSettings() {
+  return client.fetch(`
+    *[_type == "siteSettings" && _id == "siteSettings"][0]{
+      positioningLine,
+      trailerYoutubeId,
+      "youtubeChannelUrl": coalesce(youtubeChannelUrl, youtubeChannel)
+    }
+  `);
+}
+
+/** True once any episode is out: status "live", or (no status) a past publishedAt. */
+export async function hasPublishedEpisode(): Promise<boolean> {
+  const n = await client.fetch(`
+    count(*[_type == "episode" && (
+      status == "live" ||
+      (!defined(status) && defined(publishedAt) && publishedAt <= now())
+    )])
+  `);
+  return n > 0;
+}
+
+// ─── Social links (footer) ────────────────────────────────────
+// Platform values are stored in mixed case ("YouTube" / "youtube"), so they are
+// lower-cased here and returned in a fixed display order.
+export const SOCIAL_ORDER = ['youtube', 'tiktok', 'instagram', 'facebook', 'x'] as const;
+export type SocialPlatform = (typeof SOCIAL_ORDER)[number];
+
+let socialLinksPromise: Promise<{ platform: SocialPlatform; url: string }[]> | null = null;
+
+export function getSocialLinks() {
+  socialLinksPromise ??= client
+    .fetch(`*[_type == "siteSettings" && _id == "siteSettings"][0].socialLinks[]{ platform, url }`)
+    .then((links: any[] | null) =>
+      SOCIAL_ORDER.flatMap((platform) => {
+        const link = (links ?? []).find((l) => l?.url && String(l.platform).toLowerCase() === platform);
+        return link ? [{ platform, url: link.url as string }] : [];
+      })
+    );
+  return socialLinksPromise;
+}
+
 // ─── Theme audio (Transmission Signal — Harlan's radio rig) ───
 // Added 2026-04-29 for the IP brand theme tune feature.
 // Pinned to the canonical singleton document `_id == "siteSettings"` to avoid
@@ -407,7 +451,16 @@ export async function getWorldLocations() {
       "slug": slug.current,
       tagline,
       image,
-      order
+      order,
+      description,
+      "residents": residents[]->{ name, "slug": slug.current }[defined(slug)][0...4],
+      "featuredProducts": featuredProducts[]->{
+        name,
+        "slug": slug.current,
+        active,
+        heroImage,
+        "imageUrl": variants[0].colourImages[0].imageUrl
+      }[active == true && defined(slug)][0...2]
     }
   `);
 }
@@ -432,6 +485,7 @@ export async function getAllBooks() {
       seriesOrder,
       format,
       orderUrl,
+      buyUrl,
       status,
       publishedAt
     }

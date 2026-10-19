@@ -22,6 +22,7 @@ export default defineConfig({
             S.divider(),
             S.documentTypeListItem('character').title('Characters'),
             S.documentTypeListItem('episode').title('Episodes & Videos'),
+            S.documentTypeListItem('book').title('Books'),
             S.documentTypeListItem('blogPost').title('Blog Posts'),
             S.divider(),
             S.documentTypeListItem('worldLocation').title('World Locations'),
