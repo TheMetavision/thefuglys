@@ -138,6 +138,23 @@ Steps done (18–19 Oct 2026, printful-sync):
 8. Preview: https://deploy-preview-2--thefuglys.netlify.app. The checkout function refuses no country (400), an unknown one (400), a Printful item to Brazil
    or a tee to Ukraine (422), all before Stripe.
 
+### Fuglys test order: done (19 Oct 2026)
+
+Stripe TEST values set in deploy-preview and branch-deploy with `scripts\set-stripe-test.ps1` (production value ids
+unchanged), preview redeployed (`0ee09b5`). Alan paid a test checkout on the preview (1 × Axel Run Fast 11oz Mug, UK,
+£12.95 + £6.95 = £19.90; Stripe offered only the UK and one rate). Results:
+
+- Order log: record `order.…9GGBN9SC` written with `test: true`, status fulfilled: **the Fuglys order log works** (the
+  first Fuglys order ever logged; `SANITY_API_TOKEN` writes in the preview contexts).
+- Printful: order #181735174 created as a **DRAFT** (never confirmed), the right mug.
+- Alert email: "[TEST] New Fuglys order #9GGBN9SC — £19.90", "Sent to Printful as a DRAFT", TEST MODE banner.
+- The other three brands' webhooks ignored it (brand guard): no test records in their logs.
+- Cleaned up with `delete-test-orders.mjs thefuglys --apply`: log record deleted; Printful keeps a deleted draft as
+  **canceled** (#181735174), nothing charged or made.
+
+Note: this proves the preview contexts' token. Production's `SANITY_API_TOKEN` is a separate value; the first live
+order after launch is the check for production logging.
+
 ### Launch order, after Alan approves the preview (in this order, nothing earlier)
 
 1. **Merge the PR** (`feat/margin-delivery`, Alan). Netlify rebuilds production from `main`: the new code against the old,
