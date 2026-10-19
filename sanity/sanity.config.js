@@ -30,6 +30,7 @@ export default defineConfig({
             S.documentTypeListItem('product').title('Products'),
             S.documentTypeListItem('wallArt').title('Wall Art'),
             S.documentTypeListItem('category').title('Categories'),
+            S.documentTypeListItem('merchCategory').title('Merch Categories (legacy)'),
             S.documentTypeListItem('order').title('Orders'),
             S.divider(),
             S.documentTypeListItem('faq').title('FAQs'),

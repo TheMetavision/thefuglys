@@ -75,7 +75,8 @@ export default defineType({
       name: 'category',
       title: 'Category',
       type: 'reference',
-      to: [{ type: 'category' }],
+      // merchCategory kept as a target: the deployed schema pointed here.
+      to: [{ type: 'category' }, { type: 'merchCategory' }],
       description: 'Optional primary category grouping',
     }),
     defineField({
@@ -227,6 +228,75 @@ export default defineType({
           },
         },
       ],
+    }),
+    // Read by the site (product queries) but missing from this file until 2026-10-19.
+    defineField({
+      name: 'description',
+      title: 'Description',
+      type: 'text',
+      rows: 3,
+    }),
+    defineField({
+      name: 'price',
+      title: 'Price',
+      type: 'number',
+      description: 'Optional. When empty, the first variant\'s base price is used.',
+    }),
+    defineField({
+      name: 'compareAtPrice',
+      title: 'Compare-at Price',
+      type: 'number',
+      description: 'Original price, for showing a discount.',
+    }),
+    // Legacy (2026-10-19): in the deployed schema, not read by the site.
+    defineField({
+      name: 'images',
+      title: 'Product Images',
+      type: 'array',
+      of: [{ type: 'image', options: { hotspot: true } }],
+      description: 'Legacy',
+      hidden: false,
+    }),
+    defineField({
+      name: 'status',
+      title: 'Status',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Coming Soon', value: 'coming-soon' },
+          { title: 'Available', value: 'available' },
+          { title: 'Sold Out', value: 'sold-out' },
+        ],
+      },
+      description: 'Legacy',
+      hidden: false,
+    }),
+    defineField({
+      name: 'printfulVariants',
+      title: 'Printful Variants (legacy, top level)',
+      type: 'array',
+      of: [
+        {
+          type: 'object',
+          name: 'legacyPrintfulVariant',
+          fields: [
+            { name: 'size', title: 'Size', type: 'string' },
+            { name: 'colour', title: 'Colour', type: 'string' },
+            { name: 'printfulSyncVariantId', title: 'Printful Sync Variant ID', type: 'string' },
+            { name: 'stripePriceId', title: 'Stripe Price ID', type: 'string' },
+            { name: 'inStock', title: 'In Stock', type: 'boolean' },
+          ],
+        },
+      ],
+      description: 'Legacy',
+      hidden: false,
+    }),
+    defineField({
+      name: 'displayOrder',
+      title: 'Display Order',
+      type: 'number',
+      description: 'Legacy',
+      hidden: false,
     }),
     defineField({
       name: 'printfulProductId',

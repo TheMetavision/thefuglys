@@ -353,7 +353,7 @@ export async function getPageBySlug(slug: string) {
 // ─── Site Settings ────────────────────────────────────────────
 export async function getSiteSettings() {
   return client.fetch(`
-    *[_type == "siteSettings"][0] {
+    *[_type == "siteSettings" && _id == "siteSettings"][0] {
       siteName,
       tagline,
       siteDescription,
@@ -490,6 +490,11 @@ export async function getAllBooks() {
       publishedAt
     }
   `);
+}
+
+/** A book's buy link, only once it is out: buyUrl set and status not coming-soon. */
+export function bookBuyUrl(book: any): string | null {
+  return book?.status !== 'coming-soon' && book?.buyUrl ? book.buyUrl : null;
 }
 
 /** Returns a resolved image URL for a book cover (2:3 portrait crop) */

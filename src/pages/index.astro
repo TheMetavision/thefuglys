@@ -9,7 +9,7 @@ import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
 import MerchPromo from '../components/MerchPromo.astro';
-import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage, getWorldLocations, getWorldLocationImage, getAllBooks, getBookCoverImage, getHomeSettings, hasPublishedEpisode, urlFor } from '../lib/sanity';
+import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage, getWorldLocations, getWorldLocationImage, getAllBooks, getBookCoverImage, bookBuyUrl, getHomeSettings, hasPublishedEpisode, urlFor } from '../lib/sanity';
 
 const settings = await getHomeSettings();
 const positioningLine = settings?.positioningLine?.trim()
@@ -32,7 +32,7 @@ const books = (await getAllBooks()).map((b: any) => ({
   title: b.title,
   cover: getBookCoverImage(b, 360, 540),
   comingSoon: b.status === 'coming-soon',
-  buyUrl: b.status !== 'coming-soon' && b.buyUrl ? b.buyUrl : null,
+  buyUrl: bookBuyUrl(b),
 }));
 const anyBookPending = books.some((b) => !b.buyUrl);
 
@@ -193,7 +193,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
                 <h2 class="series-heading">The Animated Series</h2>
                 <div class="series-rule"></div>
                 <p class="series-body">
-                  The trailer's out now. Series 1 is on the way — subscribe on YouTube and you'll be first in the queue when the chaos lands.
+                  Series 1 is on the way — subscribe on YouTube and you'll be first in the queue when the chaos lands.
                 </p>
                 <div class="series-ctas">
                   <a href={`${youtubeChannelUrl}?sub_confirmation=1`} target="_blank" rel="noopener noreferrer" class="btn btn-primary-red">Subscribe</a>
@@ -373,7 +373,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
               <span class="genre-tag">Gritty Humour</span>
             </div>
             {anyBookPending && (
-              <a href="#newsletter" class="btn btn-teal mt-btn">Get notified when the books land</a>
+              <a href="#newsletter" class="btn btn-teal mt-btn">Put me on the list</a>
             )}
           </div>
           <ul class="book-grid">

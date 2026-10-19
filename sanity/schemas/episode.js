@@ -48,6 +48,9 @@ export default {
       description: 'Full YouTube video or Shorts URL',
       validation: (Rule) => Rule.required(),
     },
+    // Legacy (2026-10-19): in the deployed schema, not read by the site.
+    { name: 'youtubeEmbedId', title: 'YouTube Embed ID', type: 'string', description: 'Legacy', hidden: false },
+    { name: 'seasonNumber', title: 'Season Number', type: 'number', description: 'Legacy', hidden: false },
     {
       name: 'youtubeId',
       title: 'YouTube Video ID',
