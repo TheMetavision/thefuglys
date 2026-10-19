@@ -71,6 +71,8 @@ async function fakeFetch(url, init = {}) {
   const u = new URL(String(url));
   if (u.hostname === 'api.resend.com') { emails.push(JSON.parse(init.body)); return json(200, { id: 'em' }); }
   if (u.hostname === 'api.printful.com') {
+    // The webhook's own-store check: every variant here is ours.
+    if (u.pathname.startsWith('/store/variants/')) return json(200, { result: { id: 1 } });
     // First order goes through; a retry reusing the external_id is rejected.
     if (printfulAccepts) { printfulAccepts = false; return json(200, { result: { id: 987654 } }); }
     return json(400, { error: { message: 'Order with this external_id already exists' } });

@@ -11,6 +11,9 @@
  *      Skipped on a retry for an order already in the Sanity log, as is the
  *      merchant alert, so Stripe retries don't resend either.
  *   4. Create the Printful order (PRINTFUL_API_KEY), idempotent via external_id.
+ *      First every line's variant must be in THIS site's Printful store
+ *      (ownStoreCheck): if any isn't, nothing is ordered and the merchant alert
+ *      says which ones (fulfilment-failed, reason in the order log).
  *   5. Write an `order` document to Sanity (SANITY_API_TOKEN, else SANITY_TOKEN) with status of
  *      fulfilled / inhouse / fulfilment-failed / paid. A Stripe retry updates
  *      the payment fields only (see saveOrder).
@@ -23,7 +26,9 @@
  *
  * Env vars:
  *   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, PRINTFUL_API_KEY
- *   RESEND_API_KEY        — Resend key (FROM domain must be verified in it)
+ *   PRINTFUL_AUTO_CONFIRM — 'true' (production context only) confirms live orders;
+ *                           anything else, and every test-mode payment, makes a draft
+ *   RESEND_API_KEY       — Resend key (FROM domain must be verified in it)
  *   ORDER_EMAIL_FROM      — optional; default "The Fuglys <orders@thefuglys.com>"
  *   LOGO_URL, EMAIL_HEADER_BG — optional branding for the email header
  *   BRAND_ACCENT          — optional accent colour (EMAIL_ACCENT is the fallback name;
@@ -57,6 +62,7 @@ const {
 const lineSubtotal = (li) => (li.amount_subtotal != null ? li.amount_subtotal : li.amount_total);
 
 const PRINTFUL_ORDERS_URL = 'https://api.printful.com/orders';
+const PRINTFUL_STORE_VARIANTS_URL = 'https://api.printful.com/store/variants';
 const RESEND_URL = 'https://api.resend.com/emails';
 const FROM = process.env.ORDER_EMAIL_FROM || 'The Fuglys <orders@thefuglys.com>';
 const LOGO_URL = process.env.LOGO_URL || '';
@@ -106,6 +112,34 @@ function inhouseLineLabel(lineItem) {
     try { return artworkVariantLabel(fmt, size); } catch (_) { /* fall through */ }
   }
   return lineItem.description || 'Wall art';
+}
+
+/* Whether the Printful order is confirmed (sent to production) or left a draft.
+   Confirmed only when PRINTFUL_AUTO_CONFIRM is exactly 'true' (production context
+   only) AND the payment is live. A Stripe test-mode payment on a preview is always
+   a draft, whatever the flag says. */
+function printfulConfirm(session) {
+  return process.env.PRINTFUL_AUTO_CONFIRM === 'true' && session.livemode !== false;
+}
+
+/* Every Printful line must be a variant in this site's own Printful store.
+   PRINTFUL_API_KEY is a store-scoped token, so GET /store/variants/{id}
+   answers 200 only for this store's variants (another store's id is a 404).
+   Returns one note per variant that isn't ours or couldn't be checked; an
+   empty list means every line is ours. Never throws. */
+async function ownStoreCheck(ids) {
+  const problems = [];
+  for (const id of ids) {
+    try {
+      const res = await fetch(`${PRINTFUL_STORE_VARIANTS_URL}/${encodeURIComponent(id)}`, {
+        headers: { Authorization: 'Bearer ' + process.env.PRINTFUL_API_KEY },
+      });
+      if (!res.ok) problems.push(`${id}: ${res.status === 404 ? 'not in this Printful store' : `could not be checked (Printful ${res.status})`}`);
+    } catch (err) {
+      problems.push(`${id}: could not be checked (${err && err.message ? err.message : err})`);
+    }
+  }
+  return problems;
 }
 
 function esc(s) {
@@ -253,7 +287,7 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId, pr
     ? `<p style="background:#b00020;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#9888; FULFILMENT FAILED &mdash; this order did NOT reach Printful. Place it manually.</p>`
     : inhouseOnly
       ? `<p style="background:#1d4ed8;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#128230; IN-HOUSE ORDER &mdash; make &amp; dispatch the wall art below. No Printful order; nothing auto-ships.</p>`
-      : `<p style="background:#0a7d28;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#10003; Sent to Printful${printfulOrderId ? ' (#' + esc(printfulOrderId) + ')' : ''}</p>`;
+      : `<p style="background:#0a7d28;color:#fff;padding:12px 16px;border-radius:6px;font-weight:700;font-size:14px;margin:0 0 16px;">&#10003; Sent to Printful${printfulOrderId ? ' (#' + esc(printfulOrderId) + ')' : ''} as a ${promo.printfulConfirmed ? 'CONFIRMED order' : 'DRAFT: confirm it in Printful to start production'}</p>`;
   // In-house "make & dispatch" block (shown for in-house-only AND mixed carts).
   const inhouseRows = inhouseLis.map((li) => `
     <tr>
@@ -269,7 +303,7 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId, pr
             </table>
             <p style="margin:8px 0 0;font-size:12px;color:#555;">Print, frame and post to the address below. These are NOT in Printful.</p>
           </div>` : '';
-  const subject = `${promo.crossBrandCode ? '\u26A0 OTHER BRAND\u2019S CODE \u2014 ' : ''}${promo.repeatWelcomeCode ? '\u26A0 REPEAT WELCOME CODE \u2014 ' : ''}${failed ? '\u26A0 ACTION NEEDED \u2014 ' : (hasInhouse ? '\uD83D\uDCE6 MAKE \u2014 ' : '')}New Fuglys order #${ref} \u2014 ${gbp(session.amount_total)}`;
+  const subject = `${session.livemode === false ? '[TEST] ' : ''}${promo.crossBrandCode ?'\u26A0 OTHER BRAND\u2019S CODE \u2014 ' : ''}${promo.repeatWelcomeCode ? '\u26A0 REPEAT WELCOME CODE \u2014 ' : ''}${failed ? '\u26A0 ACTION NEEDED \u2014 ' : (hasInhouse ? '\uD83D\uDCE6 MAKE \u2014 ' : '')}New Fuglys order #${ref} \u2014 ${gbp(session.amount_total)}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:8px;padding:28px;">
@@ -277,6 +311,8 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId, pr
           <h1 style="margin:0 0 4px;font-size:20px;">New order #${ref}</h1>
           <p style="margin:0 0 16px;color:#666;font-size:13px;">The Fuglys &middot; ${esc(new Date().toLocaleString('en-GB'))}</p>
           ${banner}
+          ${session.livemode === false ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>TEST MODE</strong> &mdash; Stripe test payment from a preview. Nobody was charged.</p>` : ''}
+          ${promo.fulfilmentAlert ? `<p style="background:#fde8eb;color:#b00020;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; NOT OUR VARIANT</strong><br>${esc(promo.fulfilmentAlert)}</p>` : ''}
           ${promo.crossBrandCode ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; OTHER BRAND&rsquo;S CODE</strong><br>${esc(promo.crossBrandCode)}</p>` : ''}
           ${promo.repeatWelcomeCode ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; REPEAT WELCOME CODE</strong><br>${esc(promo.repeatWelcomeCode)}</p>` : ''}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
@@ -452,6 +488,10 @@ async function saveOrder(session, lineItems, status, printfulOrderId, promo = {}
   }
   if (promo.repeatWelcomeCode) payment.repeatWelcomeCode = promo.repeatWelcomeCode;
   if (promo.crossBrandCode) payment.crossBrandCode = promo.crossBrandCode;
+  // Why it wasn't sent to Printful (ownStoreCheck), in the field Studio already shows.
+  if (promo.fulfilmentAlert) payment.failureReason = promo.fulfilmentAlert;
+  // A Stripe test-mode payment (a preview with test keys): flagged so it's never mistaken for a sale.
+  if (session.livemode === false) payment.test = true;
   if (a) {
     payment.shippingAddress = {
       name: (ship && ship.name) || '',
@@ -604,6 +644,14 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
 
+    const notOurs = await ownStoreCheck(printfulItems.map((it) => it.sync_variant_id));
+    if (notOurs.length > 0) {
+      console.error(`[FULFILMENT-FAIL] session ${session.id}: variant(s) not in the Fuglys Printful store — order NOT created:`, notOurs);
+      promo.fulfilmentAlert = `Not sent to Printful: ${notOurs.length === 1 ? 'this variant is' : 'these variants are'} not in the Fuglys store. ${notOurs.join('; ')}`;
+      await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded, promo);
+      return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'not-our-variants' }) };
+    }
+
     const printfulOrder = {
       external_id: String(session.id).slice(-32),
       recipient: {
@@ -619,7 +667,11 @@ exports.handler = async (event) => {
       items: printfulItems,
     };
 
-    const res = await fetch(PRINTFUL_ORDERS_URL, {
+    // Confirm (start production) only when PRINTFUL_AUTO_CONFIRM is exactly 'true',
+    // which is set in the production context only, and never for a Stripe test-mode
+    // payment: those stay Printful DRAFTS, deleted after each test. Always explicit.
+    const confirm = printfulConfirm(session);
+    const res = await fetch(`${PRINTFUL_ORDERS_URL}?confirm=${confirm ? 'true' : 'false'}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -640,8 +692,9 @@ exports.handler = async (event) => {
 
     let printfulId;
     try { printfulId = JSON.parse(bodyText).result?.id; } catch (_) { /* ignore */ }
-    console.log(`[FULFILMENT-OK] session ${session.id}: Printful order created${printfulId ? ' #' + printfulId : ''} (${printfulItems.length} item(s)).`);
+    console.log(`[FULFILMENT-OK] session ${session.id}: Printful ${confirm ? 'confirmed' : 'DRAFT'} order created${printfulId ? ' #' + printfulId : ''} (${printfulItems.length} item(s)).`);
 
+    promo.printfulConfirmed = confirm;
     await finalize(session, lineItems, 'fulfilled', printfulId, alreadyRecorded, promo);
     return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'created' }) };
   } catch (err) {
@@ -653,3 +706,4 @@ exports.handler = async (event) => {
 
 // For tests: the Sanity order-log write.
 exports.saveOrder = saveOrder;
+exports.printfulConfirm = printfulConfirm;

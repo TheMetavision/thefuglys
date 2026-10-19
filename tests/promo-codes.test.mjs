@@ -49,6 +49,7 @@ const json = (status, body) => ({ ok: status < 300, status, json: async () => bo
 async function fakeFetch(url, init = {}) {
   const u = new URL(String(url));
   if (u.hostname === 'api.resend.com') { emails.push(JSON.parse(init.body)); return json(200, { id: 'em' }); }
+  if (u.hostname === 'api.printful.com' && u.pathname.startsWith('/store/variants/')) return json(200, { result: { id: 1 } }); // own-store check
   if (u.hostname === 'api.printful.com') { printfulOrders.push(JSON.parse(init.body)); return json(200, { result: { id: 555 } }); }
   if (u.hostname.endsWith('.api.sanity.io') && u.pathname.includes('/data/query/')) {
     const q = u.searchParams.get('query');
@@ -123,7 +124,7 @@ const merchantMail = () => emails.find((e) => e.to === 'owner@thefuglys.com');
 test('checkout turns the promo box on and keeps shipping as a rate, not a line', async () => {
   const res = await checkout.handler({ httpMethod: 'POST', body: JSON.stringify({ items: [
     { id: 'wallart-wasteland-poster-small', productType: 'wallart', title: 'Wasteland', format: 'poster', size: 'small', quantity: 1, price: 9.99 },
-  ] }) });
+  ], country: 'GB' }) });
   assert.equal(res.statusCode, 200);
   assert.equal(created[0].allow_promotion_codes, true);
   assert.ok(!('discounts' in created[0]));

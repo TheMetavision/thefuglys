@@ -35,45 +35,22 @@ const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID || 'ngx60q2x';
 const SANITY_DATASET    = process.env.SANITY_DATASET || 'production';
 const SANITY_API_VER    = '2024-01-01';
 
-/* ── SHIPPING (Wyrmfuel model — unchanged across brands) ──────────────────
-   UK £6.95, free over £75; EU £9.95; USA/Canada £10.95;
-   Australia/NZ/Japan/Brazil £11.95; Rest of World £14.95.
-   Keep FREE_THRESHOLD_PENCE in sync with FREE_SHIPPING_THRESHOLD in cart.ts. */
-const FREE_THRESHOLD_PENCE = 7500; // £75.00
-const UK_RATE_PENCE        = 695;  // £6.95
+/* ── SHIPPING: tied to the destination ───────────────────────────────────
+   The basket sends the buyer's country. Rates and regions live in
+   src/lib/shipping-regions.mjs (UK £6.95, free from £75; Europe £9.95;
+   USA/Canada £10.95; Australia/NZ/Japan/Brazil £11.95; Rest of World £14.95).
+   The session offers ONLY that country's rate and Stripe accepts an address in
+   that one country, so a buyer can't pick a cheaper region's rate. Lines
+   Printful won't ship to that country (src/data/ship-to.json) are refused. */
+const {
+  ALLOWED_COUNTRIES, regionFor, shippingOptionFor, unshippableLines,
+} = require('../../src/lib/shipping-regions.mjs');
+const SHIP_TO = require('../../src/data/ship-to.json');
 
-const ALLOWED_COUNTRIES = [
-  'GB', 'US', 'CA',
-  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR',
-  'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK',
-  'SI', 'ES', 'SE', 'AL', 'BA', 'GE', 'GI', 'XK', 'MK', 'MD', 'MC', 'ME',
-  'RS', 'SM', 'UA', 'VA', 'AD', 'AZ', 'KZ', 'IS', 'LI', 'NO', 'CH',
-  'AU', 'NZ', 'JP', 'BR',
-  'MX', 'SG', 'KR', 'IN', 'ZA', 'AE', 'SA', 'TH', 'MY', 'PH', 'ID',
-  'AR', 'CL', 'CO', 'PE', 'HK', 'TW', 'IL', 'TR', 'NG', 'KE', 'GH',
-];
-
-function buildShippingOptions(cartTotalPence) {
-  const ukOption = {
-    shipping_rate_data: {
-      type: 'fixed_amount',
-      fixed_amount: { amount: cartTotalPence >= FREE_THRESHOLD_PENCE ? 0 : UK_RATE_PENCE, currency: 'gbp' },
-      display_name: cartTotalPence >= FREE_THRESHOLD_PENCE ? 'UK Standard (FREE)' : 'UK Standard',
-      delivery_estimate: { minimum: { unit: 'business_day', value: 5 }, maximum: { unit: 'business_day', value: 10 } },
-    },
-  };
-  return [
-    ukOption,
-    { shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: 995, currency: 'gbp' }, display_name: 'Europe',
-      delivery_estimate: { minimum: { unit: 'business_day', value: 10 }, maximum: { unit: 'business_day', value: 20 } } } },
-    { shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: 1095, currency: 'gbp' }, display_name: 'USA / Canada',
-      delivery_estimate: { minimum: { unit: 'business_day', value: 10 }, maximum: { unit: 'business_day', value: 20 } } } },
-    { shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: 1195, currency: 'gbp' }, display_name: 'Australia / NZ / Japan / Brazil',
-      delivery_estimate: { minimum: { unit: 'business_day', value: 10 }, maximum: { unit: 'business_day', value: 25 } } } },
-    { shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: 1495, currency: 'gbp' }, display_name: 'Rest of World',
-      delivery_estimate: { minimum: { unit: 'business_day', value: 14 }, maximum: { unit: 'business_day', value: 30 } } } },
-  ];
-}
+/* Previews may read Sanity drafts so a catalogue change can be checked before
+   it's published: SANITY_PERSPECTIVE=previewDrafts plus a read token, set in the
+   deploy-preview / branch-deploy contexts only. Production reads published. */
+const READ_DRAFTS = process.env.SANITY_PERSPECTIVE === 'previewDrafts' && !!(process.env.SANITY_API_TOKEN || process.env.SANITY_TOKEN);
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
 
@@ -87,8 +64,11 @@ async function fetchSanityVariantData() {
     }
   }`;
   // The API host, not apicdn: prices and the active flag must be what is published now.
-  const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${encodeURIComponent(groq)}`;
-  const res = await fetch(url);
+  const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${encodeURIComponent(groq)}`
+    + (READ_DRAFTS ? '&perspective=previewDrafts' : '');
+  const res = await fetch(url, READ_DRAFTS
+    ? { headers: { Authorization: 'Bearer ' + (process.env.SANITY_API_TOKEN || process.env.SANITY_TOKEN) } }
+    : undefined);
   if (!res.ok) throw new Error(`Sanity query failed (${res.status})`);
   return (await res.json()).result || [];
 }
@@ -219,8 +199,23 @@ exports.handler = async (event) => {
   if (!process.env.STRIPE_SECRET_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Stripe not configured' }) };
 
   try {
-    const { items, ga } = JSON.parse(event.body || '{}');
+    const { items, ga, country: rawCountry } = JSON.parse(event.body || '{}');
     if (!items || items.length === 0) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Cart is empty' }) };
+
+    // Destination first: one country, in a region we deliver to.
+    const country = String(rawCountry || '').trim().toUpperCase();
+    if (!regionFor(country)) {
+      return { statusCode: 400, headers, body: JSON.stringify({
+        error: country ? "Sorry, we don't deliver to that country yet." : 'Please choose your delivery country.',
+      }) };
+    }
+    const cantShip = unshippableLines(items, country, SHIP_TO);
+    if (cantShip.length > 0) {
+      return { statusCode: 422, headers, body: JSON.stringify({
+        error: "Some items in your cart can't be delivered to that country. Please remove them to continue.",
+        items: cantShip.map((it) => `${it.title || it.name || it.id || 'item'}${it.size ? ` (${it.size})` : ''}`),
+      }) };
+    }
 
     const SITE_URL = process.env.SITE_URL || process.env.PUBLIC_SITE_URL || 'https://thefuglys.com';
 
@@ -338,8 +333,9 @@ exports.handler = async (event) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items,
-      shipping_address_collection: { allowed_countries: ALLOWED_COUNTRIES },
-      shipping_options: buildShippingOptions(cartTotalPence),
+      // Only the country chosen in the basket, and only its region's rate.
+      shipping_address_collection: { allowed_countries: [country] },
+      shipping_options: [shippingOptionFor(country, cartTotalPence)],
       success_url: `${SITE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/merch`,
       // The customer types a code (CHAOS10) on Stripe's page. Coupons apply to
@@ -348,7 +344,7 @@ exports.handler = async (event) => {
       // can't change what's made or shipped. stripe-webhook reads it back.
       allow_promotion_codes: true,
       // GA ids are only sent by browsers that accepted analytics; invalid ones are dropped.
-      metadata: { source: 'thefuglys-web', brand: BRAND_KEY, ...validGaIds(ga && ga.clientId, ga && ga.sessionId) },
+      metadata: { source: 'thefuglys-web', brand: BRAND_KEY, delivery_country: country, ...validGaIds(ga && ga.clientId, ga && ga.sessionId) },
     });
 
     return { statusCode: 200, headers, body: JSON.stringify({ url: session.url }) };
@@ -360,3 +356,4 @@ exports.handler = async (event) => {
 
 // For tests: the pure resolver/pricer.
 exports.buildPodLineItems = buildPodLineItems;
+exports.ALLOWED_COUNTRIES = ALLOWED_COUNTRIES;

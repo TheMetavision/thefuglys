@@ -8,7 +8,10 @@ export const client = createClient({
   // Never the CDN: a build triggered by a Sanity publish must read what was just published.
   useCdn: false,
   token: import.meta.env.SANITY_API_TOKEN,
-  perspective: 'published', // only ever serve published docs — keeps sync drafts out of the static build
+  // Production: only ever serve published docs — keeps sync drafts out of the static build.
+  // A deploy preview may set SANITY_PERSPECTIVE=previewDrafts (deploy-preview / branch-deploy
+  // contexts only) so a catalogue change can be checked before it is published.
+  perspective: import.meta.env.SANITY_PERSPECTIVE === 'previewDrafts' ? 'previewDrafts' : 'published',
 });
 
 // Non-CDN client for content that needs fresh reads (e.g. legal pages)
