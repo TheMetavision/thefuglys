@@ -77,6 +77,14 @@ export default {
       options: { hotspot: true },
     },
     {
+      name: 'characterSheet',
+      title: 'Character Sheet / Turnaround',
+      type: 'image',
+      options: { hotspot: true },
+      description:
+        'Multi-angle turnaround or model sheet. Used alongside the portrait to build this character\u2019s Higgsfield reference element. Production reference only: not shown on the site.',
+    },
+    {
       name: 'imageUrl',
       title: 'External Image URL',
       type: 'url',
