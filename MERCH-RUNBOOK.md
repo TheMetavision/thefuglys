@@ -118,7 +118,25 @@ Config: `printful-sync/brands/thefuglys.config.mjs` (36 designs).
 Site: Mugs tab added after Tumblers; Can Glasses and Badges tabs kept while those products exist (empty tabs vanish);
 size guide lists the tumbler and mug.
 
-<!-- PART-B-DATA -->
+Steps done (18–19 Oct 2026, printful-sync):
+
+1. Mockup check before creating anything (`mockup-check.mjs`, Mockup Generator, no products): the two-sided tumbler (Left and
+   Right) and the mug (Front and Handle on Left) on axel-run-fast. Images: `printful-sync/mockup-checks/thefuglys/`.
+2. Wraps for all 36 designs uploaded to the Sanity CDN: `make-mug-wraps.mjs thefuglys --kind=mug` and `--kind=tumbler`.
+3. Printful products created in batches of 6 (`run-batches.ps1 -Brand thefuglys -Stage printful -Flags "--types=tumbler,mug"`,
+   waiting whenever printful-sync was busy): one #585 tumbler and one mug per design, 72 products.
+   `store-check.mjs thefuglys tumbler585,mug`: every design has one of each, no duplicate external ids.
+4. Pin sets: drafts with `active: false` (`draft-inactive.mjs`) for the 6 pin sets (`product-badge-set-1` … `-6`; Printful 437554239, 437554304, 437554400, 437554457, 437554543, 437554627). No unfinished Printful orders.
+5. Mockups for the new garments only, in small resumable runs (`next-mockups.ps1 -Brand thefuglys -Count 3`, memory checked
+   between runs): every tumbler has Left, "Printed on both sides" and Right; every mug Front, "Printed on both sides" and
+   Handle on Left (Mockup Generator, re-hosted on the Sanity CDN).
+6. Sanity **drafts** (`run-batches.ps1 -Brand thefuglys -Stage sync -Flags "--types=tumbler,mug --drop-types=glass"`): on all 36 designs
+   the tumbler is replaced by #585 (£32.95, White), the mug added (£12.95), the can glass removed; every other garment, all
+   copy and images exactly as published. `verify-drafts.mjs thefuglys tumbler,mug glass`: no problems, every variant id in the
+   live store. Production still shows the published (old) catalogue; the deploy preview reads the drafts.
+7. Size guide: tumbler 20 oz / 600 ml, 8.4″ (21.4 cm); mug 11 oz, 3.8″ (9.6 cm), from Printful's catalogue for #585 and #19.
+8. Preview: https://deploy-preview-2--thefuglys.netlify.app. The checkout function refuses no country (400), an unknown one (400), a Printful item to Brazil
+   or a tee to Ukraine (422), all before Stripe.
 
 ### Launch order, after Alan approves the preview (in this order, nothing earlier)
 
