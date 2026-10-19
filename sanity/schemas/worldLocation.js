@@ -14,6 +14,10 @@ import {PinIcon} from '@sanity/icons'
  * IP World Locations Bibles — sensoryDetail, dramaticFunction,
  * conflicts, storyHooks, merchandisePotential. The original 7 fields
  * are unchanged.
+ *
+ * v3 (2026-10-19): residents and featuredProducts for The Pits drawer on the
+ * homepage. `description` keeps its Portable Text type (existing lore lives in
+ * it); a location becomes clickable on the homepage once it has one.
  * ------------------------------------------------------------------
  */
 export default defineType({
@@ -83,8 +87,24 @@ export default defineType({
       name: 'description',
       title: 'Long description',
       type: 'array',
-      description: 'Longer lore copy. Reserved for a future dedicated location page — safe to leave empty for now.',
+      description: 'Lore copy. When filled in, the homepage card opens a drawer showing it (with residents and featured products below). Leave empty to keep the card non-clickable.',
       of: [{type: 'block'}],
+    }),
+    defineField({
+      name: 'residents',
+      title: 'Residents',
+      type: 'array',
+      description: 'Up to 4 characters shown as chips in the homepage drawer, linking to Meet the Misfits.',
+      of: [{type: 'reference', to: [{type: 'character'}]}],
+      validation: (rule) => rule.max(4).unique(),
+    }),
+    defineField({
+      name: 'featuredProducts',
+      title: 'Featured products',
+      type: 'array',
+      description: 'Up to 2 products shown as cards in the homepage drawer. Inactive products are skipped.',
+      of: [{type: 'reference', to: [{type: 'product'}]}],
+      validation: (rule) => rule.max(2).unique(),
     }),
 
     // ─── v2 fields (2026-04-27) — rich content from the World Locations Bibles ───

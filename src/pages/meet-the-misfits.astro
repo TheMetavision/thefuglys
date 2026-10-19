@@ -3,9 +3,12 @@ import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
-import { getAllCharacters, getCharacterImage } from '../lib/sanity';
+import { getAllCharacters, getCharacterImage, getAllBooks, bookBuyUrl } from '../lib/sanity';
 
 const allCharacters = await getAllCharacters();
+
+// Same rule as the homepage books section: link to a buy page only once a book is out.
+const booksBuyUrl = (await getAllBooks()).map(bookBuyUrl).find(Boolean) ?? null;
 
 const coreSix = allCharacters.filter((c: any) => c.characterType === 'main');
 const restOfCrew = allCharacters.filter((c: any) => c.characterType !== 'main');
@@ -33,7 +36,7 @@ function getCategoryLabel(char: any) {
         <div class="heading-rule"></div>
         <div class="core-six-grid">
           {coreSix.map((char: any) => (
-            <article class="core-card">
+            <article class="core-card" id={char.slug}>
               <div class="core-card-img-wrap">
                 <img
                   src={getCharacterImage(char)}
@@ -77,7 +80,7 @@ function getCategoryLabel(char: any) {
             const badge = getCategoryBadge(char);
             const label = getCategoryLabel(char);
             return (
-              <article class:list={["character-card", badge]} data-type={badge}>
+              <article class:list={["character-card", badge]} data-type={badge} id={char.slug}>
                 <div class="character-img-wrap">
                   <img
                     src={getCharacterImage(char)}
@@ -108,10 +111,12 @@ function getCategoryLabel(char: any) {
       <div class="container">
         <div class="chaos-cta-inner">
           <h2 class="chaos-cta-heading">Want to See Them Cause Chaos?</h2>
-          <p class="chaos-cta-copy">Watch the crew's wasteland adventures on YouTube, or dive deeper into their stories in the books.</p>
+          <p class="chaos-cta-copy">Dive deeper into their stories — and get first dibs on the books when they land.</p>
           <div class="chaos-cta-buttons">
             <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="cta-btn cta-btn-primary">Watch on YouTube</a>
-            <a href="https://www.amazon.com" target="_blank" rel="noopener noreferrer" class="cta-btn cta-btn-secondary">Get the Books</a>
+            {booksBuyUrl
+              ? <a href={booksBuyUrl} target="_blank" rel="noopener noreferrer" class="cta-btn cta-btn-secondary">Get the book</a>
+              : <a href="/#newsletter" class="cta-btn cta-btn-secondary">Put me on the list</a>}
           </div>
         </div>
       </div>
@@ -155,6 +160,9 @@ function getCategoryLabel(char: any) {
 </script>
 
 <style>
+  /* Anchor targets (#slug) for links from the homepage Pits drawer; clears the fixed header. */
+  .core-card[id], .character-card[id] { scroll-margin-top: 120px; }
+
   .section-label {
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 700;

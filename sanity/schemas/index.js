@@ -11,6 +11,9 @@
 // 2026-06-04: added order (readOnly document) for the COC-model commerce
 // build — written by the stripe-webhook function via SANITY_TOKEN.
 // Registration only; the Orders desk item is added in the structure file.
+// 2026-10-19: book.js created (mirrors the deployed type, adds buyUrl) and registered.
+// 2026-10-19: merchCategory.js restored from the deployed schema and registered; live
+// fields missing from other types added back (marked Legacy where the site doesn't read them).
 import character from './character';
 import product from './product';
 import printfulVariant from './printfulVariant';
@@ -18,8 +21,8 @@ import order from './order';
 import wallArt from './wallArt';
 import blogPost from './blogPost';
 import episode from './episode';
-// import book from './book';                  // TODO: create book.js
-// import merchCategory from './merchCategory'; // TODO: create merchCategory.js
+import book from './book';
+import merchCategory from './merchCategory';
 import category from './category';
 import worldLocation from './worldLocation';
 import page from './page';
@@ -38,8 +41,8 @@ export const schemaTypes = [
   // Content types (cont.)
   blogPost,
   episode,
-  // book,           // re-enable when book.js exists
-  // merchCategory,  // re-enable when merchCategory.js exists
+  book,
+  merchCategory,
   category,
   worldLocation,
   page,

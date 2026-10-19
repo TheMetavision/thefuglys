@@ -24,6 +24,12 @@ export default {
       initialValue: 'Wasteland Weirdos, Wild Adventures, Zero Regrets!',
     },
     {
+      name: 'positioningLine',
+      title: 'Positioning line',
+      type: 'string',
+      description: 'One plain line under the homepage headline saying what The Fuglys is. Leave empty to use the built-in line.',
+    },
+    {
       name: 'siteDescription',
       title: 'Site Description',
       type: 'text',
@@ -41,6 +47,18 @@ export default {
       name: 'youtubeChannel',
       title: 'YouTube Channel URL',
       type: 'url',
+    },
+    {
+      name: 'youtubeChannelUrl',
+      title: 'YouTube Channel URL (homepage)',
+      type: 'url',
+      description: 'Read by the homepage series section. Falls back to "YouTube Channel URL" above when empty.',
+    },
+    {
+      name: 'trailerYoutubeId',
+      title: 'Trailer YouTube ID',
+      type: 'string',
+      description: 'Video ID for the homepage trailer (e.g. XgwfSjIJre4). Needs a matching thumbnail at public/video-thumbs/<id>.jpg, otherwise the homepage keeps the current trailer.',
     },
     {
       name: 'socialLinks',
@@ -155,6 +173,30 @@ export default {
         layout: 'radio',
       },
     },
+    // ─── Legacy (2026-10-19) ───────────────────────────────────────
+    // In the deployed schema but not read by the site. Kept so a schema deploy
+    // from this folder drops no live field.
+    { name: 'favicon', title: 'Favicon', type: 'image', description: 'Legacy', hidden: false },
+    { name: 'ogImage', title: 'Default OG Image', type: 'image', description: 'Legacy', hidden: false },
+    {
+      name: 'currency',
+      title: 'Currency',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'GBP (£)', value: 'GBP' },
+          { title: 'USD ($)', value: 'USD' },
+          { title: 'EUR (€)', value: 'EUR' },
+        ],
+      },
+      description: 'Legacy',
+      hidden: false,
+    },
+    { name: 'storeOpenDate', title: 'Store Launch Date', type: 'datetime', description: 'Legacy', hidden: false },
+    { name: 'newsletterHeading', title: 'Newsletter Heading', type: 'string', description: 'Legacy', hidden: false },
+    { name: 'newsletterText', title: 'Newsletter Text', type: 'text', rows: 2, description: 'Legacy', hidden: false },
+    { name: 'homepageHeroImage', title: 'Homepage Hero Image', type: 'image', options: { hotspot: true }, description: 'Legacy', hidden: false },
+    { name: 'homepageHeroPortrait', title: 'Homepage Hero Portrait', type: 'image', options: { hotspot: true }, description: 'Legacy', hidden: false },
   ],
   __experimental_actions: ['update', 'publish'],
 };

@@ -79,6 +79,9 @@ export default {
       type: 'datetime',
       validation: (Rule) => Rule.required(),
     },
+    // Legacy (2026-10-19): in the deployed schema, not read by the site.
+    { name: 'tag', title: 'Tag / Category', type: 'string', description: 'Legacy', hidden: false },
+    { name: 'readTime', title: 'Read Time', type: 'string', description: 'Legacy', hidden: false },
     {
       name: 'seoTitle',
       title: 'SEO Title',

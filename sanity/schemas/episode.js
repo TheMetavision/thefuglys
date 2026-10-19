@@ -48,6 +48,9 @@ export default {
       description: 'Full YouTube video or Shorts URL',
       validation: (Rule) => Rule.required(),
     },
+    // Legacy (2026-10-19): in the deployed schema, not read by the site.
+    { name: 'youtubeEmbedId', title: 'YouTube Embed ID', type: 'string', description: 'Legacy', hidden: false },
+    { name: 'seasonNumber', title: 'Season Number', type: 'number', description: 'Legacy', hidden: false },
     {
       name: 'youtubeId',
       title: 'YouTube Video ID',
@@ -78,6 +81,20 @@ export default {
       title: 'Featured Characters',
       type: 'array',
       of: [{ type: 'reference', to: [{ type: 'character' }] }],
+    },
+    {
+      name: 'status',
+      title: 'Status',
+      type: 'string',
+      description: 'The homepage says "Watch now" once any episode is Live.',
+      options: {
+        list: [
+          { title: 'Coming Soon', value: 'coming-soon' },
+          { title: 'Live', value: 'live' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'coming-soon',
     },
     {
       name: 'publishedAt',

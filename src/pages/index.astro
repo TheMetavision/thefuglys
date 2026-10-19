@@ -1,13 +1,40 @@
 ---
-import { sanityImg, sanitySrcset, sanityDims, localImg, localSrcset } from '../lib/sanityImage';
-const BOOK_COVER = 'https://cdn.sanity.io/images/ngx60q2x/production/f006d9cdfcd75fea1eacc2b9d16199623b912988-1360x2048.png';
+import fs from 'node:fs';
+import path from 'node:path';
+import { PortableText } from 'astro-portabletext';
+import { sanityDims, localImg, localSrcset } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
 import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
 import MerchPromo from '../components/MerchPromo.astro';
-import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage, getWorldLocations, getWorldLocationImage } from '../lib/sanity';
+import { getCoreSixCharacters, getCharacterImageLarge, getNonCoreCharacters, getCharacterImage, getWorldLocations, getWorldLocationImage, getAllBooks, getBookCoverImage, bookBuyUrl, getHomeSettings, hasPublishedEpisode, urlFor } from '../lib/sanity';
+
+const settings = await getHomeSettings();
+const positioningLine = settings?.positioningLine?.trim()
+  || 'An animated dark comedy about a ragtag crew of misfits surviving in the only trailer park left in the badlands.';
+const youtubeChannelUrl = settings?.youtubeChannelUrl || 'https://www.youtube.com/@TheFuglys';
+
+// The trailer thumbnail is self-hosted so nothing loads from YouTube before play.
+// A trailer ID from Sanity is used only when its thumbnail is in /video-thumbs/.
+const DEFAULT_TRAILER_ID = 'XgwfSjIJre4';
+const sanityTrailerId = settings?.trailerYoutubeId?.trim();
+const trailerId = sanityTrailerId && /^[\w-]{6,20}$/.test(sanityTrailerId)
+  && fs.existsSync(path.join(process.cwd(), 'public', 'video-thumbs', `${sanityTrailerId}.jpg`))
+  ? sanityTrailerId
+  : DEFAULT_TRAILER_ID;
+
+// Series copy follows episode status so the page never claims an episode is out early.
+const seriesLive = await hasPublishedEpisode();
+
+const books = (await getAllBooks()).map((b: any) => ({
+  title: b.title,
+  cover: getBookCoverImage(b, 360, 540),
+  comingSoon: b.status === 'coming-soon',
+  buyUrl: bookBuyUrl(b),
+}));
+const anyBookPending = books.some((b) => !b.buyUrl);
 
 const coreSix = await getCoreSixCharacters();
 const carouselCharacters = coreSix.map((c: any) => ({
@@ -29,9 +56,20 @@ const rosterCharacters = nonCore.map((c: any) => ({
 const worldLocations = await getWorldLocations();
 const pitsCards = worldLocations.map((loc: any) => ({
   name: loc.title,
+  slug: loc.slug,
   tagline: loc.tagline,
   image: getWorldLocationImage(loc),
+  drawerImage: getWorldLocationImage(loc, 960, 544),
   alt: loc.image?.alt ?? loc.title,
+  description: loc.description,
+  // A card opens the drawer only once its location has a description.
+  hasDrawer: Boolean(loc.slug) && Array.isArray(loc.description) && loc.description.length > 0,
+  residents: loc.residents ?? [],
+  products: (loc.featuredProducts ?? []).map((p: any) => ({
+    name: p.name,
+    slug: p.slug,
+    image: p.imageUrl || (p.heroImage?.asset ? urlFor(p.heroImage).width(400).height(400).fit('crop').auto('format').url() : ''),
+  })),
 }));
 ---
 
@@ -42,6 +80,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
     <section class="hero" id="hero">
       <div class="hero-tagline-bar">
         <h1 class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</h1>
+        <p class="hero-positioning">{positioningLine}</p>
       </div>
 
       <div class="hero-body">
@@ -106,106 +145,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
           <span class="hero-stat-divider"></span>
           <span class="hero-stat">Dark Comedy</span>
           <span class="hero-stat-divider"></span>
-          <span class="hero-stat">Zero Filter</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="content-cards-section">
-      <div class="container">
-        <div class="content-cards-grid">
-          <div class="content-card">
-            <span class="card-label">Watch</span>
-            <h3 class="card-heading">Watch the Series</h3>
-            <p class="card-body">The Fuglys are live on YouTube. New episodes dropping — subscribe so you don't miss the chaos.</p>
-            <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="card-cta">Watch Now &rarr;</a>
-          </div>
-          <div class="content-card">
-            <span class="card-label">Read</span>
-            <h3 class="card-heading">Read the Books</h3>
-            <p class="card-body">Gritty. Unpredictable. Packed with wasteland madness. The Fuglys book series — get your copy.</p>
-            <a href="https://www.amazon.com" target="_blank" rel="noopener noreferrer" class="card-cta">Get the Books &rarr;</a>
-          </div>
-          <div class="content-card">
-            <span class="card-label">Rep</span>
-            <h3 class="card-heading">Rep the Wasteland</h3>
-            <p class="card-body">Character apparel, hoodies, tumblers and more. The official Fuglys store is live — printed on demand, shipped worldwide.</p>
-            <a href="/merch" class="card-cta">Shop the Merch &rarr;</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <MerchPromo
-      accent="#b3162e"
-      eyebrow="Official Merch"
-      heading="Rep the Wasteland"
-      blurb="Character tees, hoodies and tumblers — printed on demand and shipped worldwide."
-      ctaLabel="Shop the Collection"
-    />
-
-    <section class="section the-pits-section">
-      <div class="container">
-        <div class="pits-header">
-          <div class="section-eyebrow">The World</div>
-          <h2 class="pits-heading">Welcome to The Pits</h2>
-          <div class="pits-rule"></div>
-          <p class="pits-body">
-            The Pits. Best trailer park in the badlands — probably the only trailer park in the badlands. We got walls. Most of 'em still standing. We got people who look out for each other. Mostly.
-          </p>
-        </div>
-
-        <div class="pits-location-grid">
-          {pitsCards.map((card) => (
-            <div
-              class="location-card location-card--image"
-              style={`background-image: url('${card.image}');`}
-              role="img"
-              aria-label={card.alt}
-            >
-              <div class="location-card-overlay"></div>
-              <span class="location-card-marker">+</span>
-              <div class="location-card-content">
-                <span class="location-card-name">{card.name}</span>
-                <span class="location-card-tagline">{card.tagline}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    <section class="section split-section">
-      <div class="container">
-        <div class="split-grid">
-          <div class="split-text">
-            <h2 class="section-heading">Chaos, Survival, and.... a Whole Lotta Trouble!</h2>
-            <div class="heading-rule"></div>
-            <p>
-              Dive into the world of <em>The Fuglys</em>, a ragtag crew of misfits making their way
-              through the wasteland with grit, humor, and just the right amount of madness.
-              Packed with unpredictable twists, bizarre encounters, and unforgettable characters,
-              this book series is a wild ride through a post-apocalyptic world where only the weird survive!
-            </p>
-            <div class="genre-tags">
-              <span class="genre-tag">Dark Comedy</span>
-              <span class="genre-tag">Post-Apocalyptic</span>
-              <span class="genre-tag">Ages 14+</span>
-              <span class="genre-tag">Gritty Humour</span>
-            </div>
-            <a href="/media" class="btn btn-teal mt-btn">Check Out Our Series</a>
-          </div>
-          <div class="split-image">
-            <img
-              src={sanityImg(BOOK_COVER, 480)}
-              srcset={sanitySrcset(BOOK_COVER, 480)}
-              sizes="(min-width: 900px) 480px, 100vw"
-              {...sanityDims(BOOK_COVER, 480)}
-              loading="lazy"
-              alt="The Fuglys book series"
-              class="section-img book-cover-img"
-            />
-          </div>
+          <span class="hero-stat">Ages 14+</span>
         </div>
       </div>
     </section>
@@ -216,13 +156,13 @@ const pitsCards = worldLocations.map((loc: any) => ({
           <div class="series-thumb-col">
             <div class="series-thumb-wrap" id="seriesThumb">
               <img
-                src={localImg('/video-thumbs/XgwfSjIJre4.jpg', 480)}
-                srcset={localSrcset('/video-thumbs/XgwfSjIJre4.jpg', 480, 720)}
+                src={localImg(`/video-thumbs/${trailerId}.jpg`, 480)}
+                srcset={localSrcset(`/video-thumbs/${trailerId}.jpg`, 480, 720)}
                 sizes="(min-width: 900px) 480px, 100vw"
                 width="720"
                 height="1100"
                 loading="lazy"
-                alt="The Fuglys Animated Series — Watch on YouTube"
+                alt="The Fuglys animated series trailer"
                 class="series-thumb-img"
               />
               <div class="series-scanlines" aria-hidden="true"></div>
@@ -234,29 +174,45 @@ const pitsCards = worldLocations.map((loc: any) => ({
           </div>
 
           <div class="series-text-col">
-            <div class="series-eyebrow">Now Streaming</div>
-            <h2 class="series-heading">The Animated Series</h2>
-            <div class="series-rule"></div>
-            <p class="series-body">
-              The Fuglys are causing chaos on YouTube. New episodes dropping from the wasteland — subscribe so you're first to see what trouble they get into next.
-            </p>
-            <div class="series-ctas">
-              <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="btn btn-primary-red">Watch on YouTube</a>
-              <a href="https://www.youtube.com/@TheFuglys" target="_blank" rel="noopener noreferrer" class="btn btn-outline-red">Subscribe &rarr;</a>
-            </div>
+            {seriesLive ? (
+              <>
+                <div class="series-eyebrow">Now Streaming</div>
+                <h2 class="series-heading">The Animated Series</h2>
+                <div class="series-rule"></div>
+                <p class="series-body">
+                  Series 1 is out now on YouTube. Pull up a crate and watch the crew make a bad day worse.
+                </p>
+                <div class="series-ctas">
+                  <a href={youtubeChannelUrl} target="_blank" rel="noopener noreferrer" class="btn btn-primary-red">Watch Now</a>
+                  <a href={`${youtubeChannelUrl}?sub_confirmation=1`} target="_blank" rel="noopener noreferrer" class="btn btn-outline-red">Subscribe &rarr;</a>
+                </div>
+              </>
+            ) : (
+              <>
+                <div class="series-eyebrow">Trailer Out Now</div>
+                <h2 class="series-heading">The Animated Series</h2>
+                <div class="series-rule"></div>
+                <p class="series-body">
+                  Series 1 is on the way — subscribe on YouTube and you'll be first in the queue when the chaos lands.
+                </p>
+                <div class="series-ctas">
+                  <a href={`${youtubeChannelUrl}?sub_confirmation=1`} target="_blank" rel="noopener noreferrer" class="btn btn-primary-red">Subscribe</a>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
     </section>
 
-    <script>
+    <script define:vars={{ trailerId }}>
       (function () {
         // Click-to-load: nothing is requested from YouTube until the visitor
         // presses play (the thumbnail is self-hosted in /video-thumbs/).
         const wrap = document.getElementById('seriesThumb');
         if (!wrap) return;
         wrap.addEventListener('click', function () {
-          wrap.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/XgwfSjIJre4?autoplay=1&rel=0" title="The Fuglys Animated Series trailer" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;inset:0;width:100%;height:100%;border-radius:4px;"></iframe>';
+          wrap.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + trailerId + '?autoplay=1&rel=0" title="The Fuglys Animated Series trailer" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;inset:0;width:100%;height:100%;border-radius:4px;"></iframe>';
           wrap.querySelector('iframe')?.focus();
         });
       })();
@@ -301,6 +257,153 @@ const pitsCards = worldLocations.map((loc: any) => ({
         </div>
       </div>
     </section>
+
+    <section class="section the-pits-section" id="the-pits">
+      <div class="container">
+        <div class="pits-header">
+          <div class="section-eyebrow">The World</div>
+          <h2 class="pits-heading">Welcome to The Pits</h2>
+          <div class="pits-rule"></div>
+          <p class="pits-body">
+            The Pits. Best trailer park in the badlands — probably the only trailer park in the badlands. We got walls. Most of 'em still standing. We got people who look out for each other. Mostly.
+          </p>
+        </div>
+
+        <div class="pits-location-grid">
+          {pitsCards.map((card) => card.hasDrawer ? (
+            <button
+              type="button"
+              class="location-card location-card--image location-card--button"
+              style={`background-image: url('${card.image}');`}
+              data-pits-open={card.slug}
+              aria-haspopup="dialog"
+              aria-controls={`pits-drawer-${card.slug}`}
+            >
+              <span class="location-card-overlay"></span>
+              <span class="location-card-marker" aria-hidden="true">+</span>
+              <span class="location-card-content">
+                <span class="location-card-name">{card.name}</span>
+                <span class="location-card-tagline">{card.tagline}</span>
+              </span>
+            </button>
+          ) : (
+            <div
+              class="location-card location-card--image"
+              style={`background-image: url('${card.image}');`}
+              role="img"
+              aria-label={card.alt}
+            >
+              <div class="location-card-overlay"></div>
+              <div class="location-card-content">
+                <span class="location-card-name">{card.name}</span>
+                <span class="location-card-tagline">{card.tagline}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {pitsCards.filter((card) => card.hasDrawer).map((card) => (
+        <dialog class="pits-drawer" id={`pits-drawer-${card.slug}`} data-pits-drawer={card.slug} aria-labelledby={`pits-drawer-title-${card.slug}`}>
+          <div class="pits-drawer-panel">
+            <button type="button" class="pits-drawer-close" data-pits-close aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+            {card.drawerImage && (
+              <img class="pits-drawer-img" src={card.drawerImage} alt={card.alt} width="960" height="544" loading="lazy" />
+            )}
+            <div class="pits-drawer-body">
+              <p class="section-eyebrow">The Pits</p>
+              <h2 class="pits-drawer-title" id={`pits-drawer-title-${card.slug}`}>{card.name}</h2>
+              <p class="pits-drawer-tagline">{card.tagline}</p>
+              <div class="pits-drawer-desc">
+                <PortableText value={card.description} />
+              </div>
+
+              {card.residents.length > 0 && (
+                <div class="pits-drawer-group">
+                  <h3 class="pits-drawer-subhead">Who Lives Here</h3>
+                  <ul class="pits-chips">
+                    {card.residents.map((r: any) => (
+                      <li><a class="pits-chip" href={`/meet-the-misfits#${r.slug}`}>{r.name}</a></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {card.products.length > 0 && (
+                <div class="pits-drawer-group">
+                  <h3 class="pits-drawer-subhead">Grab the Gear</h3>
+                  <ul class="pits-products">
+                    {card.products.map((p: any) => (
+                      <li>
+                        <a class="pits-product" href={`/products/${p.slug}`}>
+                          {p.image && <img src={p.image} alt="" width="200" height="200" loading="lazy" />}
+                          <span class="pits-product-name">{p.name}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </dialog>
+      ))}
+    </section>
+
+    {books.length > 0 && (
+    <section class="section split-section" id="books">
+      <div class="container">
+        <div class="split-grid">
+          <div class="split-text">
+            <p class="section-eyebrow books-eyebrow">The Books</p>
+            <h2 class="section-heading">Chaos, Survival, and.... a Whole Lotta Trouble!</h2>
+            <div class="heading-rule"></div>
+            <p>
+              Dive into the world of <em>The Fuglys</em>, a ragtag crew of misfits making their way
+              through the wasteland with grit, humor, and just the right amount of madness.
+              Packed with unpredictable twists, bizarre encounters, and unforgettable characters,
+              this book series is a wild ride through a post-apocalyptic world where only the weird survive!
+            </p>
+            <div class="genre-tags">
+              <span class="genre-tag">Dark Comedy</span>
+              <span class="genre-tag">Post-Apocalyptic</span>
+              <span class="genre-tag">Ages 14+</span>
+              <span class="genre-tag">Gritty Humour</span>
+            </div>
+            {anyBookPending && (
+              <a href="#newsletter" class="btn btn-teal mt-btn">Put me on the list</a>
+            )}
+          </div>
+          <ul class="book-grid">
+            {books.map((book) => (
+              <li class="book-item">
+                <div class="book-cover-wrap">
+                  {book.cover
+                    ? <img src={book.cover} alt={`${book.title} cover`} width="360" height="540" loading="lazy" class="book-cover" />
+                    : <div class="book-cover book-cover--blank" aria-hidden="true"></div>}
+                  {book.comingSoon && <span class="book-badge">Coming soon</span>}
+                </div>
+                <p class="book-title">{book.title}</p>
+                {book.buyUrl && (
+                  <a href={book.buyUrl} target="_blank" rel="noopener noreferrer" class="book-buy">Get the book<span class="visually-hidden"> — {book.title}</span></a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+    )}
+
+    <MerchPromo
+      accent="#b3162e"
+      eyebrow="Official Merch"
+      heading="Rep the Wasteland"
+      blurb="Character tees, hoodies and tumblers — printed on demand and shipped worldwide."
+      ctaLabel="Shop the Collection"
+    />
 
     <Newsletter />
   </main>
@@ -371,6 +474,83 @@ const pitsCards = worldLocations.map((loc: any) => ({
   });
 
   startTimer();
+
+  // ── The Pits drawer ──────────────────────────────────────
+  // Only cards with a description render as buttons (and get a <dialog>); with
+  // none, this finds nothing and the section stays static.
+  const PITS_HASH = '#the-pits/';
+  const pitsDialogs = new Map<string, HTMLDialogElement>();
+  document.querySelectorAll<HTMLDialogElement>('dialog[data-pits-drawer]').forEach((d) => {
+    pitsDialogs.set(d.dataset.pitsDrawer!, d);
+  });
+  let pitsOpener: HTMLElement | null = null;
+
+  function pitsCardFor(slug: string) {
+    return document.querySelector<HTMLElement>(`[data-pits-open="${CSS.escape(slug)}"]`);
+  }
+
+  function openPits(slug: string, opener: HTMLElement | null) {
+    const dialog = pitsDialogs.get(slug);
+    if (!dialog || dialog.open) return;
+    pitsDialogs.forEach((d, s) => { if (d.open) closePits(d, s); });
+    pitsOpener = opener ?? pitsCardFor(slug);
+    pitsOpenSlug = slug;
+    dialog.showModal();
+    dialog.querySelector<HTMLElement>('[data-pits-close]')?.focus();
+    if (location.hash !== PITS_HASH + slug) {
+      history.replaceState(null, '', PITS_HASH + slug);
+    }
+  }
+
+  // Tidy up synchronously rather than waiting for the dialog's async 'close'
+  // event (which a browser may defer, e.g. in a background tab); 'close' still
+  // calls this as a fallback, so it must be safe to run twice.
+  let pitsOpenSlug: string | null = null;
+  function closePits(dialog: HTMLDialogElement, slug: string) {
+    if (dialog.open) dialog.close();
+    if (pitsOpenSlug !== slug) return;
+    pitsOpenSlug = null;
+    if (location.hash === PITS_HASH + slug) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+    (pitsOpener ?? pitsCardFor(slug))?.focus();
+    pitsOpener = null;
+  }
+
+  pitsDialogs.forEach((dialog, slug) => {
+    dialog.addEventListener('close', () => closePits(dialog, slug));
+    // Esc
+    dialog.addEventListener('cancel', (e) => { e.preventDefault(); closePits(dialog, slug); });
+    // A click on the dialog box itself (not the panel) is a backdrop click.
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) closePits(dialog, slug); });
+    dialog.querySelector('[data-pits-close]')?.addEventListener('click', () => closePits(dialog, slug));
+    dialog.addEventListener('keydown', (e) => {
+      // Esc is handled here too, so closing never depends on the native 'cancel'.
+      if (e.key === 'Escape') { e.preventDefault(); closePits(dialog, slug); return; }
+      // Keep Tab inside the drawer.
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>('[data-pits-open]').forEach((card) => {
+    card.addEventListener('click', () => openPits(card.dataset.pitsOpen!, card));
+  });
+
+  function openPitsFromHash() {
+    if (!location.hash.startsWith(PITS_HASH)) return;
+    const slug = decodeURIComponent(location.hash.slice(PITS_HASH.length));
+    if (!pitsDialogs.has(slug)) return;
+    pitsCardFor(slug)?.scrollIntoView({ block: 'center' });
+    openPits(slug, null);
+  }
+  window.addEventListener('hashchange', openPitsFromHash);
+  openPitsFromHash();
 </script>
 
 <style>
@@ -399,6 +579,8 @@ const pitsCards = worldLocations.map((loc: any) => ({
   .hero-tagline-bar {
     flex-shrink: 0;
     display: flex;
+    flex-direction: column;
+    gap: 6px;
     align-items: center;
     justify-content: center;
     padding: 14px 24px;
@@ -422,6 +604,16 @@ const pitsCards = worldLocations.map((loc: any) => ({
 
   .hero-tagline-accent {
     color: #99132F;
+  }
+
+  .hero-positioning {
+    margin: 0;
+    max-width: 62ch;
+    font-family: 'Barlow', sans-serif;
+    font-size: clamp(0.85rem, 1.4vw, 0.98rem);
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.82);
+    text-align: center;
   }
 
   .hero-body {
@@ -861,17 +1053,6 @@ const pitsCards = worldLocations.map((loc: any) => ({
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
   }
 
-  .book-cover-img {
-    transform: rotate(-2deg);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-    transition: transform 0.4s ease, box-shadow 0.4s ease;
-  }
-
-  .book-cover-img:hover {
-    transform: rotate(0deg);
-    box-shadow: 0 16px 56px rgba(0, 0, 0, 0.55);
-  }
-
   .genre-tags {
     display: flex;
     flex-wrap: wrap;
@@ -1232,92 +1413,6 @@ const pitsCards = worldLocations.map((loc: any) => ({
     }
   }
 
-  .content-cards-section {
-    background: #99132F;
-    padding: 72px 0;
-    border-bottom: 1px solid rgba(153, 19, 47, 0.2);
-  }
-
-  .content-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-  }
-
-  .content-card {
-    background: #1D3035;
-    border-radius: 4px;
-    padding: 36px 32px 32px;
-    border-top: 3px solid transparent;
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .content-card:hover {
-    border-top-color: #99132F;
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  }
-
-  .card-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.72rem;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    font-variant: small-caps;
-    color: rgba(255, 255, 255, 0.4);
-    display: block;
-    margin-bottom: 12px;
-  }
-
-  .card-heading {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 800;
-    font-size: clamp(1.5rem, 2.2vw, 1.9rem);
-    text-transform: uppercase;
-    color: #fff;
-    letter-spacing: 0.03em;
-    line-height: 1.05;
-    margin-bottom: 14px;
-  }
-
-  .card-body {
-    color: rgba(255, 255, 255, 0.65);
-    font-size: 0.95rem;
-    line-height: 1.68;
-    flex: 1;
-    margin-bottom: 24px;
-  }
-
-  .card-cta {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.88rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #99132F;
-    transition: color 0.2s ease, letter-spacing 0.2s ease;
-    align-self: flex-start;
-  }
-
-  .card-cta:hover {
-    color: #bf1a3d;
-    letter-spacing: 0.16em;
-  }
-
-  @media (max-width: 900px) {
-    .content-cards-grid {
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    .content-cards-section {
-      padding: 56px 0;
-    }
-  }
-
   @media (max-width: 768px) {
     .hero-stats-strip {
       position: relative;
@@ -1342,19 +1437,6 @@ const pitsCards = worldLocations.map((loc: any) => ({
 
     .hero-stat-divider {
       display: none;
-    }
-
-    .content-cards-grid {
-      grid-template-columns: 1fr;
-      gap: 0;
-    }
-
-    .content-card {
-      margin-bottom: 1.5rem;
-    }
-
-    .content-cards-section {
-      padding: 40px 0;
     }
 
     .section-heading {
@@ -1549,6 +1631,361 @@ const pitsCards = worldLocations.map((loc: any) => ({
 
     .series-teaser-section {
       padding: 64px 0;
+    }
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ── Books (from Sanity book docs) ─────────────────────── */
+
+  .books-eyebrow {
+    color: #fff;
+    opacity: 0.75;
+  }
+
+  .book-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .book-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .book-cover-wrap {
+    position: relative;
+  }
+
+  .book-cover {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 3px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  .book-cover--blank {
+    background: #1D3035;
+  }
+
+  .book-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #1D3035;
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+
+  .book-title {
+    margin: 0;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fff;
+    line-height: 1.15;
+  }
+
+  .book-buy {
+    align-self: flex-start;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #fff;
+    border-bottom: 2px solid #263F44;
+    text-decoration: none;
+  }
+
+  .book-buy:hover {
+    border-color: #fff;
+  }
+
+  @media (max-width: 900px) {
+    .book-grid {
+      gap: 14px;
+    }
+  }
+
+  /* ── The Pits: clickable cards + drawer ────────────────── */
+
+  .location-card--button {
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    background-color: #1e3238;
+  }
+
+  .location-card--button .location-card-overlay {
+    display: block;
+  }
+
+  .location-card--button:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+    border-color: #99132F;
+  }
+
+  .location-card--button:focus-visible .location-card-marker {
+    color: #fff;
+  }
+
+  .pits-drawer {
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    /* Right-hand panel on wide screens, full width on phones. */
+    margin: 0 0 0 auto;
+    width: min(480px, 100%);
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .pits-drawer::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .pits-drawer[open] .pits-drawer-panel {
+    animation: pits-drawer-in 0.28s ease-out;
+  }
+
+  .pits-drawer[open]::backdrop {
+    animation: pits-backdrop-in 0.28s ease-out;
+  }
+
+  @keyframes pits-drawer-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes pits-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pits-drawer[open] .pits-drawer-panel,
+    .pits-drawer[open]::backdrop {
+      animation: none;
+    }
+
+    .location-card,
+    .location-card:hover {
+      transition: none;
+      transform: none;
+    }
+  }
+
+  .pits-drawer-panel {
+    position: relative;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #1e3238;
+    border-left: 3px solid #99132F;
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .pits-drawer-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(30, 50, 56, 0.85);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .pits-drawer-close:hover {
+    background: #99132F;
+    border-color: #99132F;
+  }
+
+  .pits-drawer-close:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
+
+  .pits-drawer-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 960 / 544;
+    object-fit: cover;
+  }
+
+  .pits-drawer-body {
+    padding: 24px 28px 40px;
+  }
+
+  .pits-drawer-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: #fff;
+    margin: 0 0 8px;
+  }
+
+  .pits-drawer-tagline {
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 20px;
+  }
+
+  .pits-drawer-desc :global(p) {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 1rem;
+    line-height: 1.7;
+    margin: 0 0 14px;
+  }
+
+  .pits-drawer-group {
+    margin-top: 28px;
+  }
+
+  .pits-drawer-subhead {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0 0 12px;
+  }
+
+  .pits-chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pits-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(153, 19, 47, 0.6);
+    background: rgba(153, 19, 47, 0.15);
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+
+  .pits-chip:hover,
+  .pits-chip:focus-visible {
+    background: #99132F;
+    border-color: #99132F;
+  }
+
+  .pits-products {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .pits-product {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    background: #263F44;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .pits-product img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 2px;
+    background: #fff;
+  }
+
+  .pits-product-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.15;
+  }
+
+  .pits-product:hover,
+  .pits-product:focus-visible {
+    border-color: #99132F;
+  }
+
+  .pits-chip:focus-visible,
+  .pits-product:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 600px) {
+    .pits-drawer-panel {
+      border-left: none;
+    }
+
+    .pits-drawer-body {
+      padding: 20px 18px 32px;
     }
   }
 
