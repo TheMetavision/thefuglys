@@ -185,6 +185,24 @@ After `scripts\set-stripe-test.ps1` has put the TEST values in the preview conte
 3. Check Printful: that order is a **DRAFT** (never confirmed).
 4. Clean up (next section).
 
+### Launch record (19 Oct 2026, Alan's approval; after Cats On Crack)
+
+1. **Merged** PR #2 (`af1bc49`); Netlify production deploy of it ready.
+2. **Studio schema deployed** from a clean worktree of `main` (so the uncommitted local `sanity/schemas/character.js` change was not deployed): `npx sanity schema deploy` and
+   `npx sanity deploy` → https://thefuglys.sanity.studio/. The deployed `order` type has the `other-brand` status and the `test` flag
+   (checked through the Sanity MCP).
+3. **Drafts published** (`publish-drafts.mjs thefuglys`): 42 (36 designs, 6 inactive pin sets), after `verify-drafts.mjs` showed no problems.
+   Published: 36 with the #585 tumbler (£32.95, White) and the mug (£12.95), 0 with a can glass, 0 active pin sets.
+4. **Production rebuilt** (Netlify build of `main`) and checked live, all passing: merch shows Mugs and no Can Glasses or
+   Badges tab; /products/axel-run-fast has £32.95 and £12.95 and no £22.50 or can glass; badge set pages 404, stickers live; size
+   guide shows 8.4″ (21.4 cm) and 3.8″ (9.6 cm); checkout refuses no country (400), an unknown country (400), Brazil (422).
+   No live Stripe Checkout page was opened.
+5. **Old products deleted** (`delete-old-products.mjs thefuglys`, dry run then `--apply`; exact external ids, each checked
+   to be on #909 / #690 / #660; no unfinished Printful orders): 36 #909 tumblers, 36 #690 can glasses, 6 pin sets (437554239, 437554304, 437554400, 437554457, 437554543, 437554627). Store 346 → 268 products. `store-check.mjs`:
+   0 #909 tumblers, 0 can glasses; 36 tumbler585, 36 mug. `check-live-ids.mjs thefuglys`: all 9,916 variant ids on
+   the 44 active products are live.
+6. The `product-badge-set-*` docs stay in Sanity, inactive.
+
 ### After every preview test payment
 
 Test-mode orders reach Printful as **drafts** (never confirmed) and the Sanity log as `test: true`. Delete them after each test:
