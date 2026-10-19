@@ -34,9 +34,30 @@ const { accent = '#ffffff' } = Astro.props as Props;
 
     let zoomed = false;
 
+    // The lightbox opens with the picture on screen, then swaps in the full-resolution one
+    // (fetched only now, so normal page loads are unchanged).
+    function fullSrc(orig: string): string {
+      if (/^https:\/\/cdn\.sanity\.io\/images\//.test(orig)) {
+        const m = orig.match(/-(\d+)x\d+\.\w+(?:\?|$)/);
+        const u = new URL(orig);
+        u.searchParams.set('w', String(Math.min(m ? Number(m[1]) : 2000, 2400)));
+        u.searchParams.set('auto', 'format'); u.searchParams.set('q', '90'); u.searchParams.set('fit', 'max');
+        return u.href;
+      }
+      if (/^https:\/\/files\.cdn\.printful\.com\//.test(orig)) return `/.netlify/images?url=${encodeURIComponent(orig)}&w=800&fm=webp&q=90`;
+      return '';
+    }
+
     function open() {
       if (!img || !hero || !overlay) return;
       img.src = hero.currentSrc || hero.src;   // reflects the selected colour/type
+      const orig = hero.dataset.orig || '';
+      const full = fullSrc(orig);
+      if (full && full !== img.src) {
+        const pre = new Image();
+        pre.onload = () => { if (img && hero && overlay?.classList.contains('open') && (hero.dataset.orig || '') === orig) img.src = full; };
+        pre.src = full;
+      }
       overlay.classList.add('open');
       overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
