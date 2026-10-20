@@ -104,3 +104,39 @@ test('a garment Printful will not ship to any feed country is left out', () => {
   const groups = productGroups(product, site, { blocked: { tshirt: FEED_COUNTRIES } });
   assert.ok(!groups.some((g) => g.type === 'tshirt'));
 });
+
+// Wall art: one item per artwork × format × size, at the checkout's price (artwork-pricing.mjs).
+import { wallArtGroup, wallArtJsonLd, WALL_ART_INFO } from '../src/lib/merchant-feed.mjs';
+import { ARTWORK_FORMATS, ARTWORK_SIZES, artworkPrice } from '../src/lib/artwork-pricing.mjs';
+
+const piece = { slug: 'lab-at-night', title: 'Lab At Night', description: 'Neon & glass.', imageUrl: img('art'),
+  studioMockupUrl: img('studio'), posterMockupUrl: img('poster'), roomMockupUrl: '', mockups: [{ url: img('studio') }, { url: img('extra') }] };
+
+test('wall art: every format × size at the checkout price, linked with the format and size preselected', () => {
+  const g = wallArtGroup(piece, site);
+  assert.equal(g.groupId, 'wallart-lab-at-night');
+  assert.equal(g.info, WALL_ART_INFO);
+  assert.equal(g.items.length, ARTWORK_FORMATS.length * ARTWORK_SIZES.length);
+  for (const f of ARTWORK_FORMATS) for (const s of ARTWORK_SIZES) {
+    const it = g.items.find((x) => x.link === `https://example.test/wall-art/lab-at-night/?format=${f.id}&size=${s.id}`);
+    assert.ok(it, `${f.id}/${s.id}`);
+    assert.equal(it.price, artworkPrice(f.id, s.id) / 100);
+    assert.ok(it.id.length <= 50);
+  }
+  assert.equal(new Set(g.items.map((it) => it.id)).size, g.items.length, 'ids unique');
+  assert.equal(g.items[0].image, img('art'));
+  assert.deepEqual(g.items[0].images, [img('studio'), img('poster'), img('extra')]);
+});
+
+test('wall art is in the feed and its structured data has the same items', () => {
+  const { count, xml } = feedXml([], site, shipTo, () => {}, [piece]);
+  assert.equal(count, ARTWORK_FORMATS.length * ARTWORK_SIZES.length);
+  assert.ok(xml.includes('<g:google_product_category>500044</g:google_product_category>'));
+  assert.ok(xml.includes('<g:material>Canvas, gallery frame</g:material>'));
+  assert.ok(xml.includes('Neon &amp; glass.'));
+  const g = wallArtGroup(piece, site);
+  const ld = wallArtJsonLd(piece, site)[0];
+  assert.deepEqual(ld.hasVariant.map((v) => v.sku), g.items.map((it) => it.id));
+  assert.deepEqual(ld.hasVariant.map((v) => Number(v.offers.price)), g.items.map((it) => it.price));
+  assert.equal(ld.hasVariant[0].offers.hasMerchantReturnPolicy.merchantReturnDays, 14);
+});

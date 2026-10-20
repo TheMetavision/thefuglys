@@ -10,12 +10,18 @@
 // hasVariant Product, linked as /products/<slug>/?type=&colour=&size=, which the page
 // preselects. The page's canonical stays the plain product URL.
 //
-// Delivery comes from shipping-regions.mjs. FEED_COUNTRIES says which countries the
-// feed and the structured data quote; adding one is a one-line change there (items
-// Printful won't ship to it, per src/data/ship-to.json, simply carry no rate for it).
+// Wall art (in-house prints, /wall-art/<slug>/) is one item per artwork × format × size
+// at the checkout's price (artwork-pricing.mjs), linked as ?format=&size=, which the
+// wall-art page preselects; its structured data comes from here too.
+//
+// Delivery comes from shipping-regions.mjs (wall art goes through the same cart-level
+// rates). FEED_COUNTRIES says which countries the feed and the structured data quote;
+// adding one is a one-line change there (items Printful won't ship to it, per
+// src/data/ship-to.json, simply carry no rate for it; wall art ships everywhere we do).
 // The same file is in all four IP-brand sites; keep the copies identical.
 
 import { SHIPPING_REGIONS, FREE_UK_THRESHOLD_PENCE, regionFor } from './shipping-regions.mjs';
+import { ARTWORK_FORMATS, ARTWORK_SIZES, ARTWORK_PRICES } from './artwork-pricing.mjs';
 
 /** Countries the feed quotes delivery for (ISO codes from shipping-regions.mjs). */
 export const FEED_COUNTRIES = ['GB'];
@@ -146,6 +152,64 @@ export function productGroups(product, site, shipTo, log = () => {}) {
   return groups;
 }
 
+/*
+ * Wall art: Google category 500044 (Home & Garden > Decor > Artwork > Posters, Prints &
+ * Visual Artwork) for prints and canvases alike. material tells the three formats apart
+ * (variesBy in the structured data); code keeps item ids short and stable.
+ */
+export const WALL_ART_INFO = { category: 500044, productType: 'Wall Art' };
+export const WALL_ART_FORMAT = {
+  poster: { code: 'p', material: 'Photo paper poster', productType: 'Wall Art > Posters' },
+  'canvas-standard': { code: 'cs', material: 'Canvas, standard frame', productType: 'Wall Art > Canvas Prints' },
+  'canvas-gallery': { code: 'cg', material: 'Canvas, gallery frame', productType: 'Wall Art > Canvas Prints' },
+};
+
+/** Wall-art page link that preselects a format and size. */
+export function wallArtLink(site, slug, format, size) {
+  return `${site.url}/wall-art/${slug}/?${new URLSearchParams({ format, size }).toString()}`;
+}
+
+/**
+ * One artwork's items, as one group: { groupId, type: 'wallart', label, info, items: [...] },
+ * each item also carrying its own title, description, material and product type.
+ */
+export function wallArtGroup(piece, site, log = () => {}) {
+  if (!piece || !piece.slug || !piece.imageUrl) { log(`wall art ${piece && piece.slug}: no picture, left out`); return null; }
+  const countries = FEED_COUNTRIES.filter((c) => deliveryFor(c));
+  const mockups = [piece.studioMockupUrl, piece.posterMockupUrl, piece.roomMockupUrl, ...(piece.mockups || []).map((m) => m && m.url)]
+    .filter(Boolean).filter((u, i, a) => a.indexOf(u) === i && u !== piece.imageUrl).slice(0, 10);
+  const words = norm(piece.description || piece.tagline) || `${piece.title}: ${site.brand} wall art.`;
+  const uk = deliveryFor('GB');
+  const items = [];
+  for (const f of ARTWORK_FORMATS) {
+    const fi = WALL_ART_FORMAT[f.id];
+    if (!fi) { log(`wall art format ${f.id}: unknown, left out`); continue; }
+    for (const s of ARTWORK_SIZES) {
+      const pence = ARTWORK_PRICES[f.id] && ARTWORK_PRICES[f.id][s.id];
+      if (!pence) { log(`wall art ${piece.slug}/${f.id}/${s.id}: no price, left out`); continue; }
+      const sizeText = `${s.label} ${s.inches}`;
+      items.push({
+        id: shortId(`wa-${piece.slug}-${fi.code}-${s.id[0]}`),
+        title: `${piece.title} Wall Art – ${f.label}, ${sizeText}`,
+        description: truncate(`${words} This listing is the ${f.label} in ${sizeText}: ${f.blurb} `
+          + `Printed, framed and dispatched in-house by The Metavision; made to order. `
+          + `UK delivery £${(uk.pence / 100).toFixed(2)}, free when your goods total is £${uk.freeFromPence / 100} or more.`, 4900),
+        feedColour: '',
+        size: sizeText,
+        material: fi.material,
+        productType: fi.productType,
+        price: pence / 100,
+        link: wallArtLink(site, piece.slug, f.id, s.id),
+        image: piece.imageUrl,
+        images: mockups,
+        ageGroup: '',
+        countries,
+      });
+    }
+  }
+  return items.length ? { groupId: shortId(`wallart-${piece.slug}`), type: 'wallart', label: 'Wall Art', info: WALL_ART_INFO, items } : null;
+}
+
 const money = (n) => `${Number(n).toFixed(2)} GBP`;
 const truncate = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 export const xmlEscape = (s) => String(s == null ? '' : s)
@@ -168,52 +232,60 @@ function itemDescription(product, site, g, it) {
     + `UK delivery £${(uk.pence / 100).toFixed(2)}, free when your goods total is £${uk.freeFromPence / 100} or more.`, 4900);
 }
 
-/** One <item> per purchasable variant of every product. */
-export function feedItemsXml(products, site, shipTo, log) {
+/** One feed <item> (title and description already worked out). */
+function itemXml(site, g, it, title, description) {
+  const lines = [
+    ['g:id', it.id],
+    ['g:item_group_id', g.groupId],
+    ['g:title', truncate(title, 150)],
+    ['g:description', description],
+    ['g:link', it.link],
+    ['g:image_link', it.image],
+    ...it.images.map((u) => ['g:additional_image_link', u]),
+    ['g:availability', 'in_stock'],
+    ['g:price', money(it.price)],
+    ['g:brand', site.brand],
+    ['g:condition', 'new'],
+    ['g:identifier_exists', 'no'],
+    ['g:google_product_category', g.info.category],
+    ['g:product_type', `${site.brand} > ${it.productType || g.info.productType}`],
+    ...(it.feedColour ? [['g:color', it.feedColour]] : []),
+    ...(it.size ? [['g:size', it.size]] : []),
+    ...(it.material ? [['g:material', it.material]] : []),
+    ...(it.ageGroup ? [['g:age_group', it.ageGroup], ['g:gender', 'unisex'], ['g:size_system', 'UK'], ['g:size_type', 'regular']] : []),
+    ['g:custom_label_0', g.type],
+  ];
+  let xml = `\n    <item>\n${lines.map(([k, v]) => `      <${k}>${xmlEscape(v)}</${k}>`).join('\n')}`;
+  for (const c of it.countries) {
+    const d = deliveryFor(c);
+    xml += `\n      <g:shipping>\n        <g:country>${c}</g:country>\n        <g:service>${xmlEscape(d.service)}</g:service>\n        <g:price>${money(d.pence / 100)}</g:price>`
+      + `\n        <g:min_handling_time>${MAKE_DAYS[0]}</g:min_handling_time>\n        <g:max_handling_time>${MAKE_DAYS[1]}</g:max_handling_time>`
+      + `\n        <g:min_transit_time>${d.transit[0]}</g:min_transit_time>\n        <g:max_transit_time>${d.transit[1]}</g:max_transit_time>\n      </g:shipping>`;
+    if (d.freeFromPence != null) {
+      xml += `\n      <g:free_shipping_threshold>\n        <g:country>${c}</g:country>\n        <g:price_threshold>${money(d.freeFromPence / 100)}</g:price_threshold>\n      </g:free_shipping_threshold>`;
+    }
+  }
+  return `${xml}\n    </item>`;
+}
+
+/** One <item> per purchasable variant of every product, then per wall-art format × size. */
+export function feedItemsXml(products, site, shipTo, log, wallArt = []) {
   const out = [];
   for (const product of products) {
     for (const g of productGroups(product, site, shipTo, log)) {
-      for (const it of g.items) {
-        const lines = [
-          ['g:id', it.id],
-          ['g:item_group_id', g.groupId],
-          ['g:title', truncate(variantName(product, g, it), 150)],
-          ['g:description', itemDescription(product, site, g, it)],
-          ['g:link', it.link],
-          ['g:image_link', it.image],
-          ...it.images.map((u) => ['g:additional_image_link', u]),
-          ['g:availability', 'in_stock'],
-          ['g:price', money(it.price)],
-          ['g:brand', site.brand],
-          ['g:condition', 'new'],
-          ['g:identifier_exists', 'no'],
-          ['g:google_product_category', g.info.category],
-          ['g:product_type', `${site.brand} > ${g.info.productType}`],
-          ...(it.feedColour ? [['g:color', it.feedColour]] : []),
-          ...(it.size ? [['g:size', it.size]] : []),
-          ...(it.ageGroup ? [['g:age_group', it.ageGroup], ['g:gender', 'unisex'], ['g:size_system', 'UK'], ['g:size_type', 'regular']] : []),
-          ['g:custom_label_0', g.type],
-        ];
-        let xml = `\n    <item>\n${lines.map(([k, v]) => `      <${k}>${xmlEscape(v)}</${k}>`).join('\n')}`;
-        for (const c of it.countries) {
-          const d = deliveryFor(c);
-          xml += `\n      <g:shipping>\n        <g:country>${c}</g:country>\n        <g:service>${xmlEscape(d.service)}</g:service>\n        <g:price>${money(d.pence / 100)}</g:price>`
-            + `\n        <g:min_handling_time>${MAKE_DAYS[0]}</g:min_handling_time>\n        <g:max_handling_time>${MAKE_DAYS[1]}</g:max_handling_time>`
-            + `\n        <g:min_transit_time>${d.transit[0]}</g:min_transit_time>\n        <g:max_transit_time>${d.transit[1]}</g:max_transit_time>\n      </g:shipping>`;
-          if (d.freeFromPence != null) {
-            xml += `\n      <g:free_shipping_threshold>\n        <g:country>${c}</g:country>\n        <g:price_threshold>${money(d.freeFromPence / 100)}</g:price_threshold>\n      </g:free_shipping_threshold>`;
-          }
-        }
-        out.push(`${xml}\n    </item>`);
-      }
+      for (const it of g.items) out.push(itemXml(site, g, it, variantName(product, g, it), itemDescription(product, site, g, it)));
     }
+  }
+  for (const piece of wallArt) {
+    const g = wallArtGroup(piece, site, log);
+    if (g) for (const it of g.items) out.push(itemXml(site, g, it, it.title, it.description));
   }
   return out;
 }
 
 /** The whole RSS 2.0 feed. */
-export function feedXml(products, site, shipTo, log) {
-  const items = feedItemsXml(products, site, shipTo, log);
+export function feedXml(products, site, shipTo, log, wallArt = []) {
+  const items = feedItemsXml(products, site, shipTo, log, wallArt);
   return { count: items.length, xml: `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
@@ -250,6 +322,21 @@ function returnPolicy(site, countries) {
   };
 }
 
+/** The schema.org Offer for one feed item. */
+function offerLd(site, it) {
+  return {
+    '@type': 'Offer',
+    url: it.link,
+    price: it.price.toFixed(2),
+    priceCurrency: 'GBP',
+    availability: 'https://schema.org/InStock',
+    itemCondition: 'https://schema.org/NewCondition',
+    shippingDetails: it.countries.map(shippingDetails),
+    hasMerchantReturnPolicy: returnPolicy(site, it.countries),
+    seller: { '@id': `${site.url}/#organization` },
+  };
+}
+
 /**
  * The product page's structured data: one ProductGroup per garment, each variant a
  * Product whose sku, price, availability, link, delivery and returns are the feed item's.
@@ -275,17 +362,37 @@ export function productGroupsJsonLd(product, site, shipTo) {
       ...(it.feedColour ? { color: it.feedColour } : {}),
       ...(it.size ? { size: it.size } : {}),
       ...(it.ageGroup ? { audience: { '@type': 'PeopleAudience', suggestedGender: 'unisex', suggestedAge: { '@type': 'QuantitativeValue', name: it.ageGroup } } } : {}),
-      offers: {
-        '@type': 'Offer',
-        url: it.link,
-        price: it.price.toFixed(2),
-        priceCurrency: 'GBP',
-        availability: 'https://schema.org/InStock',
-        itemCondition: 'https://schema.org/NewCondition',
-        shippingDetails: it.countries.map(shippingDetails),
-        hasMerchantReturnPolicy: returnPolicy(site, it.countries),
-        seller: { '@id': `${site.url}/#organization` },
-      },
+      offers: offerLd(site, it),
     })),
   }));
+}
+
+/**
+ * A wall-art page's structured data: one ProductGroup for the artwork, one Product per
+ * format × size with the feed item's sku, price, availability, link, delivery and returns.
+ */
+export function wallArtJsonLd(piece, site) {
+  const g = wallArtGroup(piece, site);
+  if (!g) return [];
+  const pageUrl = `${site.url}/wall-art/${piece.slug}/`;
+  return [{
+    '@context': 'https://schema.org',
+    '@type': 'ProductGroup',
+    '@id': `${pageUrl}#wallart`,
+    name: `${piece.title} — Wall Art`,
+    description: norm(piece.description || piece.tagline) || `${piece.title}: ${site.brand} wall art.`,
+    url: pageUrl,
+    brand: { '@type': 'Brand', name: site.brand },
+    productGroupID: g.groupId,
+    variesBy: ['https://schema.org/material', 'https://schema.org/size'],
+    hasVariant: g.items.map((it) => ({
+      '@type': 'Product',
+      sku: it.id,
+      name: it.title,
+      image: [it.image, ...it.images],
+      material: it.material,
+      size: it.size,
+      offers: offerLd(site, it),
+    })),
+  }];
 }

@@ -1,6 +1,7 @@
 ---
 import { sanityImg, sanityDims, sanityFull, socialImg } from '../../lib/sanityImage';
-import { canonicalUrl } from '../../lib/url';
+import { wallArtJsonLd as buildWallArtJsonLd } from '../../lib/merchant-feed.mjs';
+import { MERCHANT_SITE } from '../../lib/merchant-site';
 import QuantitySelector from '../../components/QuantitySelector.astro';
 // src/pages/wall-art/[slug].astro  (The Fuglys)
 import Layout from '../../layouts/Layout.astro';
@@ -25,27 +26,10 @@ const defFormat = formats[0].id;
 const defSize = (sizes[1] || sizes[0]).id;
 const defPence = ARTWORK_PRICES[defFormat][defSize];
 
-/* Product JSON-LD: one Offer per format x size from the same price matrix the
-   page and checkout use. */
-const pageUrl = canonicalUrl(`/wall-art/${piece.slug}/`);
+/* Structured data: one ProductGroup for the artwork, one Product per format × size with the
+   feed item's sku, price, availability, link, delivery and returns (src/lib/merchant-feed.mjs). */
 const artDescription = piece.tagline || piece.description || `${piece.title} wall art — poster and canvas prints.`;
-const wallArtJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  name: `${piece.title} — Wall Art`,
-  description: artDescription,
-  image: socialImg(piece.imageUrl),
-  url: pageUrl,
-  brand: { '@type': 'Brand', name: 'The Fuglys' },
-  offers: formats.flatMap((f) => sizes.map((s) => ({
-    '@type': 'Offer',
-    name: `${f.label} — ${s.label} (${s.inches})`,
-    price: (ARTWORK_PRICES[f.id][s.id] / 100).toFixed(2),
-    priceCurrency: 'GBP',
-    availability: 'https://schema.org/InStock',
-    url: pageUrl,
-  }))),
-};
+const wallArtJsonLd = buildWallArtJsonLd(piece, MERCHANT_SITE);
 const fmtGBP = (p) => `£${(p / 100).toFixed(2)}`;
 
 const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, piece.roomMockupUrl].filter(Boolean);
@@ -271,5 +255,9 @@ const gallery = [piece.imageUrl, piece.studioMockupUrl, piece.posterMockupUrl, p
         setTimeout(() => { addBtn.textContent = 'Add to Cart'; addBtn.classList.remove('added'); }, 1400);
       });
     }
+    /* A feed link (?format=&size=, src/lib/merchant-feed.mjs) preselects its format and size. */
+    const preselect = new URLSearchParams(window.location.search);
+    sizeWrap?.querySelector(`[data-size="${CSS.escape(preselect.get('size') || '')}"]`)?.click();
+    formatWrap?.querySelector(`[data-format="${CSS.escape(preselect.get('format') || '')}"]`)?.click();
   })();
 </script>
