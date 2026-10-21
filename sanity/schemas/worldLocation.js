@@ -1,4 +1,4 @@
-import {defineField, defineType} from 'sanity'
+import {defineArrayMember, defineField, defineType} from 'sanity'
 import {PinIcon} from '@sanity/icons'
 
 /**
@@ -18,6 +18,10 @@ import {PinIcon} from '@sanity/icons'
  * v3 (2026-10-19): residents and featuredProducts for The Pits drawer on the
  * homepage. `description` keeps its Portable Text type (existing lore lives in
  * it); a location becomes clickable on the homepage once it has one.
+ *
+ * v4 (2026-10-21): referenceGallery — canon environment renders tagged by
+ * view and time of day, for books, animation and games. Not rendered by the
+ * site; `image` stays the homepage hero.
  * ------------------------------------------------------------------
  */
 export default defineType({
@@ -68,6 +72,45 @@ export default defineType({
         }),
       ],
       validation: (rule) => rule.required(),
+    }),
+    defineField({
+      name: 'referenceGallery',
+      title: 'Reference gallery (canon renders)',
+      description: 'Approved environment renders: the official look of this location for books, animation and games. Not shown on the site.',
+      type: 'array',
+      options: {layout: 'grid'},
+      of: [
+        defineArrayMember({
+          type: 'image',
+          options: {hotspot: true},
+          fields: [
+            defineField({
+              name: 'view',
+              title: 'View',
+              type: 'string',
+              validation: (rule) => rule.required(),
+              options: {
+                list: ['master', 'reverse', 'ground-level', 'close-up', 'elevated', 'aerial', 'interior', 'detail', 'other'],
+              },
+            }),
+            defineField({
+              name: 'timeOfDay',
+              title: 'Time of day',
+              type: 'string',
+              validation: (rule) => rule.required(),
+              options: {
+                list: ['dawn', 'midday', 'golden-hour', 'sunset', 'night', 'storm'],
+              },
+            }),
+            defineField({name: 'isMaster', title: 'Master plate', type: 'boolean', initialValue: false}),
+            defineField({name: 'label', title: 'Label', type: 'string'}),
+            defineField({name: 'higgsfieldJobId', title: 'Higgsfield job ID', type: 'string', readOnly: true}),
+          ],
+          preview: {
+            select: {title: 'label', subtitle: 'timeOfDay', media: 'asset'},
+          },
+        }),
+      ],
     }),
     defineField({
       name: 'order',
