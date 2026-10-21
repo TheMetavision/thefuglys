@@ -1,6 +1,8 @@
 ---
 import { productImg, productSrcset, productDims, sanityFull, socialImg } from '../../lib/sanityImage';
-import { canonicalUrl } from '../../lib/url';
+import { productGroupsJsonLd } from '../../lib/merchant-feed.mjs';
+import { MERCHANT_SITE } from '../../lib/merchant-site';
+import shipTo from '../../data/ship-to.json';
 import QuantitySelector from '../../components/QuantitySelector.astro';
 const HERO_SIZES = '(max-width: 900px) 100vw, 600px';
 /**
@@ -46,29 +48,11 @@ const variantsJson = JSON.stringify(
   }))
 );
 
-/* Product JSON-LD: one Offer per garment type, at the price the page shows
-   first for it (basePrice - the same field the visible price and checkout use). */
-const productUrl = canonicalUrl(`/products/${design.slug}/`);
+/* Structured data: one ProductGroup per garment, one Product per colour × size, with the
+   feed's sku, price, availability, link, delivery and returns (src/lib/merchant-feed.mjs). */
 const productImage = socialImg(variantImg(defaultVariant));
 const productDescription = design.seoDescription || design.description || design.backstory || design.tagline;
-const productJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  name: design.name,
-  description: productDescription,
-  image: productImage,
-  url: productUrl,
-  brand: { '@type': 'Brand', name: 'The Fuglys' },
-  offers: (design.variants || []).filter((v) => typeof v.basePrice === 'number').map((v) => ({
-    '@type': 'Offer',
-    name: `${design.name} ${v.label}`,
-    price: v.basePrice.toFixed(2),
-    priceCurrency: 'GBP',
-    availability: 'https://schema.org/InStock',
-    url: productUrl,
-    seller: { '@id': canonicalUrl('/') + '#organization' },
-  })),
-};
+const productJsonLd = productGroupsJsonLd(design, MERCHANT_SITE, shipTo);
 ---
 
 <Layout title={design.seoTitle || design.name} description={productDescription} ogImage={productImage} jsonLd={productJsonLd}>
@@ -328,6 +312,11 @@ const productJsonLd = {
     });
 
     /* init */
+    /* A feed link (?type=&colour=&size=, src/lib/merchant-feed.mjs) preselects its variant:
+       renderColours/renderSizes keep these when the garment offers them. */
+    const preselect = new URLSearchParams(window.location.search);
+    selectedColour = preselect.get('colour') || '';
+    selectedSize = preselect.get('size') || '';
     selectType(currentType);
   </script>
 
