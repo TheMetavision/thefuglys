@@ -125,6 +125,7 @@ export default function CartDrawer() {
 
   const accent = '#b3162e';      // bright brand red — legible on dark teal
   const accentDim = '#99132f';   // primary red — hover-down
+  const accentLight = '#ff8597'; // brand red tint — small text on the teal surface
   const bg = '#1e3238';          // drawer surface (--color-surface)
   const bgLight = '#223b42';     // --color-bg-card-hover
   const text = '#FFFFFF';
@@ -384,6 +385,15 @@ export default function CartDrawer() {
           <div style={styles.footer}>
             <div style={styles.countryRow}>
               <label style={styles.countryLabel} htmlFor="fuglys-delivery-country">Delivering to</label>
+              {/* The open list is drawn natively (white on Chrome/Edge for Windows) and the
+                  options inherit the white text, so colour them explicitly. Group labels use
+                  a light tint of the brand red: the red itself is too dark on the teal. */}
+              <style>{`
+                #fuglys-delivery-country { color-scheme: dark; }
+                #fuglys-delivery-country optgroup { background: ${bg}; color: ${accentLight}; font-weight: 700; font-style: normal; }
+                #fuglys-delivery-country option { background: ${bg}; color: ${text}; font-weight: 400; }
+                #fuglys-delivery-country option:checked { background: ${accent}; color: ${text}; font-weight: 700; }
+              `}</style>
               <select
                 id="fuglys-delivery-country"
                 style={styles.countrySelect}
