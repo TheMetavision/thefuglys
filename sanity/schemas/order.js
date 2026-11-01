@@ -1,4 +1,5 @@
 import {defineType, defineField, defineArrayMember} from 'sanity';
+import {shippingFields, wallArtDispatchFields} from './shippingFields';
 
 // Ported from Cats On Crack live schema (project 8ksun996), extended for The Fuglys
 // with a `shipped` status + tracking / failure fields written by the printful-webhook,
@@ -6,12 +7,22 @@ import {defineType, defineField, defineArrayMember} from 'sanity';
 // `fulfilment` per line, `hasInhouse`, `inhouseStatus`).
 // readOnly: orders are written only by the webhooks via SANITY_TOKEN.
 
+/* Wall-art shipping (feat/sendcloud-dispatch). The whole document used to be
+   readOnly, which also locked In-house Status, so wall art could not be marked
+   Dispatched in the Studio. Now every field written by the webhooks stays
+   read-only (lockWebhookFields), and only Alan's fields are editable: In-house
+   Status, the wall-art carrier / tracking number (wallArtDispatchFields) and
+   the Sendcloud shipment switch and parcel plan (shippingFields). The Printful
+   fields stay Printful's. */
+const EDITABLE = new Set(['inhouseStatus']);
+const lockWebhookFields = (fields) =>
+  fields.map((f) => (EDITABLE.has(f.name) || f.readOnly !== undefined ? f : { ...f, readOnly: true }));
+
 export default defineType({
   name: 'order',
   title: 'Order',
   type: 'document',
-  readOnly: true,
-  fields: [
+  fields: lockWebhookFields([
     defineField({name: 'orderRef', title: 'Order Ref', type: 'string'}),
     defineField({name: 'placedAt', title: 'Placed At', type: 'datetime'}),
     defineField({
@@ -75,6 +86,8 @@ export default defineType({
         ],
       },
     }),
+    ...wallArtDispatchFields(),
+    ...shippingFields(),
     defineField({
       name: 'crossBrandCode', title: '⚠ Other brand’s code', type: 'text', rows: 3, readOnly: true,
       description: 'A promotion code that belongs to another IP brand (shared Stripe account). The order stands; decide whether to follow up.',
@@ -117,7 +130,7 @@ export default defineType({
     defineField({name: 'shippedAt', title: 'Shipped At', type: 'datetime', readOnly: true}),
     defineField({name: 'failureReason', title: 'Printful Failure Reason', type: 'string', readOnly: true,
       description: 'Why Printful didn’t take or make the order: Printful’s reason, a variant that isn’t in this store, or a note on a record that isn’t this brand’s.'}),
-  ],
+  ]),
   orderings: [
     {
       title: 'Placed (newest first)',

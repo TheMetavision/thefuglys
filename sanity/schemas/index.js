@@ -18,6 +18,7 @@ import character from './character';
 import product from './product';
 import printfulVariant from './printfulVariant';
 import order from './order';
+import returnRequest from './returnRequest';
 import wallArt from './wallArt';
 import blogPost from './blogPost';
 import episode from './episode';
@@ -37,6 +38,7 @@ export const schemaTypes = [
   product,
   printfulVariant,
   order,
+  returnRequest,
   wallArt,
   // Content types (cont.)
   blogPost,

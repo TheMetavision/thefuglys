@@ -1,0 +1,229 @@
+---
+// ReturnsForm — the online returns flow for in-house wall art (merchandise
+// too once RETURNS_CLOTHING is on in netlify/functions/_shared/site-config.mjs).
+//
+// Three calls to /api/returns (netlify/functions/_shared/returns-api.mjs):
+// look the order up (Turnstile), quote the return postage for what is ticked
+// (shown BEFORE submitting), then submit the request for us to approve.
+//
+// Shared: the same file in The Fuglys, Labrats, Cats On Crack and The Biker
+// Babies. Each site's src/pages/returns.astro wraps it in its own layout and
+// passes its colours; that page also decides whether it is shown at all.
+interface Props {
+  accent: string;          // buttons, focus, highlights
+  accentText?: string;     // text on an accent button
+  field?: string;          // input background
+  border?: string;
+  muted?: string;
+  policyPath: string;      // the Returns & Refunds page
+  contact: string;         // the email address in the policy
+  turnstileSiteKey: string;
+}
+const { accent, accentText = '#0a0a0a', field = 'rgba(0,0,0,0.35)', border = 'rgba(255,255,255,0.2)', muted = 'rgba(255,255,255,0.7)', policyPath, contact, turnstileSiteKey } = Astro.props;
+const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field:${field};--ret-border:${border};--ret-muted:${muted};`;
+---
+<div class="ret" style={vars} data-contact={contact}>
+  <p class="ret-lead">Not feeling your print? Wall art can come back within <strong>14 days of delivery</strong>, unused and in its original tube or box. Look up your order, tick what's coming back, and you'll see the return postage before you send the request. Once we've checked it, we email you a prepaid label; the postage is taken off your refund.</p>
+  <p class="ret-lead">Clothing and other merchandise, or an address outside the UK? Email <a href={`mailto:${contact}`}>{contact}</a> with your order reference. Faulty, damaged or wrong? Email us with a photo instead: we'll put it right and cover the return. Full details: <a href={policyPath}>Returns &amp; Refunds</a>.</p>
+
+  <form id="ret-lookup" class="ret-form" novalidate>
+    <div class="ret-grid">
+      <label>Order reference
+        <input id="ret-ref" name="orderRef" required placeholder="#AB12CD34" autocomplete="off" />
+        <small>The # code in your order confirmation email.</small>
+      </label>
+      <label>Email used to order
+        <input id="ret-email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+      </label>
+    </div>
+    <div class="ret-extra" aria-hidden="true">
+      <label for="mv_ret_extra">Extra</label>
+      <input id="mv_ret_extra" name="mv_ret_extra" tabindex="-1" autocomplete="off" />
+    </div>
+    <div class="cf-turnstile ret-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark" data-action="returns" data-response-field-name="cf-turnstile-response"></div>
+    <button id="ret-lookup-btn" type="submit" class="ret-btn" disabled>Find my order</button>
+  </form>
+
+  <form id="ret-pick" class="ret-form" hidden novalidate>
+    <h2 class="ret-h2">Order <span id="ret-order"></span></h2>
+    <p id="ret-window" class="ret-muted"></p>
+    <div id="ret-lines"></div>
+    <label>Reason
+      <select id="ret-reason"></select>
+    </label>
+    <label>Anything else? (optional)
+      <textarea id="ret-notes" rows="3" maxlength="1000"></textarea>
+    </label>
+    <div id="ret-postage" class="ret-postage" aria-live="polite">Choose the item(s) you'd like to return.</div>
+    <button id="ret-submit" type="submit" class="ret-btn" disabled>Request return</button>
+  </form>
+
+  <div id="ret-message" class="ret-message" role="status" hidden></div>
+</div>
+
+<script is:inline async defer src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+
+<script>
+  const $ = (id: string) => document.getElementById(id) as any;
+  const root = document.querySelector('.ret') as HTMLElement;
+  const contact = root?.dataset.contact || '';
+  const lookupForm = $('ret-lookup') as HTMLFormElement;
+  const pickForm = $('ret-pick') as HTMLFormElement;
+  const msg = $('ret-message') as HTMLDivElement;
+  const postageBox = $('ret-postage') as HTMLDivElement;
+  const submitBtn = $('ret-submit') as HTMLButtonElement;
+  const loadedAt = Date.now();
+  let session = '';
+  let shownPostage: number | null = null;
+  let quoteSeq = 0;
+
+  const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  function show(text: string, ok = false) {
+    msg.textContent = text;
+    msg.className = `ret-message ${ok ? 'ok' : 'bad'}`;
+    msg.hidden = false;
+  }
+  const hideMsg = () => { msg.hidden = true; };
+  const token = () => (lookupForm.querySelector('input[name="cf-turnstile-response"]') as HTMLInputElement | null)?.value?.trim() || '';
+  const resetTurnstile = () => { try { (window as any).turnstile?.reset(lookupForm.querySelector('.cf-turnstile')); } catch { /* not loaded */ } };
+  const failed = `Something went wrong. Please try again, or email ${contact}.`;
+
+  async function call(body: object) {
+    const res = await fetch('/api/returns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  }
+
+  function picked() {
+    return [...pickForm.querySelectorAll<HTMLInputElement>('input[data-line]')]
+      .map((i) => ({ lineKey: i.dataset.line as string, quantity: Number(i.value) || 0 }))
+      .filter((l) => l.quantity > 0);
+  }
+
+  // The postage, from the shipping service's live quote, before submitting.
+  async function refreshQuote() {
+    const lines = picked();
+    submitBtn.disabled = lines.length === 0;
+    shownPostage = null;
+    if (!lines.length) { postageBox.textContent = "Choose the item(s) you'd like to return."; return; }
+    const seq = ++quoteSeq;
+    postageBox.textContent = 'Working out the return postage…';
+    const { data } = await call({ action: 'quote', session, lines });
+    if (seq !== quoteSeq) return;
+    if (typeof data.postage === 'number') {
+      shownPostage = data.postage;
+      postageBox.innerHTML = `We'll email you a prepaid return label. <strong>£${data.postage.toFixed(2)}</strong> return postage will be deducted from your refund.`;
+    } else {
+      postageBox.textContent = "We'll email you a prepaid return label. Its cost will be deducted from your refund; we'll confirm the exact amount in that email.";
+    }
+  }
+
+  lookupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMsg();
+    const fd = new FormData(lookupForm);
+    const body = {
+      action: 'lookup',
+      orderRef: String(fd.get('orderRef') || '').trim(),
+      email: String(fd.get('email') || '').trim(),
+      mv_ret_extra: String(fd.get('mv_ret_extra') || ''),
+      mv_ret_ts_load: loadedAt,
+      mv_ret_ts_submit: Date.now(),
+      turnstile: token(),
+    };
+    if (!body.orderRef || !body.email) { show('Please enter your order reference and email.'); return; }
+    if (!body.turnstile) { show('Please wait for the anti-spam check to finish, then try again.'); return; }
+    const btn = $('ret-lookup-btn') as HTMLButtonElement;
+    btn.disabled = true;
+    try {
+      const { ok, data } = await call(body);
+      if (!ok) { show(data.error || failed); return; }
+      if (!data.eligible) { show(data.reason || 'Nothing on this order can be returned online.'); return; }
+      session = data.session;
+      $('ret-order').textContent = data.orderNumber || '';
+      $('ret-window').textContent = data.windowEndsOn
+        ? `You can request a return until ${data.windowEndsOn}.`
+        : 'Choose what you would like to send back.';
+      $('ret-lines').innerHTML = data.lines.map((l: any) => `
+        <div class="ret-line">
+          <div>
+            <p class="ret-line-title">${esc(l.title)}</p>
+            ${l.returnable ? '' : `<p class="ret-line-why">${esc(l.why || '')}</p>`}
+          </div>
+          ${l.returnable ? `<label class="ret-qty">Return
+            <input data-line="${esc(l.lineKey)}" type="number" min="0" max="${l.returnable}" value="0" /></label>` : ''}
+        </div>`).join('');
+      $('ret-reason').innerHTML = Object.entries(data.reasons || {}).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+      pickForm.querySelectorAll('input[data-line]').forEach((i) => i.addEventListener('change', refreshQuote));
+      lookupForm.hidden = true;
+      pickForm.hidden = false;
+    } catch {
+      show(failed);
+    } finally {
+      btn.disabled = false;
+      resetTurnstile();
+    }
+  });
+
+  pickForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMsg();
+    const lines = picked();
+    if (!lines.length) { show('Choose at least one item to return.'); return; }
+    submitBtn.disabled = true;
+    try {
+      const { ok, data } = await call({
+        action: 'submit', session, lines,
+        reason: ($('ret-reason') as HTMLSelectElement).value,
+        notes: ($('ret-notes') as HTMLTextAreaElement).value,
+        shownPostage,
+        mv_ret_extra: '', mv_ret_ts_load: loadedAt, mv_ret_ts_submit: Date.now(),
+      });
+      if (!ok) { show(data.error || failed); submitBtn.disabled = false; return; }
+      pickForm.hidden = true;
+      show(`Sorted — your return request${data.returnNumber ? ` ${data.returnNumber}` : ''} is in. We'll check it and email your return label, usually within 2 working days.`, true);
+    } catch {
+      show(failed);
+      submitBtn.disabled = false;
+    }
+  });
+
+  ($('ret-lookup-btn') as HTMLButtonElement).disabled = false;
+</script>
+
+<style>
+  .ret { max-width: 760px; margin: 0 auto; }
+  .ret-lead { font-size: 1.05rem; line-height: 1.7; color: var(--ret-muted); margin: 0 0 1rem; }
+  .ret-lead a { color: var(--ret-accent); text-decoration: underline; }
+  .ret-h2 { font-size: 1.5rem; margin: 0 0 0.5rem; color: var(--ret-accent); }
+  .ret-muted { color: var(--ret-muted); margin: 0; }
+  .ret-form { display: grid; gap: 1.25rem; margin-top: 2rem; }
+  .ret-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  .ret-form label { display: grid; gap: 0.4rem; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ret-form small { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ret-muted); }
+  .ret-form input, .ret-form select, .ret-form textarea {
+    width: 100%; box-sizing: border-box; background: var(--ret-field); border: 1px solid var(--ret-border); color: inherit;
+    padding: 0.75rem 0.9rem; font: inherit; font-size: 1rem; text-transform: none; letter-spacing: 0; border-radius: 4px;
+  }
+  .ret-form input:focus, .ret-form select:focus, .ret-form textarea:focus { outline: none; border-color: var(--ret-accent); }
+  .ret-extra { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .ret-turnstile { min-height: 65px; }
+  .ret-btn {
+    justify-self: start; background: var(--ret-accent); color: var(--ret-accent-text); border: 0; padding: 0.9rem 1.6rem;
+    font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border-radius: 4px; font-size: 1rem;
+  }
+  .ret-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ret-line { display: flex; justify-content: space-between; align-items: center; gap: 1rem; background: var(--ret-field); border: 1px solid var(--ret-border); padding: 1rem; margin-bottom: 0.75rem; border-radius: 6px; }
+  .ret-line-title { font-weight: 700; margin: 0; }
+  .ret-line-why { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--ret-muted); }
+  .ret-qty { display: flex !important; align-items: center; gap: 0.5rem; white-space: nowrap; }
+  .ret-qty input { width: 4.5rem; }
+  .ret-postage { border: 1px solid var(--ret-accent); padding: 1rem; border-radius: 6px; line-height: 1.6; }
+  .ret-message { margin-top: 2rem; padding: 1rem; border-radius: 6px; line-height: 1.6; border: 1px solid var(--ret-border); }
+  .ret-message.ok { border-color: var(--ret-accent); }
+  .ret-message.bad { border-color: #ff5a6e; color: #ffb3bd; }
+  @media (max-width: 768px) {
+    .ret-grid { grid-template-columns: 1fr; }
+    .ret-line { flex-direction: column; align-items: flex-start; }
+  }
+</style>

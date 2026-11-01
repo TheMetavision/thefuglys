@@ -17,12 +17,27 @@ import Layout from '../layouts/Layout.astro';
       try { localStorage.removeItem('fuglys-cart-v1'); } catch (e) {}
     }
   </script>
+  {/* The order reference: "#" + the last 8 characters of the session id,
+      upper-cased, as in the confirmation email and the Sanity order. It is
+      what /returns asks for. Shown once the page has loaded. */}
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', function () {
+      var id = new URLSearchParams(window.location.search).get('session_id') || '';
+      var box = document.getElementById('order-ref');
+      var code = document.getElementById('order-ref-code');
+      if (box && code && /^cs_[A-Za-z0-9_]{8,}$/.test(id)) {
+        code.textContent = '#' + id.slice(-8).toUpperCase();
+        box.hidden = false;
+      }
+    });
+  </script>
 
   <section class="oc-section">
     <div class="oc-inner">
       <div class="oc-check">&#10003;</div>
       <h1 class="oc-title">Order Locked In</h1>
       <div class="heading-rule oc-rule"></div>
+      <p class="oc-ref" id="order-ref" hidden>Order ref <strong id="order-ref-code"></strong></p>
       <p class="oc-body">
         Thanks for the haul. A confirmation email is on its way, and we'll send
         tracking the moment your gear ships out of the wasteland.
@@ -57,6 +72,8 @@ import Layout from '../layouts/Layout.astro';
     margin-bottom: 16px;
   }
   .oc-rule { margin: 0 auto 24px; }
+  .oc-ref { margin: 0 0 16px; color: var(--color-text-muted); font-size: 0.95rem; }
+  .oc-ref strong { color: var(--color-text); letter-spacing: 1px; font-size: 1.1rem; }
   .oc-body {
     font-size: 1.05rem;
     line-height: 1.7;

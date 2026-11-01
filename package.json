@@ -20,6 +20,7 @@
     "@netlify/blobs": "^10.7.4",
     "@sanity/client": "^7.1.0",
     "@sanity/image-url": "^2.1.1",
+    "@sanity/webhook": "^4.0.4",
     "astro": "^5.7.0",
     "astro-portabletext": "^0.13.0",
     "howler": "^2.2.4",

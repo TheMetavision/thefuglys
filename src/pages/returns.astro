@@ -1,0 +1,39 @@
+---
+// /returns — online returns for in-house wall art (src/components/ReturnsForm.astro;
+// the API is netlify/functions/returns.mts).
+//
+// Built as the real page only when SHIPPING_ENABLED is "true" at build time
+// (so it must be set in the Builds scope too) AND TURNSTILE_SITE_KEY is set
+// (the lookup is protected by Cloudflare Turnstile). Otherwise this URL
+// redirects to the Returns & Refunds policy, exactly as before shipping.
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import ReturnsForm from '../components/ReturnsForm.astro';
+import { setting } from '../../netlify/functions/_shared/site-config.mjs';
+import { CONTACT } from '../../netlify/functions/_shared/returns-eligibility.mjs';
+
+const truthy = (v: unknown) => ['true', '1', 'yes'].includes(String(v ?? '').trim().toLowerCase());
+const TURNSTILE_SITE_KEY = import.meta.env.TURNSTILE_SITE_KEY || process.env.TURNSTILE_SITE_KEY || '';
+const enabled = truthy(process.env.SHIPPING_ENABLED || import.meta.env.SHIPPING_ENABLED) && Boolean(TURNSTILE_SITE_KEY);
+const policyPath = setting('RETURNS_POLICY_PATH');
+if (!enabled) return Astro.redirect(policyPath);
+---
+<Layout title="Return wall art · The Fuglys" description="Return The Fuglys wall art within 14 days of delivery: look up your order, see the return postage, and request a prepaid return label." noIndex={true}>
+  <Nav />
+  <main class="returns-page">
+    <section class="returns">
+      <p class="returns__eyebrow">Returns</p>
+      <h1 class="returns__title">Return wall art</h1>
+      <ReturnsForm accent="#FF2E45" accentText="#ffffff" policyPath={policyPath} contact={CONTACT} turnstileSiteKey={TURNSTILE_SITE_KEY} />
+    </section>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .returns-page {  min-height: 60vh; }
+  .returns { max-width: 760px; margin: 0 auto; padding: 8rem 1.25rem 6rem; color: #f5f5f5; }
+  .returns__eyebrow { text-transform: uppercase; letter-spacing: 4px; font-size: 0.82rem; color: #FF2E45; margin: 0 0 0.75rem; }
+  .returns__title { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; margin: 0 0 1.5rem; }
+</style>

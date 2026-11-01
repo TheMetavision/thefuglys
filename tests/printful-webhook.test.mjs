@@ -149,6 +149,15 @@ test('shipped email: sent once, branded, with carrier, tracking number and link'
   assert.ok(mutateAt >= 0 && emailAt > mutateAt);
 });
 
+test('shipped email on a mixed order says the wall art ships separately; not on a merchandise-only order', async () => {
+  await handler(req(shipped()));
+  assert.doesNotMatch(emails()[0].html, /wall art/i);
+  orders[`order.${SESSION_KEY}`].hasInhouse = true;
+  await handler(req(shipped({ tracking_number: 'RM999' })));
+  assert.equal(emails().length, 2);
+  assert.match(emails()[1].html, /Your wall art is made by us and ships separately, with its own tracking email\./);
+});
+
 test('repeated package_shipped does not resend the email', async () => {
   await handler(req(shipped()));
   await handler(req(shipped()));

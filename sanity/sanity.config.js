@@ -1,6 +1,7 @@
 import { defineConfig } from 'sanity';
 import { structureTool } from 'sanity/structure';
 import { schemaTypes } from './schemas';
+import { shippingDeskItems, shippingTemplates, shippingActions } from './lib/shipping-desk';
 export default defineConfig({
   name: 'thefuglys',
   title: 'The Fuglys CMS',
@@ -32,6 +33,8 @@ export default defineConfig({
             S.documentTypeListItem('category').title('Categories'),
             S.documentTypeListItem('merchCategory').title('Merch Categories (legacy)'),
             S.documentTypeListItem('order').title('Orders'),
+            // Sendcloud wall art: only with SANITY_STUDIO_SHIPPING_ENABLED=true (lib/shipping-desk.js).
+            ...shippingDeskItems(S),
             S.divider(),
             S.documentTypeListItem('faq').title('FAQs'),
             S.documentTypeListItem('page').title('Pages'),
@@ -42,5 +45,6 @@ export default defineConfig({
           ]),
     }),
   ],
-  schema: { types: schemaTypes },
+  schema: { types: schemaTypes, templates: shippingTemplates },
+  document: { actions: shippingActions },
 });
