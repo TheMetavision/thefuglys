@@ -14,6 +14,7 @@ export interface CartItem {
   size: string;
   colour?: string;
   format?: string;   // wall art only: format id (poster | canvas-standard | canvas-gallery)
+  orientation?: string; // wall art only: landscape | portrait, for the size label (older saved carts lack it = landscape)
   image: string;
   productType?: string;
   quantity: number;

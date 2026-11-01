@@ -21,7 +21,7 @@
 // The same file is in all four IP-brand sites; keep the copies identical.
 
 import { SHIPPING_REGIONS, FREE_UK_THRESHOLD_PENCE, regionFor } from './shipping-regions.mjs';
-import { ARTWORK_FORMATS, ARTWORK_SIZES, ARTWORK_PRICES } from './artwork-pricing.mjs';
+import { ARTWORK_FORMATS, ARTWORK_SIZES, ARTWORK_PRICES, artworkSizeInches, orientationFromDimensions } from './artwork-pricing.mjs';
 
 /** Countries the feed quotes delivery for (ISO codes from shipping-regions.mjs). */
 export const FEED_COUNTRIES = ['GB'];
@@ -180,6 +180,10 @@ export function wallArtGroup(piece, site, log = () => {}) {
     .filter(Boolean).filter((u, i, a) => a.indexOf(u) === i && u !== piece.imageUrl).slice(0, 10);
   const words = norm(piece.description || piece.tagline) || `${piece.title}: ${site.brand} wall art.`;
   const uk = deliveryFor('GB');
+  // A portrait piece is sold as 8x12 / 12x18 / 16x24 (src/lib/wallart.ts sets this from the master
+  // image's Sanity dimensions; a piece without them is labelled landscape, and logged).
+  const orientation = piece.orientation
+    || orientationFromDimensions(piece.imageWidth, piece.imageHeight, () => log(`wall art ${piece.slug}: no image dimensions, labelled landscape`));
   const items = [];
   for (const f of ARTWORK_FORMATS) {
     const fi = WALL_ART_FORMAT[f.id];
@@ -187,7 +191,7 @@ export function wallArtGroup(piece, site, log = () => {}) {
     for (const s of ARTWORK_SIZES) {
       const pence = ARTWORK_PRICES[f.id] && ARTWORK_PRICES[f.id][s.id];
       if (!pence) { log(`wall art ${piece.slug}/${f.id}/${s.id}: no price, left out`); continue; }
-      const sizeText = `${s.label} ${s.inches}`;
+      const sizeText = `${s.label} ${artworkSizeInches(s.id, orientation)}`;
       items.push({
         id: shortId(`wa-${piece.slug}-${fi.code}-${s.id[0]}`),
         title: `${piece.title} Wall Art – ${f.label}, ${sizeText}`,

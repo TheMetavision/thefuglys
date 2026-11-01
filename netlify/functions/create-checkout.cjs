@@ -21,7 +21,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Shared wall-art pricing (single source of truth, also imported by Astro).
 // Path assumes netlify/functions/ -> src/lib/. Adjust if your lib lives elsewhere.
-const { artworkPrice, artworkVariantLabel, isWallArt } = require('../../src/lib/artwork-pricing.mjs');
+const {
+  artworkPrice, artworkVariantLabel, artworkDimensions, isWallArt, orientationFromDimensions, slugFromLineId,
+} = require('../../src/lib/artwork-pricing.mjs');
 
 /* ── CONFIG (The Fuglys) ─────────────────────────────────────────────── */
 /* Brand key stamped on every Checkout Session. The stripe-webhook's BRAND
@@ -53,6 +55,45 @@ const SHIP_TO = require('../../src/data/ship-to.json');
 const READ_DRAFTS = process.env.SANITY_PERSPECTIVE === 'previewDrafts' && !!(process.env.SANITY_API_TOKEN || process.env.SANITY_TOKEN);
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
+
+/* Wall-art orientation (landscape | portrait) per slug, read from each piece's
+   master image dimensions in Sanity, never from the browser. It only turns the
+   size label round (12 x 18" vs 18 x 12"); prices do not depend on it. A failed
+   lookup, or an image without dimensions, falls back to landscape and is
+   logged rather than blocking the sale. */
+function wallArtOrientations(rows, slugs, warn = console.warn) {
+  const bySlug = new Map((rows || []).filter((r) => r && r.slug).map((r) => [r.slug, r]));
+  const out = {};
+  for (const slug of slugs) {
+    const r = bySlug.get(slug) || {};
+    out[slug] = orientationFromDimensions(r.w, r.h, () =>
+      warn(`[wallart] ${slug}: no image dimensions in Sanity; labelling it landscape`));
+  }
+  return out;
+}
+
+async function fetchWallArtOrientations(slugs) {
+  const wanted = [...new Set(slugs.filter(Boolean))];
+  if (wanted.length === 0) return {};
+  const groq = `*[_type == "wallArt" && slug.current in $slugs]{
+    "slug": slug.current,
+    "w": image.asset->metadata.dimensions.width,
+    "h": image.asset->metadata.dimensions.height
+  }`;
+  const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${encodeURIComponent(groq)}`
+    + `&${encodeURIComponent('$slugs')}=${encodeURIComponent(JSON.stringify(wanted))}`
+    + (READ_DRAFTS ? '&perspective=previewDrafts' : '');
+  try {
+    const res = await fetch(url, READ_DRAFTS
+      ? { headers: { Authorization: 'Bearer ' + (process.env.SANITY_API_TOKEN || process.env.SANITY_TOKEN) } }
+      : undefined);
+    if (!res.ok) throw new Error(`Sanity query failed (${res.status})`);
+    return wallArtOrientations((await res.json()).result || [], wanted);
+  } catch (err) {
+    console.warn('[wallart] orientation lookup failed; labelling these pieces landscape:', wanted.join(', '), err.message || err);
+    return wallArtOrientations([], wanted, () => {});
+  }
+}
 
 async function fetchSanityVariantData() {
   const groq = `*[_type == "product"]{
@@ -272,21 +313,23 @@ exports.handler = async (event) => {
       }) };
     }
 
+    // Orientation (from Sanity) only turns the size label round; it never changes the price.
+    const artOrientation = artItems.length > 0
+      ? await fetchWallArtOrientations(artItems.map((item) => slugFromLineId(item.id, item.format, item.size)))
+      : {};
+
     const badArt = [];
     const resolvedArt = artItems.map((item) => {
       try {
         const pricePence = artworkPrice(item.format, item.size); // throws on a bad combo
-        const label = artworkVariantLabel(item.format, item.size);
         // slug is deterministic: id === `wallart-${slug}-${format}-${size}`
-        const suffix = `-${item.format}-${item.size}`;
-        const rawId = String(item.id || '');
-        const slug = rawId.startsWith('wallart-') && rawId.endsWith(suffix)
-          ? rawId.slice('wallart-'.length, rawId.length - suffix.length)
-          : '';
-        return { item, pricePence, label, slug };
+        const slug = slugFromLineId(item.id, item.format, item.size);
+        const orientation = artOrientation[slug] || 'landscape';
+        const label = artworkVariantLabel(item.format, item.size, orientation);
+        return { item, pricePence, label, slug, orientation };
       } catch (e) {
         badArt.push(`${item.title || item.id || 'wall art'} — ${item.format || '?'} / ${item.size || '?'}`);
-        return { item, pricePence: 0, label: '', slug: '' };
+        return { item, pricePence: 0, label: '', slug: '', orientation: 'landscape' };
       }
     });
 
@@ -299,7 +342,7 @@ exports.handler = async (event) => {
     }
 
     // ── Build Stripe line items ──────────────────────────────────────────────
-    const artLineItems = resolvedArt.map(({ item, pricePence, label, slug }) => ({
+    const artLineItems = resolvedArt.map(({ item, pricePence, label, slug, orientation }) => ({
       price_data: {
         currency: 'gbp',
         unit_amount: pricePence, // SERVER price, in pence
@@ -310,6 +353,9 @@ exports.handler = async (event) => {
             wallart_slug: slug,
             wallart_format: String(item.format || ''),
             wallart_size: String(item.size || ''),
+            // The size as sold, e.g. 12x18 for a portrait Medium (wallart_size stays the id).
+            wallart_orientation: orientation,
+            wallart_dims: artworkDimensions(item.size, orientation),
             // GA4 purchase (stripe-webhook): item_id, item_name, item_category, item_variant
             item_slug: slug,
             item_name: String(item.title || ''),
@@ -357,3 +403,4 @@ exports.handler = async (event) => {
 // For tests: the pure resolver/pricer.
 exports.buildPodLineItems = buildPodLineItems;
 exports.ALLOWED_COUNTRIES = ALLOWED_COUNTRIES;
+exports.wallArtOrientations = wallArtOrientations;

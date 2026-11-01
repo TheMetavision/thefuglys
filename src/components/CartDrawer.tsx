@@ -341,7 +341,7 @@ export default function CartDrawer() {
                   <p style={styles.itemName}>{item.title}</p>
                   <p style={styles.itemVariant}>
                     {isWallArt(item)
-                      ? artworkVariantLabel(item.format || '', item.size)
+                      ? artworkVariantLabel(item.format || '', item.size, item.orientation)
                       : `${item.colour ? `${item.colour} · ` : ''}Size: ${item.size}`}
                   </p>
                   <p style={styles.itemPrice}>&pound;{(item.price * item.quantity).toFixed(2)}</p>

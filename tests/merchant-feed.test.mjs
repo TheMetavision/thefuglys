@@ -140,3 +140,27 @@ test('wall art is in the feed and its structured data has the same items', () =>
   assert.deepEqual(ld.hasVariant.map((v) => Number(v.offers.price)), g.items.map((it) => it.price));
   assert.equal(ld.hasVariant[0].offers.hasMerchantReturnPolicy.merchantReturnDays, 14);
 });
+
+// Medium is 18x12 (was 16x12), turned round for a portrait piece.
+test('wall art sizes follow the artwork: 18 x 12 landscape, 12 x 18 portrait, never 16 x 12', () => {
+  const sizesOf = (p) => wallArtGroup(p, site).items.filter((it) => it.link.endsWith('&size=medium')).map((it) => it.size);
+  assert.deepEqual([...new Set(sizesOf({ ...piece, orientation: 'landscape' }))], ['Medium 18 x 12"']);
+  assert.deepEqual([...new Set(sizesOf({ ...piece, orientation: 'portrait' }))], ['Medium 12 x 18"']);
+  // Straight from the image dimensions when the piece has no orientation yet.
+  assert.deepEqual([...new Set(sizesOf({ ...piece, imageWidth: 1024, imageHeight: 1536 }))], ['Medium 12 x 18"']);
+  const portrait = wallArtGroup({ ...piece, orientation: 'portrait' }, site).items;
+  assert.deepEqual([...new Set(portrait.map((it) => it.size))], ['Small 8 x 12"', 'Medium 12 x 18"', 'Large 16 x 24"']);
+  assert.ok(portrait.every((it) => it.title.endsWith(it.size) && it.description.includes(it.size)));
+  const { xml } = feedXml([], site, shipTo, () => {}, [{ ...piece, orientation: 'portrait' }]);
+  assert.ok(xml.includes('<g:size>Medium 12 x 18&quot;</g:size>'));
+  assert.doesNotMatch(xml, /16 x 12|12 x 16/);
+  const ld = wallArtJsonLd({ ...piece, orientation: 'landscape' }, site)[0];
+  assert.ok(ld.hasVariant.some((v) => v.size === 'Medium 18 x 12"'));
+});
+
+test('wall art without image dimensions is labelled landscape, and that is logged', () => {
+  const log = [];
+  const g = wallArtGroup(piece, site, (s) => log.push(s));
+  assert.ok(g.items.some((it) => it.size === 'Medium 18 x 12"'));
+  assert.deepEqual(log, ['wall art lab-at-night: no image dimensions, labelled landscape']);
+});

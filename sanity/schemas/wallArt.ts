@@ -8,9 +8,12 @@ import { defineType, defineField } from 'sanity';
  * matrix here and NO prices on the document: every piece shares the global
  * format × size matrix (see src/lib/artwork-pricing.mjs — mirrored from CSC):
  *
- *   Poster Print            12x8 £9.99   16x12 £12.99  24x16 £16.99
- *   Canvas Standard Frame   12x8 £26.99  16x12 £31.99  24x16 £44.99
- *   Canvas Gallery Frame    12x8 £28.99  16x12 £33.99  24x16 £46.99
+ *   Poster Print            12x8 £9.99   18x12 £12.99  24x16 £16.99
+ *   Canvas Standard Frame   12x8 £26.99  18x12 £31.99  24x16 £44.99
+ *   Canvas Gallery Frame    12x8 £28.99  18x12 £33.99  24x16 £46.99
+ *
+ *   Sizes are landscape; a portrait piece is 8x12 / 12x18 / 16x24. Orientation
+ *   comes from the Artwork Image's pixel size, so there is no field for it.
  *
  * A piece holds: the display artwork, a mockups[] gallery, an optional character
  * link (group images for now; individual character pieces later), and editorial
