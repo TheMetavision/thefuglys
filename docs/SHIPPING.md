@@ -52,7 +52,7 @@ Fix a bug in one repo, then copy the file to the other three.
 | canvas-standard | CS1 | CS3 | CS4 |
 | canvas-gallery | CG1 | CG3 | CG4 |
 
-- **Posters:** every poster on the order goes in **one tube**, at the band of the largest poster. Each poster after the first adds `POSTER_EXTRA_WEIGHT_G` (70 g, ⚠ confirm against a weighed tube), sent to the service as `extraWeightG`. The service adds it to the declared weight.
+- **Posters:** every poster on the order goes in **one tube**, at the band of the largest poster. Each poster after the first adds `POSTER_EXTRA_WEIGHT_G` (0 g: measured as negligible; the setting stays in case that changes), sent to the service as `extraWeightG`. The service adds it to the declared weight.
 - **A lone 12x8** goes flat at P1. Several 12x8s alone are flagged for a decision.
 - **Each canvas** is its own parcel.
 - **Any other format or size is flagged**, never guessed (`planProblem`). "Medium" was 16x12 before 1 Nov 2026; it gets the same band.
@@ -247,7 +247,7 @@ Prerequisites: steps 1–4 done (and 3b), with `SHIPPING_TEST_MODE=true` and `FU
    ```
    In-house Status becomes Dispatched with the wall-art tracking number, the customer email arrives once, and running the command again sends nothing.
 7. **Delivered.** Run `--status=delivered`. Check that `shipmentResult.deliveredAt` is set and the order is in Shipping → Delivered.
-8. **Multi-poster tube.** Order a 12x8 + a 24x16 poster. The plan is one parcel at **P4, +70 g**. Ready to ship buys one label, and the service's `declaredWeightG` includes the 70 g.
+8. **Multi-poster tube.** Order a 12x8 + a 24x16 poster. The plan is one parcel at **P4** (extra weight 0 g while `POSTER_EXTRA_WEIGHT_G` is 0). Ready to ship buys one label.
 9. **Exception and retry.** Use `--status=exception` on a parcel. You get a team alert and nothing goes to the customer. Then set On hold → Ready to ship on an order whose label failed: one retry, not a loop.
 10. **Overseas.** A wall-art order to a non-UK address (poster or canvas) lands in Shipping → "Outside the UK — dispatch by hand". Ready to ship gives an exception that says so. A hand dispatch emails the customer.
 11. **Return.** At `/returns`, enter the reference from step 2 (try it without the `#`) and your email. Tick the poster: the postage figure shows before Submit. Submit, then check the team email and Returns → Requested. Approve and publish: you get a label email with "£X.XX will be deducted". Then:

@@ -75,8 +75,8 @@ export const SITE_CONFIG = Object.freeze({
   // Several posters travel rolled in one tube. The service declares the
   // band's weight (the largest poster's band), so each poster beyond the
   // first adds this many grams, sent to create-parcel as extraWeightG.
-  // ⚠ Alan to confirm against a weighed tube.
-  POSTER_EXTRA_WEIGHT_G: '70',
+  // Measured as negligible, so 0 (the setting stays in case that changes).
+  POSTER_EXTRA_WEIGHT_G: '0',
 
   // /returns covers wall art. Merchandise (Printful) returns are built but off
   // until the X1 (mailer) and X2 (bulky box) bands are measured on the

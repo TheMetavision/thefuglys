@@ -64,7 +64,7 @@ const assertPrintfulUntouched = (doc) => {
 test('site-config: committed values, env override, numbers and flags', () => {
   assert.ok(['FUGLYS', 'LABRATS', 'COC', 'BIKERBABIES'].includes(setting('SHIPPING_BRAND', {})));
   assert.equal(setting('SHIPPING_BRAND', { SHIPPING_BRAND: 'X' }), 'X');
-  assert.equal(intSetting('POSTER_EXTRA_WEIGHT_G', 0, {}), 70);
+  assert.equal(intSetting('POSTER_EXTRA_WEIGHT_G', 0, {}), 0);
   assert.equal(flag('RETURNS_CLOTHING', {}), false, 'merchandise returns ship switched off');
   assert.equal(flag('RETURNS_CLOTHING', { RETURNS_CLOTHING: 'true' }), true);
   assert.equal(sanityWriteToken({ SANITY_TOKEN: 'b' }), 'b');
@@ -396,7 +396,7 @@ test('dispatch: one label per planned parcel, bare ref + extraWeightG to the ser
   const sanity = fakeSanity({ [doc._id]: doc });
   const resend = fakeResend();
   const ship = fakeShipping();
-  const r = await dispatchShipment(doc._id, { sanity, shipping: ship.fn, getResend: () => resend, env: ENV, now: () => NOW, log: quiet });
+  const r = await dispatchShipment(doc._id, { sanity, shipping: ship.fn, getResend: () => resend, env: { ...ENV, POSTER_EXTRA_WEIGHT_G: '70' }, now: () => NOW, log: quiet });
   assert.equal(r.outcome, 'label_created');
   assert.deepEqual(ship.calls.map((c) => [c.body.parcelRef, c.body.band, c.body.extraWeightG]), [['1', 'P4', 70], ['2', 'CS3', undefined]]);
   assert.equal(ship.calls[0].body.orderRef, 'ZQ9XK2BT');
@@ -449,7 +449,7 @@ test('dispatch: all labelled + links expired -> new links, no new labels', async
 
 test('proposePlanPatch: writes the plan once, with problems and the international flag', () => {
   const p = proposePlanPatch(order({ items: [poster('a', 'small', 2)], shippingAddress: { country: 'US' } }), { env: {} });
-  assert.equal(p.set.parcelPlan[0].extraWeightG, 70);
+  assert.equal(p.set.parcelPlan[0].extraWeightG, 0); // committed setting is 0
   assert.equal(p.set['shipmentResult.international'], true);
   assert.match(p.set['shipmentResult.planProblem'], /UK-only/);
   assert.equal(proposePlanPatch(order({ parcelPlan: [{}] })), null);
