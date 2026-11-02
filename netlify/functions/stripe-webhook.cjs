@@ -29,7 +29,8 @@
  *   PRINTFUL_AUTO_CONFIRM — 'true' (production context only) confirms live orders;
  *                           anything else, and every test-mode payment, makes a draft
  *   RESEND_API_KEY       — Resend key (FROM domain must be verified in it)
- *   ORDER_EMAIL_FROM      — optional; default "The Fuglys <orders@thefuglys.com>"
+ *   (the customer's sender and reply-to are EMAIL_FROM / EMAIL_REPLY_TO in
+ *   _shared/site-config.mjs; ORDER_EMAIL_FROM is no longer read)
  *   LOGO_URL, EMAIL_HEADER_BG — optional branding for the email header
  *   BRAND_ACCENT          — optional accent colour (EMAIL_ACCENT is the fallback name;
  *                           default #99132F, the site's --color-accent);
@@ -64,13 +65,14 @@ const lineSubtotal = (li) => (li.amount_subtotal != null ? li.amount_subtotal : 
 const PRINTFUL_ORDERS_URL = 'https://api.printful.com/orders';
 const PRINTFUL_STORE_VARIANTS_URL = 'https://api.printful.com/store/variants';
 const RESEND_URL = 'https://api.resend.com/emails';
-const FROM = process.env.ORDER_EMAIL_FROM || 'The Fuglys <orders@thefuglys.com>';
+// The customer's sender and reply-to: the brand's own address (site-config).
+const { setting } = require('./_shared/site-config.mjs');
 const LOGO_URL = process.env.LOGO_URL || '';
 const HEADER_BG = process.env.EMAIL_HEADER_BG || '#263F44';
 // Same source as the shipped email in printful-webhook.mjs.
 const ACCENT = process.env.BRAND_ACCENT || process.env.EMAIL_ACCENT || '#99132F';
 const MERCHANT_TO = process.env.ORDER_NOTIFICATION_TO || process.env.NOTIFICATION_TO || '';
-const MERCHANT_FROM = process.env.NOTIFICATION_FROM || 'The Fuglys <orders@thefuglys.com>';
+const MERCHANT_FROM = process.env.NOTIFICATION_FROM || setting('TEAM_EMAIL_FROM');
 const SANITY_PROJECT_ID = process.env.SANITY_PROJECT_ID || 'ngx60q2x';
 const SANITY_DATASET = process.env.SANITY_DATASET || 'production';
 const SANITY_API_VER = '2024-01-01';
@@ -241,7 +243,8 @@ async function sendCustomerEmail(session, lineItems, promo) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.RESEND_API_KEY },
       body: JSON.stringify({
-        from: FROM,
+        from: setting('EMAIL_FROM'),
+        reply_to: setting('EMAIL_REPLY_TO'),
         to,
         subject: 'Your Fuglys order is locked in',
         html: buildOrderEmailHtml(session, lineItems, promo),

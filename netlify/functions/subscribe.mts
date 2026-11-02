@@ -43,7 +43,8 @@
 // cannot be used to find out who is on the list.
 //
 // Env vars (Netlify): MAILERLITE_API_KEY, MAILERLITE_GROUP_ID, TURNSTILE_SECRET_KEY,
-// RESEND_API_KEY, NEWSLETTER_CONFIRM_SECRET, NOTIFICATION_FROM (the sender),
+// RESEND_API_KEY, NEWSLETTER_CONFIRM_SECRET (the sender and reply-to are
+// EMAIL_FROM / EMAIL_REPLY_TO in _shared/site-config.mjs),
 // and the contact emails' branding: BRAND_NAME, LOGO_URL, EMAIL_HEADER_BG,
 // BRAND_ACCENT, SITE_URL. TURNSTILE_SITE_KEY is read at build time by
 // src/components/Newsletter.astro. MAILERLITE_GROUP_ID has no default here.
@@ -54,6 +55,7 @@ import { hashKey, takeSlot, releaseSlot } from "./_shared/rate-limit.mjs";
 import { LIMITS_MS, fetchWithTimeout, stopwatch } from "./_shared/timing.mjs";
 import { checkEmailDomain } from "./_shared/email-domain.mjs";
 import { makeToken } from "./_shared/newsletter-token.mjs";
+import { setting } from "./_shared/site-config.mjs";
 import { brandFromEnv, confirmationEmail } from "./_shared/newsletter-email.mjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -181,13 +183,13 @@ export default async (req: Request, context: Context) => {
   const groupId = process.env.MAILERLITE_GROUP_ID;
   const resendKey = process.env.RESEND_API_KEY;
   const confirmSecret = process.env.NEWSLETTER_CONFIRM_SECRET;
-  const from = process.env.NOTIFICATION_FROM;
+  const from = setting("EMAIL_FROM");
   const site = (process.env.SITE_URL || process.env.URL || new URL(req.url).origin).replace(/\/$/, "");
   if (!key || !groupId || !resendKey || !confirmSecret || !from) {
     console.error(
       "[subscribe] not configured, missing:",
       [!key && "MAILERLITE_API_KEY", !groupId && "MAILERLITE_GROUP_ID", !resendKey && "RESEND_API_KEY", !confirmSecret && "NEWSLETTER_CONFIRM_SECRET",
-        !from && "NOTIFICATION_FROM"].filter(Boolean).join(", "),
+        !from && "EMAIL_FROM"].filter(Boolean).join(", "),
     );
     return json(503, { error: UNAVAILABLE });
   }
@@ -246,7 +248,7 @@ export default async (req: Request, context: Context) => {
   // try again rather than wait out the day.
   const send = (async () => {
     const t0 = Date.now();
-    const sent = await sendConfirmation(resendKey!, { from, to: [email], subject: mail.subject, html: mail.html, text: mail.text });
+    const sent = await sendConfirmation(resendKey!, { from, reply_to: setting("EMAIL_REPLY_TO"), to: [email], subject: mail.subject, html: mail.html, text: mail.text });
     if (!sent) await releaseSlot(RATE_STORE, addrKey, addrSlot);
     console.info(`[subscribe] confirmation email ${sent ? "sent" : "NOT sent"} in ${Date.now() - t0}ms`);
     return sent;

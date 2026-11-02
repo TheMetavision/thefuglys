@@ -6,7 +6,9 @@
  * The customer's "on its way" email is NOT here -- it is dispatch-email.mjs,
  * sent once whichever path ships.
  *
- * Team emails go to TEAM_EMAIL (site-config). The point a return is collected
+ * Team emails go to TEAM_EMAIL and come from TEAM_EMAIL_FROM. Customer emails
+ * come from, and take replies at, the brand's own address (EMAIL_FROM,
+ * EMAIL_REPLY_TO). All four are site-config. The point a return is collected
  * from is only ever named to the team. "Print label" links are the signed,
  * expiring links stored on the order (shipmentResult.parcels[].labelUrl).
  * Customer emails use the brand's card (dispatch-email.mjs brandCard), the
@@ -21,12 +23,17 @@ export { esc };
 
 export const studioLink = (id, type) => `${setting('STUDIO_URL')}/intent/edit/id=${encodeURIComponent(id)};type=${type}`;
 export const teamAddress = () => setting('TEAM_EMAIL');
+/** A team email's recipient and sender: the team keeps its own sender, so only customer emails use EMAIL_FROM. */
+export const toTeam = () => ({ to: [teamAddress()], from: setting('TEAM_EMAIL_FROM'), reply_to: setting('TEAM_EMAIL_REPLY_TO') });
 const money = (n) => `£${(Number(n) || 0).toFixed(2)}`;
 const testTag = () => (['true', '1', 'yes'].includes(String(process.env.SHIPPING_TEST_MODE || '').toLowerCase()) ? '[TEST] ' : '');
 const brand = () => setting('BRAND_SHORT');
 const dateOnly = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' }) : '');
 
-/** Resend reports a refusal by returning an error, so both shapes become { ok, error }. */
+/**
+ * Resend reports a refusal by returning an error, so both shapes become { ok, error }.
+ * The brand's sender unless the message names its own (team emails, toTeam).
+ */
 export async function sendEmail(resend, message) {
   if (!resend) return { ok: false, error: 'RESEND_API_KEY is not set' };
   try {
@@ -58,7 +65,7 @@ export function labelReadyEmail(who, parcels, { renewed = false, expiresAt } = {
       <td>${p.labelUrl ? `<a href="${esc(p.labelUrl)}"><strong>Print label</strong></a>` : '<span style="color:#c00">no link (SHIPPING_SECRET unset?)</span>'}</td></tr>`).join('');
   const n = parcels.length;
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}🏷️ ${brand()} ${renewed ? 'new label links' : 'label ready'} — ${who.ref} (${n} parcel${n === 1 ? '' : 's'})`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">${renewed ? 'New print links for' : `Wall-art label${n === 1 ? '' : 's'} ready for`} ${esc(brand())} order ${esc(who.ref)}</h2>
@@ -72,7 +79,7 @@ export function labelReadyEmail(who, parcels, { renewed = false, expiresAt } = {
 
 export function shipmentProblemEmail(who, reason) {
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}⚠ ${brand()} shipping problem — ${who.ref}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">No label for ${esc(brand())} order ${esc(who.ref)}</h2>
@@ -88,7 +95,7 @@ export function shipmentProblemEmail(who, reason) {
 export function parcelAlertEmail(who, parcel, event, kind) {
   const what = kind === 'returned_to_sender' ? 'is being returned to sender' : 'has a delivery problem';
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}⚠ ${brand()} ${who.ref}: wall-art parcel ${parcel?.parcelRef || ''} ${what}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">${esc(who.ref)}: parcel ${esc(parcel?.parcelRef || '?')} ${what}</h2>
@@ -116,7 +123,7 @@ export function newReturnEmail(ret) {
     ret.underwear ? '<p style="background:#fff8e1;border-left:4px solid #f0a500;padding:10px 12px"><strong>Underwear.</strong> Check hygiene before accepting it back.</p>' : '',
   ].join('');
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}↩️ ${brand()} return request ${ret.returnNumber} — ${ret.customerName || ''}${ret.deliveryDateUnknown ? ' — ⚠ delivery date unknown' : ''}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">${esc(brand())} return request ${esc(ret.returnNumber)}</h2>
@@ -135,7 +142,7 @@ export function newReturnEmail(ret) {
 
 export function returnProblemEmail(ret, reason) {
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}⚠ ${brand()} return ${ret.returnNumber || ret._id}: no label sent`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">No return label for ${esc(ret.returnNumber || ret._id)}</h2>
@@ -148,7 +155,7 @@ export function returnProblemEmail(ret, reason) {
 export function returnAlertEmail(ret, event, kind) {
   const what = kind === 'returned_to_sender' ? 'is going back to the customer' : 'has a carrier problem';
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}⚠ ${brand()} return ${ret.returnNumber || ret._id} ${what}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">Return ${esc(ret.returnNumber || ret._id)} ${what}</h2>
@@ -173,7 +180,7 @@ export function collectionPoint(carrier) {
 
 export function returnReadyEmail(ret, event) {
   return {
-    to: [teamAddress()],
+    ...toTeam(),
     subject: `${testTag()}📬 ${brand()} return ${ret.returnNumber} is ready to collect — ${carrierName(ret.carrier)}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">Return ${esc(ret.returnNumber)} is waiting to be collected</h2>

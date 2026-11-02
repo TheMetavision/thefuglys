@@ -22,7 +22,8 @@
  *
  * Env vars (Netlify):
  *   SANITY_PROJECT_ID, SANITY_DATASET, SANITY_API_TOKEN
- *   RESEND_API_KEY, NOTIFICATION_FROM, NOTIFICATION_TO
+ *   RESEND_API_KEY, NOTIFICATION_FROM, NOTIFICATION_TO (the team notification;
+ *   the customer's acknowledgement uses EMAIL_FROM / EMAIL_REPLY_TO, site-config)
  *   BRAND_NAME, SITE_URL
  *   LOGO_URL          absolute https URL of the logo for the email header
  *   EMAIL_HEADER_BG   header background (default #0e0e14; use #000000 for a
@@ -33,6 +34,7 @@
 import { createClient } from '@sanity/client';
 import { Resend } from 'resend';
 import crypto from 'node:crypto';
+import { setting } from './_shared/site-config.mjs';
 
 // ── CORS — restrict to the live origin + localhost for dev ───────────────
 const ALLOWED_ORIGINS = [
@@ -334,9 +336,9 @@ export const handler = async (event) => {
   // ── Customer acknowledgement (best-effort — submission already saved) ──
   try {
     await resend.emails.send({
-      from: fromAddress,
+      from: setting('EMAIL_FROM'),
       to: email,
-      replyTo: NOTIFICATION_TO,
+      replyTo: setting('EMAIL_REPLY_TO'),
       subject: `We\u2019ve received your message \u2014 ${BRAND_NAME} (${refCode})`,
       html: buildAckHtml(brand, { firstName, refCode, subject, message }),
       text:

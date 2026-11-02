@@ -137,7 +137,8 @@ test('shipped email: sent once, branded, with carrier, tracking number and link'
   assert.equal(res.status, 200);
   assert.equal(emails().length, 1);
   const [mail] = emails();
-  assert.equal(mail.from, 'The Fuglys <shop@thefuglys.com>');
+  assert.equal(mail.from, "The Fuglys <chaos@thefuglys.com>");
+  assert.equal(mail.reply_to, "chaos@thefuglys.com");
   assert.equal(mail.to, 'gus@example.com');
   assert.equal(mail.subject, 'Your Fuglys order #M3N4O5P6 has shipped');
   assert.match(mail.html, /It's shipped/);
@@ -313,12 +314,6 @@ test('accent: BRAND_ACCENT, then EMAIL_ACCENT, then the default (same as the ord
   assert.match(emails()[1].html, /#99132F/);
 });
 
-test('sender: ORDER_EMAIL_FROM, then the order confirmation default; never NOTIFICATION_FROM', async () => {
-  delete process.env.ORDER_EMAIL_FROM;
-  await handler(req(shipped()));
-  assert.equal(emails()[0].from, 'The Fuglys <orders@thefuglys.com>');
-});
-
 test('without LOGO_URL the header is a text wordmark; non-http tracking links are dropped', async () => {
   delete process.env.LOGO_URL;
   await handler(req(shipped({ tracking_url: 'javascript:alert(1)' })));
@@ -411,4 +406,17 @@ test('other events, bad method and bad JSON', async () => {
   assert.equal((await handler(req('{not json'))).status, 400);
   assert.equal((await handler(req(null, { method: 'GET' }))).status, 405);
   assert.equal(calls.length, 0);
+});
+
+test('sender and reply-to: the brand address from site-config; ORDER_EMAIL_FROM and NOTIFICATION_FROM are ignored', async () => {
+  process.env.ORDER_EMAIL_FROM = 'Not us <orders@themetavision.co.uk>';
+  process.env.NOTIFICATION_FROM = 'Not us <contact@themetavision.co.uk>';
+  try {
+    await handler(req(shipped()));
+    assert.equal(emails()[0].from, "The Fuglys <chaos@thefuglys.com>");
+    assert.equal(emails()[0].reply_to, "chaos@thefuglys.com");
+  } finally {
+    delete process.env.ORDER_EMAIL_FROM;
+    delete process.env.NOTIFICATION_FROM;
+  }
 });

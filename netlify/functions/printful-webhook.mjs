@@ -38,7 +38,7 @@
  *   SANITY_DATASET          — optional; default production
  *   PRINTFUL_WEBHOOK_SECRET — optional; if set, the request must include ?key=<secret>
  *   RESEND_API_KEY          — optional; without it the tracking email is skipped
- *   ORDER_EMAIL_FROM        — optional; default "The Fuglys <orders@thefuglys.com>"
+ *   (sender and reply-to: EMAIL_FROM / EMAIL_REPLY_TO in _shared/site-config.mjs)
  *                             (the order confirmation's sender in stripe-webhook.cjs)
  *   BRAND_NAME              — optional; default "The Fuglys"
  *   BRAND_ACCENT            — optional; falls back to EMAIL_ACCENT, then #99132F (site --color-accent)
@@ -54,6 +54,7 @@
  */
 import { timingSafeEqual } from 'node:crypto';
 import { createClient } from '@sanity/client';
+import { setting } from './_shared/site-config.mjs';
 import { findPrintfulOrder, recordShipped, recordFailed } from './_shared/printful-shipped.mjs';
 import { startPostDelivery } from './_shared/post-delivery.mjs';
 
@@ -72,7 +73,8 @@ const brand = () => ({
   accent: process.env.BRAND_ACCENT || process.env.EMAIL_ACCENT || '#99132F',
   headerBg: process.env.EMAIL_HEADER_BG || '#263F44',
   logoUrl: process.env.LOGO_URL || '',
-  from: process.env.ORDER_EMAIL_FROM || 'The Fuglys <orders@thefuglys.com>',
+  from: setting('EMAIL_FROM'),
+  replyTo: setting('EMAIL_REPLY_TO'),
 });
 
 const esc = (s) =>
@@ -152,6 +154,7 @@ async function sendShippedEmail(order, shipment) {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.RESEND_API_KEY },
       body: JSON.stringify({
         from: b.from,
+        reply_to: b.replyTo,
         to: order.customerEmail,
         subject: `Your ${shortName(b.name)} order #${ref} has shipped`,
         html: buildShippedEmailHtml(order, shipment, b),

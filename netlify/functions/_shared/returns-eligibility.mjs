@@ -30,12 +30,13 @@
  * "delivery date unknown". Orders delivered outside the UK answer "email us":
  * Sendcloud returns are UK-only. Not yet dispatched: "email us to cancel".
  */
+import { setting } from './site-config.mjs';
 import { isWallArtLine, isClothingLine, isUnderwear, formatKeyOf, sizeKeyOf } from './parcel-plan.mjs';
 
 export const RETURN_WINDOW_DAYS = 14;
 export const CLOTHING_WINDOW_DAYS = 30;
-/** The address in every brand's Returns & Refunds policy. */
-export const CONTACT = 'contact@themetavision.co.uk';
+/** The address in every brand's Returns & Refunds policy (site-config CONTACT_EMAIL). */
+export const CONTACT = setting('CONTACT_EMAIL');
 
 export const REASONS = {
   changed_mind: 'Changed my mind',

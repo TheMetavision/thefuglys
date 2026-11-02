@@ -310,7 +310,9 @@ test("the shipped email has the order confirmation's sender and accent colour", 
   const [confirmation] = confirmations();
   const [shipped] = shippingEmails();
   assert.equal(shipped.from, confirmation.from);
-  assert.equal(shipped.from, 'The Fuglys <shop@thefuglys.com>');
+  assert.equal(shipped.from, "The Fuglys <chaos@thefuglys.com>", 'the brand address, never ORDER_EMAIL_FROM');
+  assert.equal(confirmation.reply_to, "chaos@thefuglys.com");
+  assert.equal(shipped.reply_to, "chaos@thefuglys.com");
   for (const mail of [confirmation, shipped]) {
     assert.match(mail.html, /#7a0f24/);
     assert.doesNotMatch(mail.html, /#123456|#99132F|#b3162e/);
