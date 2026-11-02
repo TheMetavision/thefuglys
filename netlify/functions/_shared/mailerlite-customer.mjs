@@ -5,12 +5,14 @@
  *
  * FIELDS. MailerLite custom fields are shared by every brand in the account,
  * so one person who buys from two brands is one subscriber. Each brand writes
- * ONLY its own prefixed fields (MAILERLITE_FIELD_PREFIX in site-config.mjs:
+ * its own prefixed fields (MAILERLITE_FIELD_PREFIX in site-config.mjs:
  * fg_, lr_, coc_, bb_), so no brand's emails can show another's code or
- * order. The unprefixed fields Comic Strip Canvas uses (order_id, product,
- * referral_code, marketing_ok ...) and the shared default `name` are never
- * written. With prefix "fg":
+ * order, plus MailerLite's built-in `name` (first name), as Pixel8 does: it is
+ * the same person whichever brand writes it. The unprefixed fields Comic
+ * Strip Canvas uses (order_id, product, referral_code, marketing_ok ...) are
+ * never written. With prefix "fg":
  *
+ *   name                 first name (MailerLite's built-in field)
  *   fg_order_id          #XXXXXXXX (the reference customers already have)
  *   fg_product           "Product", or "Product and 2 more"
  *   fg_last_order_date   YYYY-MM-DD (date field)
@@ -75,6 +77,8 @@ export function customerPayload(order, { referralCode, firstShipped, groupId, pr
     email: String(order.customerEmail || '').trim(),
     groups: [String(groupId)],
     fields: {
+      // MailerLite's built-in field, shared by every brand: the first name only.
+      name: String(order.customerName || '').trim().split(/\s+/)[0] || '',
       [f.orderId]: orderRefFor(order) || '',
       [f.product]: productTitleFor(order.items),
       [f.lastOrderDate]: String(order.placedAt || order._createdAt || '').slice(0, 10),

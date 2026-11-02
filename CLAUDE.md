@@ -68,8 +68,8 @@ Ported from Pixel8. In short:
   marketing-consent, printful-shipped, dispatch-email) are identical in the
   four repos: change one, copy to all four. `tests/post-delivery.test.mjs`
   is identical too.
-- MailerLite: brand-prefixed fields only; never `name`, never the unprefixed
-  CSC fields, never `status`.
+- MailerLite: MailerLite's built-in `name` (first name) plus brand-prefixed
+  fields; never the unprefixed CSC fields, never `status`.
 - Consent: the cart drawer's "Don't send me offers or referral emails" box ->
   create-checkout `metadata.marketing_opt_out` -> order `marketingConsent`.
   'refused' = no code, no MailerLite.

@@ -308,7 +308,7 @@ test('stripe-webhook records marketingConsent with the same rule as consentFromS
 
 /* ------------------------------------------------------------------ MailerLite */
 
-test('MailerLite payload: the brand group and ONLY brand-prefixed fields; no name, no status, no CSC fields', () => {
+test('MailerLite payload: the brand group, the built-in name (first name) and brand-prefixed fields; no status, no CSC fields', () => {
   const body = customerPayload(order({ marketingConsent: 'not_asked' }), {
     referralCode: `${C.REFERRAL_FRIEND_PREFIX}-AAA222`, firstShipped: 'merch', groupId: C.MAILERLITE_CUSTOMERS_GROUP_ID, prefix: P,
   });
@@ -316,6 +316,7 @@ test('MailerLite payload: the brand group and ONLY brand-prefixed fields; no nam
   assert.deepEqual(body.groups, [C.MAILERLITE_CUSTOMERS_GROUP_ID]);
   assert.equal(body.status, undefined);
   assert.deepEqual(body.fields, {
+    name: 'Ada',
     [`${P}_order_id`]: '#M3N4O5P6',
     [`${P}_product`]: 'Logo Tee and 1 more',
     [`${P}_last_order_date`]: '2026-11-01',
@@ -324,11 +325,13 @@ test('MailerLite payload: the brand group and ONLY brand-prefixed fields; no nam
     [`${P}_first_shipped`]: 'merch',
     [`${P}_marketing_ok`]: 'yes',
   });
-  for (const k of Object.keys(body.fields)) assert.ok(k.startsWith(`${P}_`), k);
-  for (const csc of ['name', 'order_id', 'product', 'last_order_date', 'referral_code', 'marketing_ok', 'tracking_url']) {
+  for (const k of Object.keys(body.fields)) assert.ok(k === 'name' || k.startsWith(`${P}_`), k);
+  for (const csc of ['order_id', 'product', 'last_order_date', 'referral_code', 'marketing_ok', 'tracking_url']) {
     assert.ok(!(csc in body.fields), csc);
   }
-  assert.deepEqual(Object.values(fieldKeys(P)).sort(), Object.keys(body.fields).sort());
+  assert.deepEqual(['name', ...Object.values(fieldKeys(P))].sort(), Object.keys(body.fields).sort());
+  assert.equal(customerPayload(order({ customerName: '  ' }), { groupId: 'g', prefix: P }).fields.name, '');
+  assert.equal(customerPayload(order({ customerName: undefined }), { groupId: 'g', prefix: P }).fields.name, '');
 });
 
 test('MailerLite payload: contents merch / wallart / both, first shipped wallart, product titles', () => {
