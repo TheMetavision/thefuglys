@@ -5,13 +5,20 @@
  *     -> which lines of that order can be returned, and a short-lived signed
  *        session for the next steps. orderRef is the #XXXXXXXX reference from
  *        the order confirmation email (with or without the "#").
- *   {action: "quote", session, lines: [{lineKey, quantity}]}
- *     -> {postage}: the return postage, in pounds, that would be deducted
- *        from the refund, from the service's quote-return. null when there is
- *        no exact figure (a mix Alan boxes by hand, or the quote failed): the
- *        page then shows the general wording.
- *   {action: "submit", session, lines, reason, notes, ...bot fields}
- *     -> a returnRequest for Alan to approve, and an email to the team.
+ *   {action: "quote", session, lines: [{lineKey, quantity, reason}]}
+ *     -> {postage, parts, claim}: the return postage, in pounds, that would
+ *        be deducted from the refund, from the service's quote-return: the
+ *        sum over the parcels (wall art, merchandise). null when there is no
+ *        exact figure (a band Alan chooses, or a quote failed): the page then
+ *        shows the general wording. Faulty merchandise costs nothing and has
+ *        no parcel (`claim` says one is in the pick).
+ *   {action: "submit", session, lines, notes, ...bot fields}
+ *     -> one returnRequest per route (returns-eligibility.mjs returnRoutes):
+ *        a Printful claim for faulty merchandise (type printfulClaim, no
+ *        label; the customer is asked for a photo by email), a wall-art
+ *        return and a merchandise return (each its own label and band). Each
+ *        is for Alan to approve, and each emails the team. A top-level
+ *        `reason` is used for lines that carry none.
  *
  * Protected like the newsletter form: Cloudflare Turnstile on the lookup (the
  * step that reads an order), a honeypot and a 3-second time-to-submit check,
@@ -29,10 +36,10 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { returnsSessionKey } from './shipping-internal.mjs';
 import { quoteReturnPounds } from './shipping-client.mjs';
-import { evaluateReturn, pickLines, REASONS, longDate, CONTACT } from './returns-eligibility.mjs';
-import { returnBandFor, isUnderwear, isClothingLine } from './parcel-plan.mjs';
+import { evaluateReturn, pickLines, returnRoutes, REASONS, FAULTY, FAULTY_LABEL, longDate, londonDate, CONTACT } from './returns-eligibility.mjs';
+import { returnBandFor, merchPackingNote, isUnderwear, isClothingLine } from './parcel-plan.mjs';
 import { orderRefFor, normaliseOrderRef } from './order-ref.mjs';
-import { sendEmail, newReturnEmail } from './shipping-emails.mjs';
+import { sendEmail, newReturnEmail, newClaimEmail, claimReceivedEmail } from './shipping-emails.mjs';
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const MIN_SUBMIT_MS = 3000;
@@ -71,7 +78,7 @@ function botSignal(p, log) {
   return false;
 }
 
-const ORDER_FIELDS = '{ _id, _type, orderRef, stripeSessionId, customerName, customerEmail, placedAt, items, hasInhouse, inhouseStatus, shipmentResult, dispatchEmailSentAt, shippingAddress, test }';
+const ORDER_FIELDS = '{ _id, _type, orderRef, stripeSessionId, customerName, customerEmail, placedAt, items, hasInhouse, inhouseStatus, shipmentResult, dispatchEmailSentAt, shippingAddress, test, status, printfulOrderId, shippedAt, printfulShipments }';
 const RETURNS_OF = '*[_type == "returnRequest" && orderId == $id && !(_id in path("drafts.**"))]{ status, lines }';
 
 /** The order the customer means: their email and a reference that matches it. */
@@ -90,11 +97,11 @@ async function sessionOrder(sanity, session) {
 }
 
 const publicLine = (l) => ({
-  lineKey: l.lineKey, title: l.title, format: l.format, size: l.size,
-  ordered: l.ordered, returnable: l.returnable, why: l.why,
+  lineKey: l.lineKey, title: l.title, format: l.format, size: l.size, merch: l.fulfilment === 'printful',
+  ordered: l.ordered, returnable: l.returnable, claimable: l.claimable || 0, why: l.why,
 });
 
-/** The live quote for a pick, in pounds, or null. Never throws. */
+/** The live quote for one parcel, in pounds, or null. Never throws. */
 async function postageFor(order, picked, quote, log) {
   const band = returnBandFor(picked);
   const a = order.shippingAddress || {};
@@ -107,6 +114,25 @@ async function postageFor(order, picked, quote, log) {
     return null;
   }
 }
+
+/** Every parcel's quote and their sum (null if any has no exact figure). */
+async function postageForRoutes(order, routes, quote, log) {
+  const parts = [];
+  for (const r of routes) {
+    if (r.kind === 'claim') continue;
+    parts.push({ kind: r.kind, band: returnBandFor(r.lines), postage: await postageFor(order, r.lines, quote, log) });
+  }
+  const total = parts.length && parts.every((x) => typeof x.postage === 'number')
+    ? Math.round(parts.reduce((n, x) => n + x.postage, 0) * 100) / 100
+    : (parts.length ? null : 0);
+  return { postage: total, parts, claim: routes.some((r) => r.kind === 'claim') };
+}
+
+const money2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const shownFigure = (v) => {
+  const n = Number(v);
+  return v != null && v !== '' && Number.isFinite(n) && n >= 0 && n < 100 ? money2(n) : undefined;
+};
 
 /**
  * @param {Request} req
@@ -151,8 +177,10 @@ export async function handleReturns(req, deps) {
       reason: v.reason,
       deliveryDateUnknown: v.deliveryDateUnknown,
       windowEndsOn: v.windowEndsOn ? longDate(v.windowEndsOn) : null,
+      merchWindowEndsOn: v.merchWindowEndsOn && !v.shipDateUnknown ? longDate(v.merchWindowEndsOn) : null,
       lines: v.lines.map(publicLine),
       reasons: REASONS,
+      faulty: { key: FAULTY, label: FAULTY_LABEL },
       session: v.eligible ? issueSession({ orderId: order._id, email }, { env, now: now() }) : null,
     });
   }
@@ -162,20 +190,20 @@ export async function handleReturns(req, deps) {
     const session = readSession(p.session, { env, now: now() });
     if (!session) return json(400, { error: 'This page has timed out. Please look up your order again.' });
     const slot = await rateLimit('returns-quote', `ip:${ip}`, 60, 60 * 60 * 1000);
-    if (!slot) return json(200, { ok: true, postage: null });
+    if (!slot) return json(200, { ok: true, postage: null, parts: [] });
     const order = await sessionOrder(sanity, session);
     if (!order) return json(400, { error: 'This page has timed out. Please look up your order again.' });
-    const picked = pickLines(await verdictOf(order), p.lines);
-    if (picked.error) return json(200, { ok: true, postage: null });
-    return json(200, { ok: true, postage: await postageFor(order, picked.lines, quote, log) });
+    const picked = pickLines(await verdictOf(order), p.lines, Object.keys(REASONS)[0]);
+    if (picked.error) return json(200, { ok: true, postage: null, parts: [] });
+    return json(200, { ok: true, ...(await postageForRoutes(order, returnRoutes(picked.lines), quote, log)) });
   }
 
-  /* ── step 2: make the request ───────────────────────────────────────── */
+  /* ── step 2: make the request(s) ─────────────────────────────────────── */
   if (p.action === 'submit') {
     const session = readSession(p.session, { env, now: now() });
     if (!session) return json(400, { error: 'This page has timed out. Please look up your order again.' });
-    if (botSignal(p, log)) return json(200, { ok: true, returnNumber: null });
-    if (!Object.hasOwn(REASONS, p.reason)) return json(400, { error: 'Please choose a reason.' });
+    if (botSignal(p, log)) return json(200, { ok: true, returnNumber: null, returnNumbers: [] });
+    const fallback = Object.hasOwn(REASONS, p.reason) || p.reason === FAULTY ? p.reason : undefined;
     const notes = typeof p.notes === 'string' ? p.notes.trim().slice(0, 1000) : '';
 
     const slot = await rateLimit('returns-submit', `ip:${ip}`, 5, 60 * 60 * 1000);
@@ -185,48 +213,103 @@ export async function handleReturns(req, deps) {
     if (!order) return json(400, { error: 'This page has timed out. Please look up your order again.' });
     const existing = await sanity.fetch(RETURNS_OF, { id: order._id });
     const v = evaluateReturn(order, { now: now(), existing, clothing });
-    const picked = pickLines(v, p.lines);
+    const picked = pickLines(v, p.lines, fallback);
     if (picked.error) return json(400, { error: picked.error });
 
     const orderNumber = orderRefFor(order);
-    const ref = `ret-${randomBytes(8).toString('hex')}`;
-    const returnNumber = `${orderNumber}-R${(existing || []).length + 1}`;
-    const band = returnBandFor(picked.lines);
-    const shown = Number(p.shownPostage);
-    const underwear = picked.lines.some((l) => isClothingLine(l) && isUnderwear(l));
-    const unknown = picked.lines.some((l) => isClothingLine(l)) || (!v.deliveredAt);
-    const doc = {
-      _id: `returnRequest.${ref}`,
-      _type: 'returnRequest',
-      returnRef: ref,
-      returnNumber,
-      source: 'customer',
-      order: { _type: 'reference', _ref: order._id, _weak: true },
-      orderId: order._id,
-      orderNumber,
-      customerName: order.customerName || '',
-      customerEmail: order.customerEmail,
-      lines: picked.lines,
-      reason: p.reason,
-      reasonLabel: REASONS[p.reason],
-      ...(notes ? { customerNotes: notes } : {}),
-      // What the page showed before they submitted (from our own quote step).
-      ...(p.shownPostage != null && Number.isFinite(shown) && shown >= 0 && shown < 100 ? { quotedPostage: Math.round(shown * 100) / 100 } : {}),
-      status: 'requested',
-      freeLabel: false,
-      ...(band ? { band } : {}),
-      ...(v.deliveredAt ? { deliveredAt: v.deliveredAt, windowEndsOn: longDate(v.windowEndsOn) } : {}),
-      deliveryDateUnknown: unknown,
-      ...(underwear ? { underwear: true } : {}),
-      ...(order.test ? { testOrder: true } : {}),
-      requestedAt: new Date(now()).toISOString(),
-    };
-    await sanity.create(doc);
-    log.log(`returns: ${returnNumber} requested (${picked.lines.length} line(s))${unknown ? ', delivery date unknown' : ''}`);
+    const routes = returnRoutes(picked.lines);
+    const shownParts = p.shownParts && typeof p.shownParts === 'object' ? p.shownParts : {};
+    const labelRoutes = routes.filter((r) => r.kind !== 'claim');
+    const created = [];
+    let n = (existing || []).length;
 
-    const sent = await sendEmail(getResend(), newReturnEmail(doc));
-    if (!sent.ok) log.error(`returns: ${returnNumber} team email not sent: ${sent.error}`);
-    return json(200, { ok: true, returnNumber });
+    for (const route of routes) {
+      n += 1;
+      const ref = `ret-${randomBytes(8).toString('hex')}`;
+      const reasons = [...new Set(route.lines.map((l) => l.reasonLabel))];
+      const base = {
+        _id: `returnRequest.${ref}`,
+        _type: 'returnRequest',
+        returnRef: ref,
+        returnNumber: `${orderNumber}-R${n}`,
+        source: 'customer',
+        order: { _type: 'reference', _ref: order._id, _weak: true },
+        orderId: order._id,
+        orderNumber,
+        customerName: order.customerName || '',
+        customerEmail: order.customerEmail,
+        lines: route.lines,
+        reason: route.lines[0].reason,
+        reasonLabel: reasons.join('; '),
+        ...(notes ? { customerNotes: notes } : {}),
+        status: 'requested',
+        ...(order.test ? { testOrder: true } : {}),
+        requestedAt: new Date(now()).toISOString(),
+      };
+      let doc;
+      if (route.kind === 'claim') {
+        doc = {
+          ...base,
+          type: 'printfulClaim',
+          freeLabel: true,
+          claimResolution: 'replacement',
+          refundAmount: money2(route.lines.reduce((s, l) => s + (Number(l.unitPrice) || 0) * (Number(l.quantity) || 1), 0)),
+          ...(v.printfulOrderId ? { printfulOrderId: String(v.printfulOrderId) } : {}),
+          ...(v.shippedAt ? { shippedAt: v.shippedAt } : {}),
+          ...(v.claimDeadline ? { claimDeadline: v.claimDeadline, claimOverdue: londonDate(now()) > v.claimDeadline } : {}),
+          ...(v.shipDateUnknown ? { shipDateUnknown: true } : {}),
+        };
+      } else {
+        const band = returnBandFor(route.lines);
+        // What the page showed for this parcel before they submitted (our own
+        // quote step); a single-parcel request may send the older shownPostage.
+        const shown = shownFigure(shownParts[route.kind]) ?? (labelRoutes.length === 1 ? shownFigure(p.shownPostage) : undefined);
+        const merch = route.kind === 'merch';
+        const note = merch ? merchPackingNote(route.lines) : null;
+        doc = {
+          ...base,
+          type: 'return',
+          freeLabel: false,
+          ...(shown !== undefined ? { quotedPostage: shown } : {}),
+          ...(band ? { band } : {}),
+          ...(note ? { packingNote: note } : {}),
+          ...(merch
+            ? {
+              ...(v.shippedAt ? { shippedAt: v.shippedAt } : {}),
+              ...(v.merchWindowEndsOn ? { windowEndsOn: longDate(v.merchWindowEndsOn) } : {}),
+              ...(v.shipDateUnknown ? { shipDateUnknown: true } : {}),
+              deliveryDateUnknown: false,
+            }
+            : {
+              ...(v.deliveredAt ? { deliveredAt: v.deliveredAt, windowEndsOn: longDate(v.windowEndsOn) } : {}),
+              deliveryDateUnknown: !v.deliveredAt,
+            }),
+          ...(route.lines.some((l) => isClothingLine(l) && isUnderwear(l)) ? { underwear: true } : {}),
+        };
+      }
+      await sanity.create(doc);
+      created.push(doc);
+      log.log(`returns: ${doc.returnNumber} requested (${route.kind}, ${route.lines.length} line(s))`);
+    }
+
+    const resend = getResend();
+    for (const doc of created) {
+      const team = await sendEmail(resend, doc.type === 'printfulClaim' ? newClaimEmail(doc) : newReturnEmail(doc));
+      if (!team.ok) log.error(`returns: ${doc.returnNumber} team email not sent: ${team.error}`);
+      if (doc.type === 'printfulClaim') {
+        // The customer replies to this one with the photo.
+        const cust = await sendEmail(resend, claimReceivedEmail(doc));
+        if (!cust.ok) log.error(`returns: ${doc.returnNumber} photo-request email not sent: ${cust.error}`);
+      }
+    }
+    const numbers = created.map((d) => d.returnNumber);
+    return json(200, {
+      ok: true,
+      returnNumber: numbers[0] || null,
+      returnNumbers: numbers,
+      claim: created.some((d) => d.type === 'printfulClaim'),
+      label: created.some((d) => d.type !== 'printfulClaim'),
+    });
   }
 
   return json(400, { error: 'Bad request' });

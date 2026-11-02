@@ -78,10 +78,17 @@ export const SITE_CONFIG = Object.freeze({
   // Measured as negligible, so 0 (the setting stays in case that changes).
   POSTER_EXTRA_WEIGHT_G: '0',
 
-  // /returns covers wall art. Merchandise (Printful) returns are built but off
-  // until the X1 (mailer) and X2 (bulky box) bands are measured on the
-  // shipping service. "true" turns them on.
-  RETURNS_CLOTHING: 'false',
+  // /returns covers wall art and, with this on, merchandise (Printful): change
+  // of mind by prepaid label in the X1 (mailer) / X2 (bulky box) bands, and
+  // faulty or damaged items as Printful claims with no label. On 2 Nov 2026
+  // (feat/merch-returns). "false" puts merchandise back to "email us".
+  RETURNS_CLOTHING: 'true',
+  // Change of mind on merchandise: days after Printful's ship date (Printful
+  // gives no delivery date). The brand's policy wording must match.
+  RETURNS_MERCH_WINDOW_DAYS: '21',
+  // Printful's own deadline for a reprint or refund claim: days after it
+  // shipped. Shown on each claim in the Studio.
+  PRINTFUL_CLAIM_DAYS: '30',
 
   // Where /returns sends people while it is switched off.
   RETURNS_POLICY_PATH: '/legal/returns-refunds/',

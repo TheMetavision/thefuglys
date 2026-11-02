@@ -2,8 +2,8 @@
 //
 // POST /api/returns   the public /returns page (see _shared/returns-api.mjs).
 // 404 unless SHIPPING_ENABLED is "true"; lookups answer 503 until
-// TURNSTILE_SECRET_KEY is set. Wall art only unless RETURNS_CLOTHING
-// (site-config) is on.
+// TURNSTILE_SECRET_KEY is set. Wall art, plus merchandise (labels and
+// Printful claims) while RETURNS_CLOTHING (site-config) is on.
 
 import { handleReturns } from './_shared/returns-api.mjs';
 import { shippingEnabled, shippingRequest } from './_shared/shipping-client.mjs';

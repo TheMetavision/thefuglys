@@ -1,10 +1,14 @@
 ---
-// ReturnsForm — the online returns flow for in-house wall art (merchandise
-// too once RETURNS_CLOTHING is on in netlify/functions/_shared/site-config.mjs).
+// ReturnsForm — the online returns flow for in-house wall art, and merchandise
+// when RETURNS_CLOTHING is on in netlify/functions/_shared/site-config.mjs
+// (the page passes merchDays then).
 //
 // Three calls to /api/returns (netlify/functions/_shared/returns-api.mjs):
 // look the order up (Turnstile), quote the return postage for what is ticked
-// (shown BEFORE submitting), then submit the request for us to approve.
+// (shown BEFORE submitting), then submit the request for us to approve. Each
+// item has its own reason; "Faulty, misprinted or damaged" on merchandise is
+// a Printful claim: nothing to post back, and the customer replies to our
+// email with a photo (the form takes no uploads).
 //
 // Shared: the same file in The Fuglys, Labrats, Cats On Crack and The Biker
 // Babies. Each site's src/pages/returns.astro wraps it in its own layout and
@@ -18,13 +22,23 @@ interface Props {
   policyPath: string;      // the Returns & Refunds page
   contact: string;         // the email address in the policy
   turnstileSiteKey: string;
+  merchDays?: number;      // merchandise returns on: days after Printful ships
 }
-const { accent, accentText = '#0a0a0a', field = 'rgba(0,0,0,0.35)', border = 'rgba(255,255,255,0.2)', muted = 'rgba(255,255,255,0.7)', policyPath, contact, turnstileSiteKey } = Astro.props;
+const { accent, accentText = '#0a0a0a', field = 'rgba(0,0,0,0.35)', border = 'rgba(255,255,255,0.2)', muted = 'rgba(255,255,255,0.7)', policyPath, contact, turnstileSiteKey, merchDays = 0 } = Astro.props;
 const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field:${field};--ret-border:${border};--ret-muted:${muted};`;
 ---
 <div class="ret" style={vars} data-contact={contact}>
-  <p class="ret-lead">Not feeling your print? Wall art can come back within <strong>14 days of delivery</strong>, unused and in its original tube or box. Look up your order, tick what's coming back, and you'll see the return postage before you send the request. Once we've checked it, we email you a prepaid label; the postage is taken off your refund.</p>
-  <p class="ret-lead">Clothing and other merchandise, or an address outside the UK? Email <a href={`mailto:${contact}`}>{contact}</a> with your order reference. Faulty, damaged or wrong? Email us with a photo instead: we'll put it right and cover the return. Full details: <a href={policyPath}>Returns &amp; Refunds</a>.</p>
+  {merchDays > 0 ? (
+    <>
+      <p class="ret-lead">Changed your mind, or got the wrong size? Wall art can come back within <strong>14 days of delivery</strong>, unused and in its original tube or box. Clothing and other merchandise can come back within <strong>{merchDays} days of the day it shipped</strong> (the date of your shipping email), unworn, unwashed and in its original condition. Look up your order, choose what's coming back, and you'll see the return postage before you send the request. Once we've checked it, we email you a prepaid label; the postage is taken off your refund.</p>
+      <p class="ret-lead">Clothing or merchandise arrived <strong>faulty, misprinted or damaged</strong>? Choose "Faulty, misprinted or damaged" next to it. There's nothing to send back: we'll email you to ask for a photo, then send a replacement. A faulty print, or an address outside the UK? Email <a href={`mailto:${contact}`}>{contact}</a> with your order reference. Full details: <a href={policyPath}>Returns &amp; Refunds</a>.</p>
+    </>
+  ) : (
+    <>
+      <p class="ret-lead">Not feeling your print? Wall art can come back within <strong>14 days of delivery</strong>, unused and in its original tube or box. Look up your order, tick what's coming back, and you'll see the return postage before you send the request. Once we've checked it, we email you a prepaid label; the postage is taken off your refund.</p>
+      <p class="ret-lead">Clothing and other merchandise, or an address outside the UK? Email <a href={`mailto:${contact}`}>{contact}</a> with your order reference. Faulty, damaged or wrong? Email us with a photo instead: we'll put it right and cover the return. Full details: <a href={policyPath}>Returns &amp; Refunds</a>.</p>
+    </>
+  )}
 
   <form id="ret-lookup" class="ret-form" novalidate>
     <div class="ret-grid">
@@ -48,9 +62,6 @@ const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field
     <h2 class="ret-h2">Order <span id="ret-order"></span></h2>
     <p id="ret-window" class="ret-muted"></p>
     <div id="ret-lines"></div>
-    <label>Reason
-      <select id="ret-reason"></select>
-    </label>
     <label>Anything else? (optional)
       <textarea id="ret-notes" rows="3" maxlength="1000"></textarea>
     </label>
@@ -75,6 +86,7 @@ const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field
   const loadedAt = Date.now();
   let session = '';
   let shownPostage: number | null = null;
+  let shownParts: Record<string, number> = {};
   let quoteSeq = 0;
 
   const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
@@ -96,25 +108,38 @@ const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field
 
   function picked() {
     return [...pickForm.querySelectorAll<HTMLInputElement>('input[data-line]')]
-      .map((i) => ({ lineKey: i.dataset.line as string, quantity: Number(i.value) || 0 }))
+      .map((i) => ({
+        lineKey: i.dataset.line as string,
+        quantity: Number(i.value) || 0,
+        reason: (pickForm.querySelector(`select[data-reason="${CSS.escape(i.dataset.line as string)}"]`) as HTMLSelectElement | null)?.value || '',
+      }))
       .filter((l) => l.quantity > 0);
   }
 
   // The postage, from the shipping service's live quote, before submitting.
+  // Each parcel (wall art, merchandise) is quoted; faulty merchandise has none.
   async function refreshQuote() {
     const lines = picked();
-    submitBtn.disabled = lines.length === 0;
+    submitBtn.disabled = lines.length === 0 || lines.some((l) => !l.reason);
     shownPostage = null;
+    shownParts = {};
     if (!lines.length) { postageBox.textContent = "Choose the item(s) you'd like to return."; return; }
+    if (lines.some((l) => !l.reason)) { postageBox.textContent = 'Choose a reason for each item.'; return; }
     const seq = ++quoteSeq;
     postageBox.textContent = 'Working out the return postage…';
     const { data } = await call({ action: 'quote', session, lines });
     if (seq !== quoteSeq) return;
-    if (typeof data.postage === 'number') {
+    const claimNote = data.claim ? '<p>For anything faulty, misprinted or damaged there is <strong>nothing to send back</strong>: we\'ll email you to ask for a photo.</p>' : '';
+    const labels = Array.isArray(data.parts) ? data.parts : [];
+    if (!labels.length && data.claim) {
+      postageBox.innerHTML = claimNote;
+    } else if (typeof data.postage === 'number') {
       shownPostage = data.postage;
-      postageBox.innerHTML = `We'll email you a prepaid return label. <strong>£${data.postage.toFixed(2)}</strong> return postage will be deducted from your refund.`;
+      for (const p of labels) if (typeof p.postage === 'number') shownParts[p.kind] = p.postage;
+      const many = labels.length > 1 ? ` (${labels.length} parcels: ${labels.map((p: any) => `£${Number(p.postage).toFixed(2)}`).join(' + ')})` : '';
+      postageBox.innerHTML = `<p>We'll email you ${labels.length > 1 ? 'prepaid return labels' : 'a prepaid return label'}. <strong>£${data.postage.toFixed(2)}</strong> return postage${many} will be deducted from your refund.</p>${claimNote}`;
     } else {
-      postageBox.textContent = "We'll email you a prepaid return label. Its cost will be deducted from your refund; we'll confirm the exact amount in that email.";
+      postageBox.innerHTML = `<p>We'll email you a prepaid return label. Its cost will be deducted from your refund; we'll confirm the exact amount in that email.</p>${claimNote}`;
     }
   }
 
@@ -141,20 +166,34 @@ const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field
       if (!data.eligible) { show(data.reason || 'Nothing on this order can be returned online.'); return; }
       session = data.session;
       $('ret-order').textContent = data.orderNumber || '';
-      $('ret-window').textContent = data.windowEndsOn
-        ? `You can request a return until ${data.windowEndsOn}.`
+      const until = [
+        data.windowEndsOn ? `wall art until ${data.windowEndsOn}` : '',
+        data.merchWindowEndsOn ? `clothing and merchandise until ${data.merchWindowEndsOn}` : '',
+      ].filter(Boolean);
+      $('ret-window').textContent = until.length
+        ? `You can request a return (change of mind): ${until.join('; ')}.`
         : 'Choose what you would like to send back.';
-      $('ret-lines').innerHTML = data.lines.map((l: any) => `
+      const changeOpts = Object.entries(data.reasons || {}).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+      const faulty = data.faulty || null;
+      $('ret-lines').innerHTML = data.lines.map((l: any) => {
+        const max = Math.max(l.returnable || 0, l.claimable || 0);
+        const opts = (l.returnable ? changeOpts : '') + (l.claimable && faulty ? `<option value="${esc(faulty.key)}">${esc(faulty.label)}</option>` : '');
+        const onlyFaulty = !l.returnable && l.claimable;
+        return `
         <div class="ret-line">
           <div>
             <p class="ret-line-title">${esc(l.title)}</p>
-            ${l.returnable ? '' : `<p class="ret-line-why">${esc(l.why || '')}</p>`}
+            ${l.why && (!max || onlyFaulty) ? `<p class="ret-line-why">${esc(l.why)}</p>` : ''}
           </div>
-          ${l.returnable ? `<label class="ret-qty">Return
-            <input data-line="${esc(l.lineKey)}" type="number" min="0" max="${l.returnable}" value="0" /></label>` : ''}
-        </div>`).join('');
-      $('ret-reason').innerHTML = Object.entries(data.reasons || {}).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
-      pickForm.querySelectorAll('input[data-line]').forEach((i) => i.addEventListener('change', refreshQuote));
+          ${max ? `<div class="ret-line-pick">
+            <label class="ret-qty">${onlyFaulty ? 'Report' : 'Return'}
+              <input data-line="${esc(l.lineKey)}" type="number" min="0" max="${max}" value="0" /></label>
+            <label class="ret-reason">Reason
+              <select data-reason="${esc(l.lineKey)}">${opts.includes('<option') && !onlyFaulty ? '<option value="">Choose…</option>' : ''}${opts}</select></label>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+      pickForm.querySelectorAll('input[data-line], select[data-reason]').forEach((i) => i.addEventListener('change', refreshQuote));
       lookupForm.hidden = true;
       pickForm.hidden = false;
     } catch {
@@ -170,18 +209,23 @@ const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field
     hideMsg();
     const lines = picked();
     if (!lines.length) { show('Choose at least one item to return.'); return; }
+    if (lines.some((l) => !l.reason)) { show('Choose a reason for each item.'); return; }
     submitBtn.disabled = true;
     try {
       const { ok, data } = await call({
         action: 'submit', session, lines,
-        reason: ($('ret-reason') as HTMLSelectElement).value,
         notes: ($('ret-notes') as HTMLTextAreaElement).value,
-        shownPostage,
+        shownPostage, shownParts,
         mv_ret_extra: '', mv_ret_ts_load: loadedAt, mv_ret_ts_submit: Date.now(),
       });
       if (!ok) { show(data.error || failed); submitBtn.disabled = false; return; }
       pickForm.hidden = true;
-      show(`Sorted — your return request${data.returnNumber ? ` ${data.returnNumber}` : ''} is in. We'll check it and email your return label, usually within 2 working days.`, true);
+      const refs = Array.isArray(data.returnNumbers) && data.returnNumbers.length ? data.returnNumbers.join(', ') : (data.returnNumber || '');
+      const parts = [
+        data.label ? "We'll check it and email your return label, usually within 2 working days." : '',
+        data.claim ? "For the faulty item, check your inbox: reply to our email with a photo of the problem and we'll arrange a replacement. There's nothing to send back." : '',
+      ].filter(Boolean).join(' ');
+      show(`Sorted — your request${refs ? ` ${refs}` : ''} is in. ${parts || "We'll be in touch, usually within 2 working days."}`, true);
     } catch {
       show(failed);
       submitBtn.disabled = false;
@@ -218,6 +262,11 @@ const vars = `--ret-accent:${accent};--ret-accent-text:${accentText};--ret-field
   .ret-line-why { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--ret-muted); }
   .ret-qty { display: flex !important; align-items: center; gap: 0.5rem; white-space: nowrap; }
   .ret-qty input { width: 4.5rem; }
+  .ret-line-pick { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .ret-reason { display: flex !important; align-items: center; gap: 0.5rem; }
+  .ret-reason select { min-width: 14rem; }
+  .ret-postage p { margin: 0 0 0.5rem; }
+  .ret-postage p:last-child { margin: 0; }
   .ret-postage { border: 1px solid var(--ret-accent); padding: 1rem; border-radius: 6px; line-height: 1.6; }
   .ret-message { margin-top: 2rem; padding: 1rem; border-radius: 6px; line-height: 1.6; border: 1px solid var(--ret-border); }
   .ret-message.ok { border-color: var(--ret-accent); }

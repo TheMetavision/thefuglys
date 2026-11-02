@@ -2,6 +2,8 @@
  * The Studio side of Sendcloud wall-art shipping, for sanity.config.js:
  *
  *   shippingDeskItems(S)   the "Shipping (wall art)" and "Returns" desk lists
+ *                          (Returns -> Printful claims: faulty merchandise, no
+ *                          label, soonest Printful deadline first)
  *   shippingTemplates      no "new return request" button (it would make a
  *                          random, publicly readable id: returns are made at
  *                          returnRequest.<ref> by /returns or the order's
@@ -23,14 +25,19 @@ const shippingQueue = (S, title, filter) =>
       .defaultOrdering([{ field: 'placedAt', direction: 'desc' }])
   );
 
-const returnsQueue = (S, title, filter) =>
+const returnsQueue = (S, title, filter, ordering = [{ field: 'requestedAt', direction: 'desc' }]) =>
   S.listItem().title(title).child(
     S.documentTypeList('returnRequest')
       .title(title)
       .filter(`_type == "returnRequest" && (${filter})`)
-      .defaultOrdering([{ field: 'requestedAt', direction: 'desc' }])
+      .defaultOrdering(ordering)
       .initialValueTemplates([])
   );
+
+// Label returns (type "return", or blank on older ones) vs Printful claims.
+const LABEL = '!(type == "printfulClaim")';
+const CLAIM = 'type == "printfulClaim"';
+const BY_DEADLINE = [{ field: 'claimDeadline', direction: 'asc' }, { field: 'requestedAt', direction: 'asc' }];
 
 export const shippingDeskItems = (S) => (SHIPPING_UI ? [
   S.listItem().id('shipping').title('Shipping (wall art)').child(
@@ -46,13 +53,23 @@ export const shippingDeskItems = (S) => (SHIPPING_UI ? [
   ),
   S.listItem().id('returns').title('Returns').child(
     S.list().title('Returns').items([
-      returnsQueue(S, 'Requested', 'status == "requested"'),
-      returnsQueue(S, 'Approved — label pending', 'status == "approved"'),
-      returnsQueue(S, 'Label sent / in transit', 'status in ["label_sent", "in_transit"]'),
-      returnsQueue(S, 'Ready to collect', 'status == "ready_to_collect"'),
-      returnsQueue(S, 'Received — refund in Stripe', 'status == "received"'),
-      returnsQueue(S, 'Problems', 'defined(error) && !(status in ["received", "refunded"])'),
-      returnsQueue(S, 'All returns', 'true'),
+      returnsQueue(S, 'Requested', `${LABEL} && status == "requested"`),
+      returnsQueue(S, 'Approved — label pending', `${LABEL} && status == "approved"`),
+      returnsQueue(S, 'Label sent / in transit', `${LABEL} && status in ["label_sent", "in_transit"]`),
+      returnsQueue(S, 'Ready to collect', `${LABEL} && status == "ready_to_collect"`),
+      returnsQueue(S, 'Received — refund in Stripe', `${LABEL} && status == "received"`),
+      S.divider(),
+      S.listItem().id('printful-claims').title('Printful claims').child(
+        S.list().title('Printful claims').items([
+          returnsQueue(S, 'To do — report in Printful, then approve', `${CLAIM} && status in ["requested", "approved"]`, BY_DEADLINE),
+          returnsQueue(S, 'Refund due — refund in Stripe', `${CLAIM} && status == "refund_due"`, BY_DEADLINE),
+          returnsQueue(S, 'Replacement sent', `${CLAIM} && status == "replacement_sent"`),
+          returnsQueue(S, 'All Printful claims', CLAIM),
+        ])
+      ),
+      S.divider(),
+      returnsQueue(S, 'Problems', 'defined(error) && !(status in ["received", "refunded", "replacement_sent"])'),
+      returnsQueue(S, 'All returns and claims', 'true'),
     ])
   ),
 ] : []);

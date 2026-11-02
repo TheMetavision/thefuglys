@@ -465,6 +465,9 @@ async function saveOrder(session, lineItems, status, printfulOrderId, promo = {}
       // Sold price, before any promotion code (that is discountAmount below).
       price: (lineSubtotal(li) || 0) / 100,
       fulfilment: inhouse ? 'inhouse' : 'printful',
+      // The Printful product type (tshirt, hoodie, mug...), for the return
+      // band (parcel-plan.mjs merchBandOf). From the checkout's line metadata.
+      ...(!inhouse && meta(li, 'item_type') ? { productType: String(meta(li, 'item_type')) } : {}),
     };
   });
   const inhouseCount = items.filter((it) => it.fulfilment === 'inhouse').length;

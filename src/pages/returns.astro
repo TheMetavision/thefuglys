@@ -1,6 +1,7 @@
 ---
-// /returns — online returns for in-house wall art (src/components/ReturnsForm.astro;
-// the API is netlify/functions/returns.mts).
+// /returns — online returns for in-house wall art, and merchandise while
+// RETURNS_CLOTHING is on (src/components/ReturnsForm.astro; the API is
+// netlify/functions/returns.mts).
 //
 // Built as the real page only when SHIPPING_ENABLED is "true" at build time
 // (so it must be set in the Builds scope too) AND TURNSTILE_SITE_KEY is set
@@ -10,22 +11,27 @@ import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import ReturnsForm from '../components/ReturnsForm.astro';
-import { setting } from '../../netlify/functions/_shared/site-config.mjs';
-import { CONTACT } from '../../netlify/functions/_shared/returns-eligibility.mjs';
+import { setting, flag } from '../../netlify/functions/_shared/site-config.mjs';
+import { CONTACT, MERCH_WINDOW_DAYS } from '../../netlify/functions/_shared/returns-eligibility.mjs';
 
 const truthy = (v: unknown) => ['true', '1', 'yes'].includes(String(v ?? '').trim().toLowerCase());
 const TURNSTILE_SITE_KEY = import.meta.env.TURNSTILE_SITE_KEY || process.env.TURNSTILE_SITE_KEY || '';
 const enabled = truthy(process.env.SHIPPING_ENABLED || import.meta.env.SHIPPING_ENABLED) && Boolean(TURNSTILE_SITE_KEY);
 const policyPath = setting('RETURNS_POLICY_PATH');
 if (!enabled) return Astro.redirect(policyPath);
+const merchDays = flag('RETURNS_CLOTHING') ? MERCH_WINDOW_DAYS : 0;
+const heading = merchDays ? 'Returns' : 'Return wall art';
+const blurb = merchDays
+  ? `Return The Fuglys wall art within 14 days of delivery, or clothing and merchandise within ${merchDays} days of it shipping: look up your order, see the return postage, and request a prepaid return label. Faulty items: report them here.`
+  : 'Return The Fuglys wall art within 14 days of delivery: look up your order, see the return postage, and request a prepaid return label.';
 ---
-<Layout title="Return wall art · The Fuglys" description="Return The Fuglys wall art within 14 days of delivery: look up your order, see the return postage, and request a prepaid return label." noIndex={true}>
+<Layout title={`${heading} · The Fuglys`} description={blurb} noIndex={true}>
   <Nav />
   <main class="returns-page">
     <section class="returns">
       <p class="returns__eyebrow">Returns</p>
-      <h1 class="returns__title">Return wall art</h1>
-      <ReturnsForm accent="#FF2E45" accentText="#ffffff" policyPath={policyPath} contact={CONTACT} turnstileSiteKey={TURNSTILE_SITE_KEY} />
+      <h1 class="returns__title">{heading}</h1>
+      <ReturnsForm accent="#FF2E45" accentText="#ffffff" policyPath={policyPath} contact={CONTACT} turnstileSiteKey={TURNSTILE_SITE_KEY} merchDays={merchDays} />
     </section>
   </main>
   <Footer />

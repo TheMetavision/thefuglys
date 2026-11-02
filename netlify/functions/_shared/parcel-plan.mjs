@@ -31,8 +31,8 @@
  *   - outside the UK (posters AND canvas ship worldwide on these sites, but
  *     the service is GB-only): flagged "dispatch by hand".
  *
- * Returns use the same bands; merchandise returns (off until measured) use
- * X1 (mailer) and X2 (bulky box).
+ * Returns use the same bands; merchandise returns use X1 (mailer) and X2
+ * (bulky box), by product type (merchBandOf, below).
  *
  * Pure (no Node imports, no env): the Studio imports it for the band lists.
  */
@@ -47,7 +47,7 @@ export const BANDS = {
   'canvas-gallery': { small: 'CG1', medium: 'CG3', large: 'CG4' },
 };
 
-/** Merchandise return bands (only used when RETURNS_CLOTHING is on). */
+/** Merchandise return bands (when RETURNS_CLOTHING is on). */
 export const CLOTHING_BANDS = { mailer: 'X1', bulky: 'X2' };
 
 /** Every band the service knows, so the Studio can pick any of them. */
@@ -245,19 +245,58 @@ export function recipientFor(name, address) {
 
 /* ------------------------------------------------------------------ returns */
 
-const BULKY = /hoodie|sweat|jacket|fleece|jogger|trainer|high[\s-]?top|sneaker|backpack|blanket/i;
+/**
+ * MERCHANDISE RETURN BANDS (Alan, 2 Nov 2026): X1, the garment mailer, for
+ * anything that goes back flat; X2, the bulky box, for hoodies, trainers,
+ * boxed or bulky items. By the Printful product type the shop's variants use
+ * (product.variants[].productType in each brand's Sanity), which new order
+ * lines carry as `productType`. Older lines have only a title, so the same
+ * types are matched by name in it ("… Hoodie — Black (L)").
+ *
+ * A type in neither list (a cap, a bag, anything new) is UNCLEAR: no band is
+ * guessed, and the request says "choose the band" in the Studio. Add the type
+ * here when a new kind of product goes on sale.
+ */
+export const MERCH_BAND_BY_TYPE = Object.freeze({
+  // X1 — flat, in the garment mailer
+  tshirt: 'X1', fronttee: 'X1', 'adult-tee': 'X1', 'kids-tshirt': 'X1', 'kids-tee': 'X1', 'toddler-tee': 'X1',
+  athletictee: 'X1', jersey: 'X1', tank: 'X1', longsleeve: 'X1', 'kids-longsleeve': 'X1',
+  babygrow: 'X1', 'baby-bodysuit': 'X1', socks: 'X1', leggings: 'X1', meshshorts: 'X1', longshorts: 'X1',
+  sportsbra: 'X1', boxerbriefs: 'X1', sticker: 'X1', 'holographic-sticker': 'X1', pin: 'X1',
+  // X2 — hoodies and sweatshirts, trainers, boxed drinkware
+  hoodie: 'X2', 'kids-hoodie': 'X2', warmuphoodie: 'X2', 'kids-sweatshirt': 'X2',
+  hightopmens: 'X2', hightopwomens: 'X2',
+  mug: 'X2', tumbler: 'X2', 'plastic-tumbler': 'X2', glass: 'X2', 'water-bottle': 'X2',
+});
+
+// For lines with no productType: the same types, by the words in the title.
+// Bulky is checked first ("Sweatshirt" must not read as "shirt").
+const BULKY_WORDS = /hoodie|sweat\s*shirt|sweater|jumper|jacket|fleece|jogger|trainer|high[\s-]?top|sneaker|mug|tumbler|\bglass\b|bottle/i;
+const FLAT_WORDS = /\btee\b|t-?shirt|\btank\b|\bvest\b|long[\s-]?sleeve|jersey|babygrow|bodysuit|\bsocks?\b|leggings|shorts|sports\s*bra|boxer|brief|sticker|\bpin\b|badge/i;
 const UNDERWEAR = /boxer|brief|underwear/i;
 
-export const isBulkyGarment = (line) => BULKY.test(titleOf(line));
-export const isUnderwear = (line) => UNDERWEAR.test(titleOf(line));
+/** The return band of one merchandise line, X1 / X2, or null when unclear. */
+export function merchBandOf(line) {
+  const type = String(line?.productType || '').trim().toLowerCase();
+  if (type) return MERCH_BAND_BY_TYPE[type] || null;
+  const t = titleOf(line);
+  if (BULKY_WORDS.test(t)) return CLOTHING_BANDS.bulky;
+  if (FLAT_WORDS.test(t)) return CLOTHING_BANDS.mailer;
+  return null;
+}
+
+export const isBulkyGarment = (line) => merchBandOf(line) === CLOTHING_BANDS.bulky;
+export const isUnderwear = (line) => String(line?.productType || '').toLowerCase() === 'boxerbriefs' || UNDERWEAR.test(titleOf(line));
 
 /**
- * The band for what a customer is sending back, or null for "Alan chooses".
- * Picked lines carry fulfilment, formatKey, sizeKey, title and quantity.
+ * The band for one return parcel, or null for "Alan chooses".
+ * Picked lines carry fulfilment, formatKey, sizeKey, productType, title and quantity.
  *   posters only           one tube at the largest poster's band (a lone 12x8: P1)
  *   one canvas             its band
- *   one merchandise item   X1, or X2 if bulky
- *   anything else          null
+ *   merchandise only       one parcel: X2 if anything in it is bulky, else X1;
+ *                          null if any item's band is unclear
+ *   wall art + merchandise null (the /returns page never makes this: it
+ *                          splits them, returns-api.mjs returnRoutes)
  */
 export function returnBandFor(picked) {
   const lines = (picked || []).filter((l) => Number(l?.quantity) > 0);
@@ -272,8 +311,24 @@ export function returnBandFor(picked) {
     }
     return qty === 1 ? bands[0] : null;
   }
-  if (lines.every(isClothingLine) && qty === 1) return isBulkyGarment(lines[0]) ? CLOTHING_BANDS.bulky : CLOTHING_BANDS.mailer;
+  if (lines.every(isClothingLine)) {
+    const bands = lines.map(merchBandOf);
+    if (bands.some((b) => !b)) return null;
+    return bands.includes(CLOTHING_BANDS.bulky) ? CLOTHING_BANDS.bulky : CLOTHING_BANDS.mailer;
+  }
   return null;
+}
+
+/** A note for the team when a merchandise parcel needs a look before approving, or null. */
+export function merchPackingNote(picked) {
+  const lines = (picked || []).filter((l) => isClothingLine(l) && Number(l?.quantity) > 0);
+  if (!lines.length) return null;
+  const unclear = lines.filter((l) => !merchBandOf(l)).map(titleOf);
+  if (unclear.length) return `No band for ${unclear.map((t) => `"${t}"`).join(', ')}: not a type in the X1 / X2 list (parcel-plan.mjs MERCH_BAND_BY_TYPE). Choose the band before approving.`;
+  const qty = lines.reduce((n, l) => n + Math.floor(Number(l.quantity)), 0);
+  if (qty < 2) return null;
+  const band = returnBandFor(lines);
+  return `${qty} items in one ${band === CLOTHING_BANDS.bulky ? 'X2 box' : 'X1 mailer'}. Check they fit (or pick a bigger band) before approving.`;
 }
 
 /* ------------------------------------------------------------------ carriers */

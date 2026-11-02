@@ -14,7 +14,8 @@
  *   order, Shipment "Ready to ship", a planned parcel unlabelled
  *       (or every parcel labelled but the print links expired)
  *       -> shipping-dispatch                                       SHIPPING_ENABLED only
- *   returnRequest, Approved with no label sent / Rejected with no decline sent
+ *   returnRequest, Approved with no label sent (a Printful claim: no claim
+ *       email sent) / Rejected with no decline sent
  *       -> shipping-return                                         SHIPPING_ENABLED only
  *
  * The Printful side of an order (status, carrier, trackingNumber, shippedAt,
@@ -105,13 +106,13 @@ export function routeFor(doc, { since = DISPATCH_EMAIL_SINCE, now = Date.now() }
 
   if (doc._type === 'returnRequest') {
     const retry = (s) => !doc.error || (b && b.status !== s);
-    if (doc.status === 'approved' && !doc.labelSentAt) {
+    if (doc.status === 'approved' && !doc.labelSentAt && !doc.claimEmailSentAt) {
       return retry('approved') ? { actions: ['shipping-return'], reason: 'return approved' } : { actions: [], reason: 'last attempt failed: set Requested, then Approved, to retry' };
     }
     if (doc.status === 'rejected' && !doc.rejectionEmailSentAt) {
       return retry('rejected') ? { actions: ['shipping-return'], reason: 'return rejected' } : { actions: [], reason: 'last attempt failed: set Requested, then Rejected, to retry' };
     }
-    return { actions: [], reason: `return ${doc.status || 'unset'}${doc.labelSentAt || doc.rejectionEmailSentAt ? ', already actioned' : ''}` };
+    return { actions: [], reason: `return ${doc.status || 'unset'}${doc.labelSentAt || doc.claimEmailSentAt || doc.rejectionEmailSentAt ? ', already actioned' : ''}` };
   }
 
   return { actions: [], reason: `type ${doc._type}` };

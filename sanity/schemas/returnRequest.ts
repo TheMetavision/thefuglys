@@ -4,10 +4,18 @@ import { ALL_BANDS, BAND_TITLES } from '../../netlify/functions/_shared/parcel-p
 /**
  * returnRequest
  * --------------------------------------------------------------------------
- * A customer's return (wall art; merchandise too once RETURNS_CLOTHING is on),
+ * A customer's return (wall art, and merchandise with RETURNS_CLOTHING on),
  * made by the /returns page (netlify/functions/_shared/returns-api.mjs), or a
  * free-label return for a faulty or wrong print, made by Alan from the
  * order's "Create return" button. Only in a Studio built with shipping on.
+ *
+ * type "printfulClaim": a faulty, misprinted or damaged merchandise item
+ * reported on /returns. No label and no band: nothing comes back. It shows
+ * in Returns -> Printful claims with the Printful order id and Printful's
+ * claim deadline (30 days from shipping). The customer replies to their
+ * email with a photo; Alan reports it in Printful, then approves: the
+ * customer is emailed "replacement on its way" (or, with "Refund instead",
+ * that refundAmount is being refunded, by hand in Stripe).
  *
  * Stored at returnRequest.<ref> -- a dotted id, so anonymous reads never see
  * it. The Studio's own "new document" is switched off for this type
@@ -32,8 +40,11 @@ const STATUSES = [
   { title: 'In transit', value: 'in_transit' },
   { title: 'Ready to collect', value: 'ready_to_collect' },
   { title: 'Received', value: 'received' },
+  { title: 'Replacement sent (Printful claim)', value: 'replacement_sent' },
+  { title: 'Refund due (Printful claim)', value: 'refund_due' },
   { title: 'Refunded', value: 'refunded' },
 ];
+const isClaim = (doc: any) => doc?.type === 'printfulClaim';
 const STATUS_TITLE: Record<string, string> = Object.fromEntries(STATUSES.map((s) => [s.value, s.title.replace(/ \(.*\)$/, '')]));
 
 export default defineType({
@@ -54,23 +65,66 @@ export default defineType({
         if (status === 'rejected' && !String(doc?.rejectionReason || '').trim()) {
           return 'Write the reason for rejecting: the customer is emailed it.';
         }
-        if (status === 'approved' && !doc?.band) return 'Choose the parcel band before approving.';
+        if (status === 'approved' && !isClaim(doc) && !doc?.band) return 'Choose the parcel band before approving.';
+        if (status === 'approved' && isClaim(doc) && doc?.claimResolution === 'refund' && !(Number(doc?.refundAmount) > 0)) return 'Fill in the refund amount before approving a refund.';
         return true;
       }),
     }),
+    defineField({
+      name: 'type',
+      title: 'Kind',
+      type: 'string',
+      readOnly: true,
+      options: { list: [{ title: 'Return (label)', value: 'return' }, { title: 'Printful claim (faulty / damaged, no label)', value: 'printfulClaim' }] },
+      description: 'Blank on returns made before Printful claims existed: those are returns.',
+    }),
+    defineField({
+      name: 'claimResolution',
+      title: 'On approval',
+      type: 'string',
+      hidden: ({ document }) => !isClaim(document),
+      options: { list: [{ title: 'Replacement on its way (no refund)', value: 'replacement' }, { title: 'Refund instead', value: 'refund' }], layout: 'radio' },
+      initialValue: 'replacement',
+      description: 'Report it in Printful first (Orders -> the order -> Report a problem), then approve. Approving emails the customer which one it is. A refund is made by hand in Stripe.',
+    }),
+    defineField({
+      name: 'refundAmount',
+      title: 'Refund (£)',
+      type: 'number',
+      hidden: ({ document }) => !isClaim(document) || (document as any)?.claimResolution !== 'refund',
+      description: 'The item price is filled in. Add the delivery charge if you are refunding that too. This is the figure in the customer’s email.',
+    }),
+    defineField({ name: 'printfulOrderId', title: 'Printful order', type: 'string', readOnly: true, hidden: ({ document }) => !isClaim(document) }),
+    defineField({
+      name: 'claimDeadline',
+      title: 'Claim with Printful by (YYYY-MM-DD)',
+      type: 'string',
+      readOnly: true,
+      hidden: ({ document }) => !isClaim(document),
+      description: '30 days from the earliest Printful ship date. Blank: the ship date is not recorded, so check it in Printful.',
+    }),
+    defineField({ name: 'claimOverdue', title: '⚠ Reported after Printful’s deadline', type: 'boolean', readOnly: true, hidden: ({ value }) => !value }),
+    defineField({ name: 'shippedAt', title: 'Printful shipped', type: 'datetime', readOnly: true, hidden: ({ value }) => !value }),
+    defineField({
+      name: 'shipDateUnknown', title: '⚠ Printful ship date unknown', type: 'boolean', readOnly: true, hidden: ({ value }) => !value,
+      description: 'No ship date was recorded on the order, so the window was counted from the order date. Check it in Printful.',
+    }),
+    defineField({ name: 'packingNote', title: '⚠ Parcel', type: 'string', readOnly: true, hidden: ({ value }) => !value }),
     defineField({
       name: 'freeLabel',
       title: 'Faulty / wrong item — free label',
       type: 'boolean',
       initialValue: false,
+      hidden: ({ document }) => isClaim(document),
       description: 'Ticked: no postage is deducted and the email says the label is free. For a faulty, damaged or wrong item.',
     }),
     defineField({
       name: 'band',
       title: 'Parcel band',
       type: 'string',
+      hidden: ({ document }) => isClaim(document),
       options: { list: (ALL_BANDS as string[]).map((b) => ({ title: (BAND_TITLES as Record<string, string>)[b] || b, value: b })) },
-      description: 'Filled in when it is clear (posters in one tube, one canvas, one merchandise item). For a mix in one box, choose it. Merchandise: X1 mailer, X2 bulky box.',
+      description: 'Filled in when it is clear (posters in one tube, one canvas, merchandise by product type). Otherwise choose it. Merchandise: X1 mailer (flat garments), X2 bulky box (hoodies, trainers, boxed items).',
     }),
     defineField({
       name: 'rejectionReason',
@@ -129,10 +183,15 @@ export default defineType({
           { name: 'lineKey', type: 'string', title: 'Order line', readOnly: true },
           { name: 'formatKey', type: 'string', title: 'Format key', readOnly: true, hidden: true },
           { name: 'sizeKey', type: 'string', title: 'Size key', readOnly: true, hidden: true },
+          { name: 'productType', type: 'string', title: 'Product type', readOnly: true, hidden: ({ value }: any) => !value },
+          { name: 'band', type: 'string', title: 'Band (this item)', readOnly: true, hidden: ({ value }: any) => !value },
+          { name: 'reasonLabel', type: 'string', title: 'Reason', readOnly: true, hidden: ({ value }: any) => !value },
+          { name: 'reason', type: 'string', title: 'Reason key', readOnly: true, hidden: true },
+          { name: 'route', type: 'string', title: 'Route', readOnly: true, hidden: true },
         ],
         preview: {
-          select: { title: 'title', format: 'format', size: 'size', qty: 'quantity' },
-          prepare: ({ title, format, size, qty }: any) => ({ title: `${title} × ${qty || 1}`, subtitle: [format, size].filter(Boolean).join(' / ') }),
+          select: { title: 'title', format: 'format', size: 'size', qty: 'quantity', band: 'band', why: 'reasonLabel' },
+          prepare: ({ title, format, size, qty, band, why }: any) => ({ title: `${title} × ${qty || 1}`, subtitle: [[format, size].filter(Boolean).join(' / '), band, why].filter(Boolean).join(' · ') }),
         },
       }],
     }),
@@ -154,6 +213,7 @@ export default defineType({
     defineField({ name: 'requestedAt', title: 'Requested', type: 'datetime', readOnly: true }),
     defineField({ name: 'labelSentAt', title: 'Label emailed', type: 'datetime', readOnly: true }),
     defineField({ name: 'rejectionEmailSentAt', title: 'Decline emailed', type: 'datetime', readOnly: true }),
+    defineField({ name: 'claimEmailSentAt', title: 'Replacement / refund emailed', type: 'datetime', readOnly: true, hidden: ({ value }) => !value }),
     defineField({ name: 'readyToCollectAt', title: 'Ready to collect', type: 'datetime', readOnly: true }),
     defineField({ name: 'receivedAt', title: 'Received', type: 'datetime', readOnly: true }),
     defineField({
@@ -182,11 +242,19 @@ export default defineType({
     defineField({ name: 'claimedAt', title: 'Claimed', type: 'datetime', readOnly: true, hidden: true }),
   ],
   preview: {
-    select: { n: 'returnNumber', name: 'customerName', status: 'status', free: 'freeLabel', unknown: 'deliveryDateUnknown' },
-    prepare: ({ n, name, status, free, unknown }: any) => ({
-      title: `${n || 'Return'} — ${name || ''}`,
-      subtitle: [STATUS_TITLE[status] || status, free ? 'free label' : null, unknown ? '⚠ delivery date unknown' : null].filter(Boolean).join(' · '),
-    }),
+    select: { n: 'returnNumber', name: 'customerName', status: 'status', free: 'freeLabel', unknown: 'deliveryDateUnknown', type: 'type', pf: 'printfulOrderId', by: 'claimDeadline', overdue: 'claimOverdue' },
+    prepare: ({ n, name, status, free, unknown, type, pf, by, overdue }: any) => (type === 'printfulClaim'
+      ? {
+        title: `🧵 ${n || 'Claim'} — ${name || ''}`,
+        subtitle: [STATUS_TITLE[status] || status, pf ? `Printful #${pf}` : 'Printful order ?', by ? `claim by ${by}` : 'deadline: check Printful', overdue ? '⚠ past deadline' : null].filter(Boolean).join(' · '),
+      }
+      : {
+        title: `${n || 'Return'} — ${name || ''}`,
+        subtitle: [STATUS_TITLE[status] || status, free ? 'free label' : null, unknown ? '⚠ delivery date unknown' : null].filter(Boolean).join(' · '),
+      }),
   },
-  orderings: [{ title: 'Newest first', name: 'requestedDesc', by: [{ field: 'requestedAt', direction: 'desc' }] }],
+  orderings: [
+    { title: 'Newest first', name: 'requestedDesc', by: [{ field: 'requestedAt', direction: 'desc' }] },
+    { title: 'Printful claim deadline', name: 'claimDeadlineAsc', by: [{ field: 'claimDeadline', direction: 'asc' }] },
+  ],
 });

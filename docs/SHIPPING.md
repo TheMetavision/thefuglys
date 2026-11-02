@@ -63,8 +63,8 @@ Fix a bug in one repo, then copy the file to the other three.
 - **Policy §3 exclusions** (personalised, digital, gift cards) don't apply to wall art: the prints are standard designs.
 - **Not yet dispatched:** "email us to cancel".
 - **Non-UK address:** "email us".
-- **Merchandise:** "email us" while `RETURNS_CLOTHING` is `false` (site-config). Once on, it's allowed up to 30 days after the order, always flagged, with underwear noted. Bands: **X1** mailer, **X2** bulky box.
-- **Faulty, damaged or wrong:** the Studio's free-label action.
+- **Merchandise** (`RETURNS_CLOTHING` on since feat/merch-returns): change of mind / wrong size until the end of the **21th day after Printful's ship date** (`RETURNS_MERCH_WINDOW_DAYS`; with several packages, the latest), UK time, by prepaid label with the postage deducted, exactly like wall art. Not for personalised / custom, gift-card or final-sale items. Bands by product type (`parcel-plan.mjs` `MERCH_BAND_BY_TYPE`): **X1** mailer for flat garments, **X2** bulky box for hoodies, trainers and boxed items; a type not in the list gets no band and is flagged for you to choose. **Faulty, misprinted or damaged merchandise** is a **Printful claim** (see below), not a label.
+- **Faulty, damaged or wrong print:** the Studio's free-label action.
 - **Refunds** stay manual in Stripe, less `postageDeduction` unless it's a free label.
 
 ### Lessons from CSC, Pixel8 and Wyrmfuel, built in
@@ -264,6 +264,22 @@ Prerequisites: steps 1–4 done (and 3b), with `SHIPPING_TEST_MODE=true` and `FU
     ```
     Refund the test orders in Stripe and delete the test documents in the Studio.
 
-**Going live:** fill in the band sizes on the service, unset `SHIPPING_TEST_MODE`, and apply the policy drafts. **Merchandise returns:** measure X1/X2, then set `RETURNS_CLOTHING: 'true'` in `site-config.mjs` (or the env var of that name).
+## Merchandise returns and Printful claims (feat/merch-returns)
+
+Switched on by `RETURNS_CLOTHING: 'true'` in `site-config.mjs` (an env var of that name still overrides; `false` puts merchandise back to "email us").
+
+- **Per-item reason** on `/returns`. A merchandise line also offers **"Faulty, misprinted or damaged"**.
+- **One request per route.** A submission can mix wall art and merchandise; `returnRoutes()` splits it into up to three `returnRequest`s, numbered `-R1`, `-R2`…:
+  - **Printful claim** (`type: printfulClaim`): the faulty merchandise. No label, no band, no quote, any country. Holds the **Printful order id** and **claim by** date (Printful's 30 days from the *earliest* package's ship date, `PRINTFUL_CLAIM_DAYS`). A report after that date is still taken, flagged *past Printful's deadline*. The team gets a "Printful claim" email; the customer gets "please reply to this email with a photo" (the form takes no uploads; the reply lands in the brand inbox).
+  - **Wall-art return**: unchanged (one label, the wall-art bands).
+  - **Merchandise return**: one label for all the change-of-mind merchandise: X2 if anything in it is bulky, else X1. Several items, or an unknown type, add a ⚠ Parcel note for you to check the band.
+- The quote is per parcel and summed on the page before submitting; each request stores the figure the customer saw for its own parcel.
+- **Studio:** Returns → **Printful claims** (To do, soonest deadline first; Refund due; Replacement sent; All). Label returns no longer list claims. Report the problem in Printful (Orders → the order → Report a problem) once the photo is in, then set the claim to **Approved**: the customer is emailed **"your replacement is on its way"** (status → Replacement sent). To refund instead, choose **Refund instead** (and check **Refund (£)**, which starts at the item price) before approving: the customer is told the amount and the status becomes **Refund due**; refund by hand in Stripe, then set Refunded. Reject works as for returns, worded for a claim.
+- **Ship dates** come from Printful's own fields (`shippedAt`, `printfulShipments[]`), read only. An order Printful says is shipped but with no date: the window runs from the order date plus 10 days, flagged *Printful ship date unknown*. Not shipped yet: "email us to cancel".
+- **Product type on new orders:** `stripe-webhook.cjs` now copies the checkout's product type onto each merchandise line (`productType`). Older lines are banded from their title.
+- **The orders webhook needs no change:** its filter already fires on `status`, and its projection is the whole document.
+- Before real merchandise labels: X1 and X2 must have sizes and weights on the shipping service (`config/shipping.json`); until then `create-return` fails with `band_not_configured` and you get the "no label sent" email.
+
+**Going live:** fill in the band sizes on the service, unset `SHIPPING_TEST_MODE`, and apply the policy drafts. **Merchandise returns** are switched on in code (feat/merch-returns): measure X1/X2 on the service before the first real merchandise label.
 
 **Known edge:** `printful-webhook` patches an order with `ifRevisionID` and skips (no email) on a 409. If a shipping write lands on the same order in the same fraction of a second as Printful's `package_shipped`, that one Printful update is lost. It's very unlikely (the two happen days apart), but if a Printful shipment is ever missing from a mixed order, that's why. Printful's code is deliberately unchanged.

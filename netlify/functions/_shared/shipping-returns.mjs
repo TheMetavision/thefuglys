@@ -11,6 +11,13 @@
  *               the refund in Stripe. Status -> Label sent.
  *   Rejected -> a polite decline with the reason Alan wrote.
  *
+ * A Printful claim (type printfulClaim: a faulty, misprinted or damaged
+ * merchandise item, reported on /returns) has no label. Approved -> the
+ * customer is emailed "your replacement is on its way" (Alan has reported it
+ * in Printful), or, when Alan chose "Refund instead", that they are being
+ * refunded refundAmount (by hand in Stripe). Status -> Replacement sent /
+ * Refund due. Rejected -> the decline, worded for a claim.
+ *
  * Each email goes once: the request is claimed (a conditional write) before
  * anything is done, and labelSentAt / rejectionEmailSentAt mark it done. A
  * failure records the reason in `error` and emails the team; Alan retries by
@@ -23,7 +30,7 @@
 import { readDecideWrite, serverPatch } from './server-patch.mjs';
 import { quotedPounds } from './shipping-client.mjs';
 import { ALL_BANDS, recipientFor } from './parcel-plan.mjs';
-import { sendEmail, returnLabelEmail, returnDeclinedEmail, returnProblemEmail } from './shipping-emails.mjs';
+import { sendEmail, returnLabelEmail, returnDeclinedEmail, returnProblemEmail, claimReplacementEmail, claimRefundEmail } from './shipping-emails.mjs';
 import { normaliseOrderRef } from './order-ref.mjs';
 
 export const CLAIM_TTL_MS = 10 * 60 * 1000;
@@ -33,6 +40,7 @@ export async function processReturn(retId, { sanity, shipping, fetchLabel, getRe
   const claim = await readDecideWrite(sanity, retId, (ret) => {
     if (!ret || ret._type !== 'returnRequest') { ignored = 'not a return request'; return null; }
     if (ret.status === 'approved' && ret.labelSentAt) { ignored = 'label already sent'; return null; }
+    if (ret.status === 'approved' && ret.claimEmailSentAt) { ignored = 'claim email already sent'; return null; }
     if (ret.status === 'rejected' && ret.rejectionEmailSentAt) { ignored = 'decline already sent'; return null; }
     if (ret.status !== 'approved' && ret.status !== 'rejected') { ignored = `status is ${ret.status}`; return null; }
     const claimedAt = Date.parse(ret.claimedAt || '');
@@ -64,7 +72,24 @@ export async function processReturn(retId, { sanity, shipping, fetchLabel, getRe
     return { outcome: 'rejected' };
   }
 
-  /* ── approved ─────────────────────────────────────────────────────────── */
+  /* ── approved: a Printful claim (no label) ────────────────────────────── */
+  if (ret.type === 'printfulClaim') {
+    if (!Array.isArray(ret.lines) || !ret.lines.length) return fail('The claim has no items on it.');
+    const refund = ret.claimResolution === 'refund';
+    if (refund && !(Number(ret.refundAmount) > 0)) {
+      return fail('Refund instead is chosen but "Refund (£)" is empty: fill it in, then set the status to Requested and back to Approved.');
+    }
+    const sent = await sendEmail(resend, refund ? claimRefundEmail(ret) : claimReplacementEmail(ret));
+    if (!sent.ok) return fail(`The ${refund ? 'refund' : 'replacement'} email was not sent: ${sent.error}`);
+    await serverPatch(sanity, retId, {
+      set: { status: refund ? 'refund_due' : 'replacement_sent', claimEmailSentAt: new Date(now()).toISOString() },
+      unset: ['claimedAt', 'error'],
+    });
+    log.log(`shipping-return: ${name} claim approved, customer told ${refund ? `refund £${Number(ret.refundAmount).toFixed(2)}` : 'replacement on its way'}`);
+    return { outcome: refund ? 'refund_due' : 'replacement_sent' };
+  }
+
+  /* ── approved: a return label ─────────────────────────────────────────── */
   if (!ret.band || !ALL_BANDS.includes(ret.band)) {
     return fail(`Choose the return parcel's band ("Parcel band") — ${ret.band ? `"${ret.band}" is not a known band` : 'none is set'}. A mix of items needs it chosen by hand.`);
   }

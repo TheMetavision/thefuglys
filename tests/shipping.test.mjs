@@ -65,8 +65,8 @@ test('site-config: committed values, env override, numbers and flags', () => {
   assert.ok(['FUGLYS', 'LABRATS', 'COC', 'BIKERBABIES'].includes(setting('SHIPPING_BRAND', {})));
   assert.equal(setting('SHIPPING_BRAND', { SHIPPING_BRAND: 'X' }), 'X');
   assert.equal(intSetting('POSTER_EXTRA_WEIGHT_G', 0, {}), 0);
-  assert.equal(flag('RETURNS_CLOTHING', {}), false, 'merchandise returns ship switched off');
-  assert.equal(flag('RETURNS_CLOTHING', { RETURNS_CLOTHING: 'true' }), true);
+  assert.equal(flag('RETURNS_CLOTHING', {}), true, 'merchandise returns switched on (feat/merch-returns)');
+  assert.equal(flag('RETURNS_CLOTHING', { RETURNS_CLOTHING: 'false' }), false, 'the env var can still switch them off');
   assert.equal(sanityWriteToken({ SANITY_TOKEN: 'b' }), 'b');
   assert.equal(sanityWriteToken({ SANITY_API_TOKEN: 'a', SANITY_TOKEN: 'b' }), 'a');
   assert.equal(setting('RETURN_POINT_INPOST', {}), 'InPost locker, 59 West Road, Shoeburyness');
@@ -526,10 +526,11 @@ test(`returns: wall art within ${RETURN_WINDOW_DAYS} days of delivery; merchandi
   assert.match(late.reason, /ended on 19 November 2026/);
 });
 
-test('returns: merchandise switch on allows it, flagged, underwear noted', () => {
-  const v = evaluateReturn(delivered({ items: [tee('t', 'Boxer Briefs')] }), { now: NOW, clothing: true });
+test('returns: merchandise switch on allows it from the Printful ship date, underwear noted', () => {
+  const v = evaluateReturn(delivered({ items: [tee('t', 'Boxer Briefs')], status: 'shipped', shippedAt: '2026-11-04T09:00:00Z' }), { now: NOW, clothing: true });
   assert.equal(v.eligible, true);
-  assert.equal(v.deliveryDateUnknown, true);
+  assert.equal(v.deliveryDateUnknown, false, 'merchandise is timed from the ship date, not flagged');
+  assert.equal(v.shippedAt, '2026-11-04T09:00:00.000Z');
   assert.equal(v.underwear, true);
 });
 
@@ -546,8 +547,9 @@ test('returns: overseas, not yet dispatched, already requested, hand-dispatched 
 
 test('returns: pickLines checks quantities', () => {
   const v = evaluateReturn(delivered({ items: [poster('a', 'large', 2)] }), { now: NOW });
-  assert.match(pickLines(v, [{ lineKey: 'a', quantity: 3 }]).error, /at most 2/);
-  assert.equal(pickLines(v, [{ lineKey: 'a', quantity: 2 }]).lines[0].formatKey, 'poster');
+  assert.match(pickLines(v, [{ lineKey: 'a', quantity: 3, reason: 'changed_mind' }]).error, /at most 2/);
+  assert.equal(pickLines(v, [{ lineKey: 'a', quantity: 2 }], 'changed_mind').lines[0].formatKey, 'poster');
+  assert.match(pickLines(v, [{ lineKey: 'a', quantity: 1 }]).error, /choose a reason/);
 });
 
 function returnsReq(body) { return new Request(`${SITE}/api/returns`, { method: 'POST', body: JSON.stringify(body), headers: { 'x-nf-client-connection-ip': '1.2.3.4' } }); }

@@ -1,7 +1,8 @@
 /**
  * The Sendcloud flow's emails: the team's notices (label ready, problems,
- * returns), and the two a customer gets about a return (the label, or a
- * polite no).
+ * returns, Printful claims), what a customer gets about a return (the label,
+ * or a polite no) and about a Printful claim (send us a photo; then the
+ * replacement is on its way, or a refund instead).
  *
  * The customer's "on its way" email is NOT here -- it is dispatch-email.mjs,
  * sent once whichever path ships.
@@ -17,7 +18,7 @@
 import { carrierName } from './parcel-plan.mjs';
 import { setting } from './site-config.mjs';
 import { esc, brandCard, brandLook } from './dispatch-email.mjs';
-import { RETURN_WINDOW_DAYS } from './returns-eligibility.mjs';
+import { RETURN_WINDOW_DAYS, MERCH_WINDOW_DAYS, PRINTFUL_CLAIM_DAYS, longDate as longDateOf } from './returns-eligibility.mjs';
 
 export { esc };
 
@@ -133,6 +134,9 @@ export function newReturnEmail(ret) {
       ${ret.customerNotes ? `<p><strong>Notes:</strong></p><p style="white-space:pre-wrap;background:#f7f7f7;padding:8px 10px">${esc(ret.customerNotes)}</p>` : ''}
       ${ret.quotedPostage != null ? `<p>The customer was shown <strong>${money(ret.quotedPostage)}</strong> return postage before submitting.</p>` : ''}
       ${ret.deliveredAt ? `<p>Delivered ${esc(dateOnly(ret.deliveredAt))}; the ${RETURN_WINDOW_DAYS} days to ask run to ${esc(ret.windowEndsOn || '')}.</p>` : ''}
+      ${ret.shippedAt ? `<p>Merchandise: Printful shipped it ${esc(dateOnly(ret.shippedAt))}; the ${MERCH_WINDOW_DAYS} days to ask run to ${esc(ret.windowEndsOn || '')}.</p>` : ''}
+      ${ret.shipDateUnknown ? `<p style="background:#fff8e1;border-left:4px solid #f0a500;padding:10px 12px"><strong>Printful ship date unknown.</strong> The window was counted from the order date. Check the date in Printful before approving.</p>` : ''}
+      ${ret.packingNote ? `<p style="background:#fff8e1;border-left:4px solid #f0a500;padding:10px 12px"><strong>Parcel:</strong> ${esc(ret.packingNote)}</p>` : ''}
       ${flags}
       ${ret.band ? '' : '<p><strong>Choose the parcel band</strong> before approving (more than one item, or a mix).</p>'}
       <p>Approve or reject it in the Studio. Approving buys the return label and emails it to the customer; the return postage is deducted from their refund (refunds stay manual in Stripe).</p>
@@ -143,9 +147,9 @@ export function newReturnEmail(ret) {
 export function returnProblemEmail(ret, reason) {
   return {
     ...toTeam(),
-    subject: `${testTag()}⚠ ${brand()} return ${ret.returnNumber || ret._id}: no label sent`,
+    subject: `${testTag()}⚠ ${brand()} ${ret.type === 'printfulClaim' ? 'Printful claim' : 'return'} ${ret.returnNumber || ret._id}: ${ret.type === 'printfulClaim' ? 'customer not emailed' : 'no label sent'}`,
     html: plainWrap(`
-      <h2 style="margin:0 0 8px">No return label for ${esc(ret.returnNumber || ret._id)}</h2>
+      <h2 style="margin:0 0 8px">${ret.type === 'printfulClaim' ? 'Claim not actioned' : 'No return label'} for ${esc(ret.returnNumber || ret._id)}</h2>
       <p style="background:#fff3f3;border-left:4px solid #c00;padding:10px 12px;white-space:pre-wrap">${esc(reason)}</p>
       <p>The customer has not been emailed. Fix it in the Studio (a band, usually), then set the status to Requested and back to Approved to try again.</p>
       <p><a href="${esc(studioLink(ret._id, 'returnRequest'))}">Open the return in the Studio</a></p>`),
@@ -225,12 +229,95 @@ export function returnDeclinedEmail(ret, b = brandLook()) {
   const p = (s) => `<p style="margin: 0 0 14px;">${s}</p>`;
   return {
     to: [ret.customerEmail],
-    subject: `${testTag()}About your ${brand()} return request ${ret.returnNumber}`,
-    html: brandCard('About your return request', `
+    subject: `${testTag()}About your ${brand()} ${ret.type === 'printfulClaim' ? 'report' : 'return request'} ${ret.returnNumber}`,
+    html: brandCard(ret.type === 'printfulClaim' ? 'About your report' : 'About your return request', `
       ${p(`Hi ${esc(String(ret.customerName || '').split(' ')[0] || 'there')}, thanks for getting in touch about order <strong>${esc(ret.orderNumber)}</strong>.`)}
-      ${p("We're sorry, but we can't accept this return:")}
+      ${p(ret.type === 'printfulClaim' ? "We're sorry, but we can't replace this item:" : "We're sorry, but we can't accept this return:")}
       <div style="white-space: pre-wrap; border-left: 3px solid ${esc(b.accent)}; padding: 12px 14px; margin: 0 0 14px;">${esc(ret.rejectionReason || '')}</div>
-      ${p("If your item arrived faulty, damaged or not as described, your rights are not affected — reply to this email with your order reference and some photos, and we'll put it right.")}
+      ${ret.type === 'printfulClaim'
+        ? p('If you have more photos or details, reply to this email and we will look again.')
+        : p("If your item arrived faulty, damaged or not as described, your rights are not affected — reply to this email with your order reference and some photos, and we'll put it right.")}
       <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Return reference: ${esc(ret.returnNumber)}</p>`, b),
+  };
+}
+
+/* ------------------------------------------------------------------ Printful claims */
+
+const firstName = (ret) => esc(String(ret.customerName || '').split(' ')[0] || 'there');
+const itemList = (ret) => `<ul style="margin: 0 0 14px; padding-left: 20px;">${(ret.lines || []).map((l) => `<li>${esc(l.title)} × ${esc(l.quantity)}</li>`).join('')}</ul>`;
+
+/** Team: a faulty / damaged Printful item was reported. Nothing is posted back. */
+export function newClaimEmail(ret) {
+  const deadline = ret.claimDeadline ? longDateOf(ret.claimDeadline) : '';
+  const late = ret.claimOverdue
+    ? `<p style="background:#fff3f3;border-left:4px solid #c00;padding:10px 12px"><strong>Past Printful's deadline.</strong> Printful's ${PRINTFUL_CLAIM_DAYS} days ended on ${esc(deadline)}. Try Printful anyway, or put it right yourself.</p>`
+    : '';
+  const unknown = ret.shipDateUnknown || !ret.claimDeadline
+    ? `<p style="background:#fff8e1;border-left:4px solid #f0a500;padding:10px 12px"><strong>Ship date unknown.</strong> Check the date in Printful: their claim window is ${PRINTFUL_CLAIM_DAYS} days from shipping.</p>`
+    : '';
+  return {
+    ...toTeam(),
+    subject: `${testTag()}🧵 ${brand()} Printful claim ${ret.returnNumber} — ${ret.customerName || ''}${deadline ? ` — claim by ${deadline}` : ''}`,
+    html: plainWrap(`
+      <h2 style="margin:0 0 8px">${esc(brand())} Printful claim ${esc(ret.returnNumber)}</h2>
+      <p>Order <strong>${esc(ret.orderNumber)}</strong> — ${esc(ret.customerName || '')} &lt;${esc(ret.customerEmail || '')}&gt;</p>
+      ${table(`
+        <tr><th align="left">Printful order</th><td>${ret.printfulOrderId ? `#${esc(ret.printfulOrderId)}` : '<strong>not recorded</strong> — find it in Printful by the customer'}</td></tr>
+        <tr><th align="left">Shipped</th><td>${esc(dateOnly(ret.shippedAt) || 'unknown')}</td></tr>
+        <tr><th align="left">Claim with Printful by</th><td><strong>${esc(deadline || 'check in Printful')}</strong></td></tr>`)}
+      ${returnLinesTable(ret)}
+      <p><strong>Reason:</strong> ${esc(ret.reasonLabel || '')}</p>
+      ${ret.customerNotes ? `<p><strong>What they said:</strong></p><p style="white-space:pre-wrap;background:#f7f7f7;padding:8px 10px">${esc(ret.customerNotes)}</p>` : ''}
+      ${late}${unknown}
+      <p>No return label: nothing comes back. The customer has been asked to reply to their confirmation email with a photo; it will arrive in the brand inbox.</p>
+      <ol>
+        <li>When the photo is in, report it in Printful (Orders → the order → Report a problem) before the date above.</li>
+        <li>In the Studio, approve the claim. The customer is emailed that a replacement is on its way. To refund instead, choose "Refund instead" before approving (the refund itself is made by hand in Stripe).</li>
+      </ol>
+      <p><a href="${esc(studioLink(ret._id, 'returnRequest'))}">Open the claim in the Studio</a></p>`),
+  };
+}
+
+/** Customer, at once: we have it; reply with a photo; nothing to send back. */
+export function claimReceivedEmail(ret, b = brandLook()) {
+  const p = (s) => `<p style="margin: 0 0 14px;">${s}</p>`;
+  return {
+    to: [ret.customerEmail],
+    subject: `${testTag()}Your ${brand()} report ${ret.returnNumber}: please reply with a photo`,
+    html: brandCard("Sorry about that — we're on it", `
+      ${p(`Hi ${firstName(ret)}, thanks for letting us know about a problem with order <strong>${esc(ret.orderNumber)}</strong>:`)}
+      ${itemList(ret)}
+      <div style="border-left: 3px solid ${esc(b.accent)}; padding: 12px 14px; margin: 0 0 14px;"><strong>Please reply to this email with a photo of the problem</strong> (and of the packaging, if it arrived damaged).</div>
+      ${p("You don't need to send anything back. Once we've seen the photo we'll arrange a replacement and email you when it's on its way.")}
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
+  };
+}
+
+/** Customer, on approval: the replacement is on its way (no refund). */
+export function claimReplacementEmail(ret, b = brandLook()) {
+  const p = (s) => `<p style="margin: 0 0 14px;">${s}</p>`;
+  return {
+    to: [ret.customerEmail],
+    subject: `${testTag()}Your ${brand()} replacement is on its way — ${ret.returnNumber}`,
+    html: brandCard('Your replacement is on its way', `
+      ${p(`Hi ${firstName(ret)}, thanks for the photo. We're sorry the item from order <strong>${esc(ret.orderNumber)}</strong> wasn't right, and a replacement is on its way:`)}
+      ${itemList(ret)}
+      ${p("It's made to order, so allow a few days for it to be printed. There's nothing to send back and nothing to pay.")}
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
+  };
+}
+
+/** Customer, on approval with "Refund instead": a refund rather than a replacement. */
+export function claimRefundEmail(ret, b = brandLook()) {
+  const p = (s) => `<p style="margin: 0 0 14px;">${s}</p>`;
+  const amount = Number(ret.refundAmount);
+  return {
+    to: [ret.customerEmail],
+    subject: `${testTag()}Your ${brand()} refund — ${ret.returnNumber}`,
+    html: brandCard("We're refunding you", `
+      ${p(`Hi ${firstName(ret)}, thanks for the photo. We're sorry the item from order <strong>${esc(ret.orderNumber)}</strong> wasn't right:`)}
+      ${itemList(ret)}
+      ${p(`Instead of a replacement, we're refunding ${Number.isFinite(amount) && amount > 0 ? `<strong>${money(amount)}</strong>` : 'you'} to your original payment method. You'll have it within 14 days. There's nothing to send back.`)}
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
   };
 }
