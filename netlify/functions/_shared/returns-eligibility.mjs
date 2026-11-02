@@ -170,7 +170,7 @@ export function evaluateReturn(order, { now = Date.now(), existing = [], clothin
   const merchWhy = !clothing ? CLOTHING_EMAIL_US
     : !merchShipped ? MERCH_NOT_SHIPPED
       : overseas ? OVERSEAS_EMAIL_US
-        : today > out.merchWindowEndsOn ? `The ${MERCH_WINDOW_DAYS} days to return this ended on ${longDate(out.merchWindowEndsOn)}. If it's faulty or damaged, choose that reason instead.`
+        : today > out.merchWindowEndsOn ? `Online returns for this ended on ${longDate(out.merchWindowEndsOn)}, ${MERCH_WINDOW_DAYS} days after it shipped. If it took a long time to reach you, email ${CONTACT} and we'll still take it back. If it's faulty or damaged, choose that reason instead.`
           : null;
 
   const requested = new Map();

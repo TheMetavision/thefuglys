@@ -81,7 +81,7 @@ test(`window: change of mind until the end of day ${MERCH_WINDOW_DAYS} after Pri
   assert.equal(v.lines[0].returnable, 1);
   const late = evaluateReturn(order(), { now: Date.parse(`${TOO_LATE}T00:30:00Z`), clothing: true });
   assert.equal(late.lines[0].returnable, 0);
-  assert.match(late.lines[0].why, new RegExp(`ended on ${longDate(LAST_DAY)}`));
+  assert.match(late.lines[0].why, new RegExp(`ended on ${longDate(LAST_DAY)}.*email`));
   assert.equal(late.lines[0].claimable, 1, 'a faulty item can still be reported after the window');
   assert.equal(late.eligible, true);
 });
