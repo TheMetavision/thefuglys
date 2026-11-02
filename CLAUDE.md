@@ -49,3 +49,33 @@ Read `docs/SHIPPING.md`. In short:
   carrier/tracking. Server fields: `shipmentResult`, dispatch-email stamps;
   written with `_shared/server-patch.mjs` (published + draft).
 - One dispatch-email module with an atomic claim: `_shared/dispatch-email.mjs`.
+
+
+---
+
+## Post-delivery sequence and referrals -- feat/post-delivery-sequence
+
+Ported from Pixel8. In short:
+
+- At the FIRST shipping email (Printful package_shipped after "It's shipped",
+  or the wall-art dispatch email, by hand or Sendcloud first scan), once per
+  order: the buyer's referral code and the MailerLite "<XX> - Customers"
+  group (`_shared/post-delivery.mjs`). Claimed with `postDeliveryStartedAt`
+  via readDecideWrite / serverPatch; never blocks or undoes the email.
+- Brand values (BRAND_KEY, code prefixes, coupon ids, MailerLite group id,
+  field prefix) live in `_shared/site-config.mjs` only. The new shared modules
+  (post-delivery, referral, referral-reward, mailerlite-customer,
+  marketing-consent, printful-shipped, dispatch-email) are identical in the
+  four repos: change one, copy to all four. `tests/post-delivery.test.mjs`
+  is identical too.
+- MailerLite: brand-prefixed fields only; never `name`, never the unprefixed
+  CSC fields, never `status`.
+- Consent: the cart drawer's "Don't send me offers or referral emails" box ->
+  create-checkout `metadata.marketing_opt_out` -> order `marketingConsent`.
+  'refused' = no code, no MailerLite.
+- Friend-code reward: stripe-webhook `rewardStep` (first delivery only, and
+  `referredBy` is claimed first) -> `_shared/referral-reward.mjs`.
+- printful-webhook writes through `_shared/printful-shipped.mjs` +
+  server-patch (draft mirrored); every package goes in `printfulShipments`,
+  and a 409 between two packages re-reads and retries.
+- Privacy wording to publish first: docs/POLICY-GO-LIVE.md, Group C.

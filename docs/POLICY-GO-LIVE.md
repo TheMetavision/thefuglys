@@ -46,3 +46,40 @@ Document `legalPage.returns-refunds`. The return window stays The Fuglys's own: 
 Keep the faulty bullet as it is: "Faulty / wrong / damaged items: we cover the cost."
 
 **c) §2 "Conditions for return":** add a bullet: *wall art must be unused and returned in its original tube or box.*
+
+
+## Group C: Privacy Policy, customer emails and referral codes
+
+Added 2026-11-02 on branch `feat/post-delivery-sequence`. **Nothing here is applied.** Publish it in the Studio (Legal Pages → Privacy Policy, document `legalPage.privacy-policy`) **before** the post-delivery automation in MailerLite is switched on, and before any email goes to past customers.
+
+⚠ Legal wording, and one real legal question. The soft opt-in (PECR reg. 22) needs the customer to have been given a simple way to refuse **when their details were collected**. Buyers from now on get that (the "Don't send me offers or referral emails" box in the cart). Buyers from before the box existed were not offered it at checkout, so emailing them on the soft opt-in is arguable rather than clear-cut. The wording below covers them as you asked ("unless you opt out"), but decide yourself (or with advice) whether past buyers get anything before they have had a chance to refuse; a first email to them that leads with the opt-out is the cautious route.
+
+**a) "4. Why we use it (legal bases)":** replace the bullet
+
+> Consent — for marketing emails (our newsletter) and for Google Analytics cookies. You can withdraw consent at any time using the unsubscribe link in any email, or the "Cookie settings" link at the bottom of any page.
+
+with these two bullets:
+
+> Consent — for our newsletter (if you sign up to it) and for Google Analytics cookies. You can withdraw consent at any time using the unsubscribe link in any email, or the "Cookie settings" link at the bottom of any page.
+
+> Legitimate interests (customers) — once you've ordered from us, we email you after your order ships: a check that it arrived, your own referral code to share with friends, and now and then news and offers about similar The Fuglys products. We rely on the "soft opt-in" for existing customers (regulation 22 of the Privacy and Electronic Communications Regulations), with our legitimate interest in keeping in touch with our customers as the lawful basis. This covers past customers as well as new ones. You can say no at any time: tick "Don't send me offers or referral emails" in your basket when you order, use the unsubscribe link in any of these emails, or email contact@themetavision.co.uk. Saying no never affects the emails we need to send about your order (order confirmation and delivery updates).
+
+**b) "5. Who we share it with":** replace the two bullets below.
+
+The Stripe bullet ("Stripe, Inc. — payment processing.") becomes:
+
+> Stripe, Inc. — payment processing, and the referral codes we create for you. Your email address and order reference are stored with your code so we can send you a thank-you code when a friend uses it. We never tell you who used your code, and never tell them who you are.
+
+The MailerLite bullet ("MailerLite — newsletter and marketing email delivery (only if you have subscribed).") becomes:
+
+> MailerLite — newsletter emails (only if you have subscribed) and the emails we send customers after an order ships. For customers we share your email address, your order reference, what you ordered and when, your referral code and whether you're happy to receive offers. This includes past customers, unless you have opted out or unsubscribed. If you ticked "Don't send me offers or referral emails" when you ordered, we don't add you to MailerLite for that order.
+
+**c) "7. How long we keep it":** add after the "Newsletter subscribers" bullet:
+
+> Customer emails (MailerLite) — until you unsubscribe or ask us to stop, or three years after your most recent order, whichever comes first. After you unsubscribe we keep a suppression record so we do not email you again. Referral codes stay in Stripe while they can still be used; the thank-you code you get when a friend orders works once.
+
+**d) "8. Your rights":** the bullet "withdraw consent for marketing emails…" can stay as it is; add:
+
+> object to our customer emails at any time (unsubscribe link, or email us), after which we stop.
+
+Codes, for reference (no need to name them in the policy): friend codes start FUG-, thank-you codes FGTHX-.

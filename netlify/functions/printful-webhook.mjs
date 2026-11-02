@@ -13,12 +13,20 @@
  * Stripe session id, which is also the Sanity _id suffix (order.<key>, or the
  * older order-<key>). We match on printfulOrderId first, then external_id.
  *
- * Idempotent: a repeated event for an order already in that state (same
- * tracking number / same reason) is logged and skipped, so shippedAt doesn't move.
- * The tracking email goes out only when this delivery actually moved the order
- * to shipped or changed its tracking number — never on a repeat. The patch is
- * conditional on the order's _rev, so two copies of one event arriving together
- * can't both win (the loser gets a 409 and sends nothing).
+ * Writes go through _shared/printful-shipped.mjs and server-patch.mjs: the
+ * published order AND an open Studio draft get the same values (publishing
+ * the draft never rolls tracking back). Every package is kept in
+ * printfulShipments; a repeated event for a package already recorded (same
+ * Printful shipment id or tracking number) is logged and skipped, so
+ * shippedAt doesn't move and no second email goes. Writes are
+ * read-decide-write on the order's _rev: when two packages of one order
+ * arrive together, the one that loses the race re-reads and writes again,
+ * so neither package's tracking or email is dropped.
+ *
+ * After the first "It's shipped" email the post-delivery sequence starts
+ * (_shared/post-delivery.mjs: referral code + MailerLite), once per order,
+ * unless the wall-art dispatch email started it first. It never blocks or
+ * undoes the email.
  *
  * Every step is non-fatal — processed events always get 200 so Printful doesn't
  * retry-storm. Only a bad ?key (401), wrong method (405) or unparseable body (400)
@@ -45,9 +53,10 @@
  *  which also still works.)
  */
 import { timingSafeEqual } from 'node:crypto';
+import { createClient } from '@sanity/client';
+import { findPrintfulOrder, recordShipped, recordFailed } from './_shared/printful-shipped.mjs';
+import { startPostDelivery } from './_shared/post-delivery.mjs';
 
-const SANITY_API_VER = '2024-01-01';
-const SANITY_TIMEOUT_MS = 8000;
 const RESEND_URL = 'https://api.resend.com/emails';
 const RESEND_TIMEOUT_MS = 8000;
 
@@ -77,64 +86,12 @@ function keyMatches(given, secret) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function sanityQuery(groq, params) {
-  const qs = Object.entries(params)
-    .map(([k, v]) => `&$${k}=${encodeURIComponent(JSON.stringify(v))}`)
-    .join('');
-  const url = `https://${sanityProjectId()}.api.sanity.io/v${SANITY_API_VER}/data/query/${sanityDataset()}` +
-    `?query=${encodeURIComponent(groq)}${qs}`;
-  const res = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + sanityWriteToken() },
-    signal: AbortSignal.timeout(SANITY_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`Sanity query ${res.status}: ${await res.text()}`);
-  return (await res.json()).result ?? null;
-}
-
-const ORDER_FIELDS = '{ _id, _rev, orderRef, status, trackingNumber, failureReason, customerName, customerEmail, hasInhouse }';
 // On an order that also has wall art (made and posted by us, through the
 // Sendcloud flow), this email covers Printful's parcel only: it says the wall
 // art travels separately, so the two emails never contradict each other. The
 // wall-art email (netlify/functions/_shared/dispatch-email.mjs) says the same
 // the other way round. The only change made to this file for shipping.
 export const WALL_ART_NOTE = 'Your wall art is made by us and ships separately, with its own tracking email.';
-
-async function findOrder(printfulOrderId, externalId) {
-  if (printfulOrderId != null && printfulOrderId !== '') {
-    const byId = await sanityQuery(
-      `*[_type == "order" && printfulOrderId == $pid][0]${ORDER_FIELDS}`,
-      { pid: String(printfulOrderId) }
-    );
-    if (byId) return byId;
-  }
-  if (externalId) {
-    const key = String(externalId);
-    return sanityQuery(
-      `*[_type == "order" && _id in [$a, $b]][0]${ORDER_FIELDS}`,
-      { a: `order.${key}`, b: `order-${key}` }
-    );
-  }
-  return null;
-}
-
-// With ifRevisionID, Sanity rejects the patch (409) if the order changed since we
-// read it; that returns false instead of throwing.
-async function patchOrder(orderId, set, ifRevisionID) {
-  const patch = { id: orderId, set };
-  if (ifRevisionID) patch.ifRevisionID = ifRevisionID;
-  const res = await fetch(
-    `https://${sanityProjectId()}.api.sanity.io/v${SANITY_API_VER}/data/mutate/${sanityDataset()}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sanityWriteToken() },
-      body: JSON.stringify({ mutations: [{ patch }] }),
-      signal: AbortSignal.timeout(SANITY_TIMEOUT_MS),
-    }
-  );
-  if (ifRevisionID && res.status === 409) return false;
-  if (!res.ok) throw new Error(`Sanity mutate ${res.status}: ${await res.text()}`);
-  return true;
-}
 
 // Only http(s) links go in the button; anything else is dropped.
 const safeUrl = (u) => (/^https?:\/\//i.test(String(u || '')) ? String(u) : '');
@@ -208,93 +165,98 @@ async function sendShippedEmail(order, shipment) {
   }
 }
 
-// Printful sends shipped_at as a unix timestamp (seconds); fall back to now.
-function shippedAtIso(shipment) {
-  const t = Number(shipment.shipped_at);
-  return Number.isFinite(t) && t > 0 ? new Date(t * 1000).toISOString() : new Date().toISOString();
-}
+// The order writes go through server-patch.mjs, which needs @sanity/client.
+export const sanityClientConfig = () => ({
+  projectId: sanityProjectId(), dataset: sanityDataset(), apiVersion: '2026-04-14',
+  token: sanityWriteToken(), useCdn: false,
+});
+const defaultSanity = () => createClient(sanityClientConfig());
 
-export default async function handler(req) {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
-
-  // Optional shared-secret gate via ?key=… (Printful V1 doesn't sign payloads).
-  const secret = process.env.PRINTFUL_WEBHOOK_SECRET;
-  if (secret) {
-    const key = new URL(req.url).searchParams.get('key');
-    if (!keyMatches(key, secret)) {
-      console.warn('[PRINTFUL-WEBHOOK] rejected: bad or missing ?key');
-      return new Response('Unauthorized', { status: 401 });
-    }
-  } else {
-    console.warn('[PRINTFUL-WEBHOOK] PRINTFUL_WEBHOOK_SECRET not set — accepting unauthenticated request.');
-  }
-
-  let body;
-  try {
-    body = await req.json();
-  } catch (_) {
-    return new Response('Bad request', { status: 400 });
-  }
-
-  const eventType = body?.type;
-  const printfulOrderId = body?.data?.order?.id;
-  const externalId = body?.data?.order?.external_id;
-  const label = `Printful #${printfulOrderId ?? '?'} (external_id ${externalId ?? '?'})`;
-
-  try {
-    if (eventType !== 'package_shipped' && eventType !== 'order_failed') {
-      if (eventType === 'order_created') console.log('[ORDER-CREATED] Printful confirmed', label);
-      else console.log('[PRINTFUL-WEBHOOK] unhandled event:', eventType);
-      return new Response('OK', { status: 200 });
+/**
+ * The webhook, with its Sanity client, email and post-delivery start
+ * swappable for tests. Netlify uses the default export.
+ */
+export function createHandler({ getSanity = defaultSanity, sendEmail = sendShippedEmail, start = startPostDelivery } = {}) {
+  return async function handler(req) {
+    if (req.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 });
     }
 
-    if (!sanityWriteToken()) {
-      console.warn('[PRINTFUL-WEBHOOK] neither SANITY_API_TOKEN nor SANITY_TOKEN is set — cannot update orders.');
-      return new Response('OK', { status: 200 });
-    }
-
-    const order = await findOrder(printfulOrderId, externalId);
-
-    if (eventType === 'package_shipped') {
-      const shipment = body.data?.shipment || {};
-      const trackingNumber = String(shipment.tracking_number || '');
-      if (!order) {
-        console.error(`[SHIPPED] ORDER NOT FOUND in Sanity for ${label} — tracking ${trackingNumber || 'none'} not recorded.`);
-      } else if (order.status === 'shipped' && (order.trackingNumber || '') === trackingNumber) {
-        console.log(`[SHIPPED] ${order.orderRef} already shipped with tracking ${trackingNumber || 'none'} — repeat event, skipped.`);
-      } else {
-        const patched = await patchOrder(order._id, {
-          status: 'shipped',
-          carrier: String(shipment.carrier || ''),
-          trackingNumber,
-          trackingUrl: String(shipment.tracking_url || ''),
-          shippedAt: shippedAtIso(shipment),
-        }, order._rev);
-        if (!patched) {
-          console.log(`[SHIPPED] ${order.orderRef} changed while this event was handled (concurrent delivery) — skipped, no email.`);
-        } else {
-          console.log(`[SHIPPED] ${order.orderRef} → shipped (${trackingNumber || 'no number'}).`);
-          await sendShippedEmail(order, shipment);
-        }
+    // Optional shared-secret gate via ?key=… (Printful V1 doesn't sign payloads).
+    const secret = process.env.PRINTFUL_WEBHOOK_SECRET;
+    if (secret) {
+      const key = new URL(req.url).searchParams.get('key');
+      if (!keyMatches(key, secret)) {
+        console.warn('[PRINTFUL-WEBHOOK] rejected: bad or missing ?key');
+        return new Response('Unauthorized', { status: 401 });
       }
     } else {
-      const reason = String(body.data?.reason || '');
-      if (!order) {
-        console.error(`[ORDER-FAILED] ORDER NOT FOUND in Sanity for ${label}. Reason:`, reason);
-      } else if (order.status === 'fulfilment-failed' && (order.failureReason || '') === reason) {
-        console.log(`[ORDER-FAILED] ${order.orderRef} already fulfilment-failed with this reason — repeat event, skipped.`);
-      } else {
-        await patchOrder(order._id, { status: 'fulfilment-failed', failureReason: reason });
-        console.error(`[ORDER-FAILED] ${order.orderRef} → fulfilment-failed. Reason:`, reason);
-      }
+      console.warn('[PRINTFUL-WEBHOOK] PRINTFUL_WEBHOOK_SECRET not set — accepting unauthenticated request.');
     }
 
-    return new Response('OK', { status: 200 });
-  } catch (err) {
-    // Non-fatal: log and still 200 so Printful doesn't retry-storm.
-    console.error(`[PRINTFUL-WEBHOOK] error handling ${eventType} for ${label}:`, err && err.message ? err.message : err);
-    return new Response('OK', { status: 200 });
-  }
+    let body;
+    try {
+      body = await req.json();
+    } catch (_) {
+      return new Response('Bad request', { status: 400 });
+    }
+
+    const eventType = body?.type;
+    const printfulOrderId = body?.data?.order?.id;
+    const externalId = body?.data?.order?.external_id;
+    const label = `Printful #${printfulOrderId ?? '?'} (external_id ${externalId ?? '?'})`;
+
+    try {
+      if (eventType !== 'package_shipped' && eventType !== 'order_failed') {
+        if (eventType === 'order_created') console.log('[ORDER-CREATED] Printful confirmed', label);
+        else console.log('[PRINTFUL-WEBHOOK] unhandled event:', eventType);
+        return new Response('OK', { status: 200 });
+      }
+
+      if (!sanityWriteToken()) {
+        console.warn('[PRINTFUL-WEBHOOK] neither SANITY_API_TOKEN nor SANITY_TOKEN is set — cannot update orders.');
+        return new Response('OK', { status: 200 });
+      }
+
+      const sanity = getSanity();
+      const found = await findPrintfulOrder(sanity, printfulOrderId, externalId);
+
+      if (eventType === 'package_shipped') {
+        const shipment = body.data?.shipment || {};
+        const trackingNumber = String(shipment.tracking_number || '');
+        if (!found) {
+          console.error(`[SHIPPED] ORDER NOT FOUND in Sanity for ${label} — tracking ${trackingNumber || 'none'} not recorded.`);
+        } else {
+          const r = await recordShipped(sanity, found._id, shipment);
+          const ref = (r.order && r.order.orderRef) || found.orderRef || found._id;
+          if (!r.written) {
+            console.log(`[SHIPPED] ${ref} already has package ${trackingNumber || 'without tracking'} — ${r.reason}, skipped.`);
+          } else {
+            console.log(`[SHIPPED] ${ref} → shipped (${trackingNumber || 'no number'}).`);
+            await sendEmail(r.order, shipment);
+            // After the email, never before; never throws.
+            await start({ sanity, id: found._id, trigger: 'merch', log: console });
+          }
+        }
+      } else {
+        const reason = String(body.data?.reason || '');
+        if (!found) {
+          console.error(`[ORDER-FAILED] ORDER NOT FOUND in Sanity for ${label}. Reason:`, reason);
+        } else {
+          const r = await recordFailed(sanity, found._id, reason);
+          const ref = (r.order && r.order.orderRef) || found.orderRef || found._id;
+          if (!r.written) console.log(`[ORDER-FAILED] ${ref} already fulfilment-failed with this reason — ${r.reason}, skipped.`);
+          else console.error(`[ORDER-FAILED] ${ref} → fulfilment-failed. Reason:`, reason);
+        }
+      }
+
+      return new Response('OK', { status: 200 });
+    } catch (err) {
+      // Non-fatal: log and still 200 so Printful doesn't retry-storm.
+      console.error(`[PRINTFUL-WEBHOOK] error handling ${eventType} for ${label}:`, err && err.message ? err.message : err);
+      return new Response('OK', { status: 200 });
+    }
+  };
 }
+
+export default createHandler();

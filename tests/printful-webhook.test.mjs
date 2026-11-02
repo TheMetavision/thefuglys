@@ -1,11 +1,13 @@
 // Tests for the Printful → Sanity order sync (netlify/functions/printful-webhook.mjs).
 //
-// fetch is stubbed with a tiny in-memory Sanity and Resend, so nothing leaves the machine.
+// Sanity is the in-memory fake (tests/_fake-sanity.mjs) and Resend a fetch stub,
+// so nothing leaves the machine.
 //
 //   npm test
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../netlify/functions/printful-webhook.mjs';
+import { createHandler, sanityClientConfig } from '../netlify/functions/printful-webhook.mjs';
+import { fakeSanityOver } from './_fake-sanity.mjs';
 
 const quiet = () => {};
 const logs = [];
@@ -15,37 +17,42 @@ console.error = (...a) => { logs.push(a.join(' ')); };
 const SECRET = 'whsec_test';
 const SESSION_KEY = 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6'; // last 32 chars of a Stripe session id
 
-// In-memory Sanity: orders keyed by _id, _rev bumped on every patch and
-// ifRevisionID enforced (409 on mismatch). Resend just accepts the email.
-// Records every request.
-let orders, calls, rev;
-function sanityFetch(url, init = {}) {
+// In-memory Sanity over `orders`, which tests read and change directly.
+// `calls` records every Resend request (fetch) and every Sanity read/write
+// ({ url: { hostname: 'sanity', pathname } }). `started` records each
+// post-delivery start the webhook makes.
+let orders, calls, started, readHold, getSanityCalls;
+function sanityFetch(url, init = {}) { // Resend only (the name predates the Sanity client)
   const u = new URL(url);
   calls.push({ url: u, init });
   if (u.hostname === 'api.resend.com') {
     return Promise.resolve({ ok: true, status: 200, json: async () => ({ id: 'em_1' }), text: async () => '' });
   }
-  assert.ok(init.headers.Authorization.startsWith('Bearer '), 'Sanity calls are authenticated');
-  if (u.pathname.includes('/data/query/')) {
-    const q = u.searchParams.get('query');
-    const p = (k) => (u.searchParams.has('$' + k) ? JSON.parse(u.searchParams.get('$' + k)) : undefined);
-    let hit;
-    if (q.includes('printfulOrderId == $pid')) hit = Object.values(orders).find((o) => o.printfulOrderId === p('pid'));
-    else if (q.includes('_id in [$a, $b]')) hit = orders[p('a')] || orders[p('b')];
-    // A copy, like a real response: later patches don't change what was read.
-    return Promise.resolve({ ok: true, status: 200, json: async () => ({ result: hit ? structuredClone(hit) : null }) });
-  }
-  if (u.pathname.includes('/data/mutate/')) {
-    for (const { patch } of JSON.parse(init.body).mutations) {
-      if (patch.ifRevisionID && patch.ifRevisionID !== orders[patch.id]._rev) {
-        return Promise.resolve({ ok: false, status: 409, text: async () => 'revision mismatch' });
-      }
-      Object.assign(orders[patch.id], patch.set, { _rev: 'rev' + ++rev });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-  }
   throw new Error('unexpected fetch ' + url);
 }
+const S = (pathname) => calls.push({ url: { hostname: 'sanity', pathname } });
+const base = fakeSanityOver(() => orders, {
+  fetch: async (q, p) => {
+    const all = Object.values(orders).filter((o) => !o._id.startsWith('drafts.'));
+    let hit = null;
+    if (q.includes('printfulOrderId == $pid')) hit = all.find((o) => o.printfulOrderId === p.pid) || null;
+    else if (q.includes('_id in [$a, $b]')) hit = orders[p.a] || orders[p.b] || null;
+    return hit ? structuredClone(hit) : null;
+  },
+});
+const client = {
+  async getDocument(id) { S('/data/doc/'); if (readHold) await readHold(id); return base.getDocument(id); },
+  async fetch(q, p) { S('/data/query/'); return base.fetch(q, p); },
+  patch: (id) => base.patch(id),
+  transaction() {
+    const t = base.transaction();
+    return { patch(id, fn) { t.patch(id, fn); return this; }, async commit() { S('/data/mutate/'); return t.commit(); } };
+  },
+};
+const handler = createHandler({
+  getSanity: () => { getSanityCalls++; return client; },
+  start: async (a) => { started.push({ id: a.id, trigger: a.trigger, emailsBefore: emails().length }); return {}; },
+});
 const mutations = () => calls.filter((c) => c.url.pathname.includes('/data/mutate/'));
 const emails = () => calls.filter((c) => c.url.hostname === 'api.resend.com').map((c) => JSON.parse(c.init.body));
 
@@ -56,8 +63,7 @@ beforeEach(() => {
       customerName: 'Grimy Gus', customerEmail: 'gus@example.com',
     },
   };
-  rev = 0;
-  calls = [];
+  calls = []; started = []; readHold = null; getSanityCalls = 0;
   logs.length = 0;
   globalThis.fetch = sanityFetch;
   process.env.PRINTFUL_WEBHOOK_SECRET = SECRET;
@@ -92,19 +98,19 @@ const failed = (reason = 'Out of stock', order = { id: 987654, external_id: SESS
 
 /* ── package_shipped ───────────────────────────────────────────────────── */
 
-test('package_shipped patches status, carrier, tracking number/URL and shipped date', async () => {
+test('package_shipped records status, carrier, tracking number/URL, shipped date and the package', async () => {
   const res = await handler(req(shipped()));
   assert.equal(res.status, 200);
   assert.equal(mutations().length, 1);
-  assert.deepEqual(JSON.parse(mutations()[0].init.body), {
-    mutations: [{ patch: { id: `order.${SESSION_KEY}`, ifRevisionID: 'rev0', set: {
-      status: 'shipped', carrier: 'ROYAL MAIL', trackingNumber: 'RM123456789GB',
-      trackingUrl: 'https://track.test/RM123456789GB', shippedAt: new Date(1790000000 * 1000).toISOString(),
-    } } }],
-  });
-  assert.equal(orders[`order.${SESSION_KEY}`].status, 'shipped');
-  // Only Sanity and Resend were contacted.
-  assert.ok(calls.every((c) => ['ngx60q2x.api.sanity.io', 'api.resend.com'].includes(c.url.hostname)));
+  const o = orders[`order.${SESSION_KEY}`];
+  assert.equal(o.status, 'shipped');
+  assert.equal(o.carrier, 'ROYAL MAIL');
+  assert.equal(o.trackingNumber, 'RM123456789GB');
+  assert.equal(o.trackingUrl, 'https://track.test/RM123456789GB');
+  assert.equal(o.shippedAt, new Date(1790000000 * 1000).toISOString());
+  assert.deepEqual(o.printfulShipments.map((p) => [p.trackingNumber, p.carrier]), [['RM123456789GB', 'ROYAL MAIL']]);
+  // Only Sanity (the client) and Resend were contacted.
+  assert.ok(calls.every((c) => ['sanity', 'api.resend.com'].includes(c.url.hostname)));
 });
 
 test('falls back to matching external_id against the order _id (old order- prefix too)', async () => {
@@ -179,25 +185,91 @@ test('a changed tracking number updates the order and emails the new one', async
 });
 
 test('two copies of one event arriving together send one email', async () => {
-  // Hold the order lookups until both deliveries have made one, so both read
+  // Hold the order reads until both deliveries have made one, so both read
   // the pre-shipped order before either writes.
   let release;
   const bothRead = new Promise((r) => { release = r; });
   let reads = 0;
-  globalThis.fetch = async (url, init) => {
-    if (String(url).includes('/data/query/') && ++reads <= 2) {
-      const res = await sanityFetch(url, init);
-      if (reads === 2) release();
-      await bothRead;
-      return res;
-    }
-    return sanityFetch(url, init);
+  readHold = async (id) => {
+    if (id.startsWith('drafts.')) return;
+    if (++reads === 2) release();
+    if (reads <= 2) await bothRead;
   };
   const [a, b] = await Promise.all([handler(req(shipped())), handler(req(shipped()))]);
   assert.equal(a.status, 200);
   assert.equal(b.status, 200);
   assert.equal(emails().length, 1);
-  assert.equal(mutations().length, 2, 'both tried to patch; the second hit the revision check');
+  assert.equal(mutations().length, 2, 'both tried to write; the second hit the revision check, re-read and stopped');
+  assert.equal(orders[`order.${SESSION_KEY}`].printfulShipments.length, 1);
+});
+
+test('two packages of one order arriving together: both recorded, both emailed (the 409 loser retries)', async () => {
+  let release;
+  const bothRead = new Promise((r) => { release = r; });
+  let reads = 0;
+  readHold = async (id) => {
+    if (id.startsWith('drafts.')) return;
+    if (++reads === 2) release();
+    if (reads <= 2) await bothRead;
+  };
+  const one = shipped({ id: 11, tracking_number: 'PKG-ONE', tracking_url: 'https://track.test/PKG-ONE' });
+  const two = shipped({ id: 12, tracking_number: 'PKG-TWO', tracking_url: 'https://track.test/PKG-TWO' });
+  const [a, b] = await Promise.all([handler(req(one)), handler(req(two))]);
+  assert.equal(a.status, 200);
+  assert.equal(b.status, 200);
+  assert.equal(mutations().length, 3, 'one landed, one 409, the retry landed');
+  const o = orders[`order.${SESSION_KEY}`];
+  assert.deepEqual(o.printfulShipments.map((p) => p.trackingNumber).sort(), ['PKG-ONE', 'PKG-TWO']);
+  assert.deepEqual(emails().map((m) => (m.html.match(/PKG-(ONE|TWO)/) || [])[0]).sort(), ['PKG-ONE', 'PKG-TWO']);
+  // ...and a late repeat of either package sends nothing more.
+  await handler(req(one));
+  await handler(req(two));
+  assert.equal(emails().length, 2);
+});
+
+test('packages one after another: each emailed once; the order shows the latest; a repeat of the first is skipped', async () => {
+  await handler(req(shipped({ id: 21, tracking_number: 'FIRST' })));
+  await handler(req(shipped({ id: 22, tracking_number: 'SECOND' })));
+  await handler(req(shipped({ id: 21, tracking_number: 'FIRST' })));
+  assert.equal(emails().length, 2);
+  const o = orders[`order.${SESSION_KEY}`];
+  assert.equal(o.trackingNumber, 'SECOND');
+  assert.deepEqual(o.printfulShipments.map((p) => p.trackingNumber), ['FIRST', 'SECOND']);
+});
+
+test('an order shipped before printfulShipments existed: a repeat of its package is still skipped', async () => {
+  Object.assign(orders[`order.${SESSION_KEY}`], { status: 'shipped', trackingNumber: 'RM123456789GB', carrier: 'ROYAL MAIL' });
+  await handler(req(shipped()));
+  assert.equal(emails().length, 0);
+  await handler(req(shipped({ id: 99, tracking_number: 'NEWPKG' })));
+  assert.equal(emails().length, 1);
+  assert.deepEqual(orders[`order.${SESSION_KEY}`].printfulShipments.map((p) => p.trackingNumber), ['RM123456789GB', 'NEWPKG']);
+});
+
+test('an open Studio draft gets the same Printful values (server-patch draft mirror)', async () => {
+  const id = `order.${SESSION_KEY}`;
+  orders[`drafts.${id}`] = { ...structuredClone(orders[id]), _id: `drafts.${id}`, _rev: 'd0' };
+  await handler(req(shipped()));
+  for (const doc of [orders[id], orders[`drafts.${id}`]]) {
+    assert.equal(doc.status, 'shipped');
+    assert.equal(doc.trackingNumber, 'RM123456789GB');
+    assert.equal(doc.printfulShipments.length, 1);
+  }
+});
+
+test('post-delivery starts after each newly recorded package email (trigger merch), never on a repeat or a failure', async () => {
+  await handler(req(shipped()));
+  assert.deepEqual(started.map(({ id, trigger }) => [id, trigger]), [[`order.${SESSION_KEY}`, 'merch']]);
+  assert.equal(started[0].emailsBefore, 1, 'the shipped email went first');
+  await handler(req(shipped()));
+  await handler(req(failed('Address invalid')));
+  assert.equal(started.length, 1);
+});
+
+test('a post-delivery start that throws still answers 200 and the email has gone', async () => {
+  const h = createHandler({ getSanity: () => client, start: async () => { throw new Error('boom'); } });
+  assert.equal((await h(req(shipped()))).status, 200);
+  assert.equal(emails().length, 1);
   assert.equal(orders[`order.${SESSION_KEY}`].status, 'shipped');
 });
 
@@ -214,7 +286,7 @@ test('no RESEND_API_KEY or no customer email: order still shipped, no email', as
   process.env.RESEND_API_KEY = 're_test';
   orders[`order.${SESSION_KEY}`].status = 'fulfilled';
   delete orders[`order.${SESSION_KEY}`].customerEmail;
-  await handler(req(shipped()));
+  await handler(req(shipped({ id: 2, tracking_number: 'RM2' })));
   assert.equal(orders[`order.${SESSION_KEY}`].status, 'shipped');
   assert.equal(emails().length, 0);
 });
@@ -262,9 +334,9 @@ test('without LOGO_URL the header is a text wordmark; non-http tracking links ar
 test('order_failed patches status and reason', async () => {
   const res = await handler(req(failed('Address invalid')));
   assert.equal(res.status, 200);
-  assert.deepEqual(JSON.parse(mutations()[0].init.body).mutations[0].patch.set,
-    { status: 'fulfilment-failed', failureReason: 'Address invalid' });
+  assert.equal(mutations().length, 1);
   assert.equal(orders[`order.${SESSION_KEY}`].status, 'fulfilment-failed');
+  assert.equal(orders[`order.${SESSION_KEY}`].failureReason, 'Address invalid');
 });
 
 test('repeated order_failed does not patch again', async () => {
@@ -305,17 +377,13 @@ test('without PRINTFUL_WEBHOOK_SECRET the request is accepted (same as Cats On C
 /* ── Sanity token ──────────────────────────────────────────────────────── */
 
 test('uses SANITY_API_TOKEN, falling back to SANITY_TOKEN', async () => {
-  const sanityCalls = () => calls.filter((c) => c.url.hostname.endsWith('.api.sanity.io'));
-  await handler(req(shipped()));
-  assert.ok(sanityCalls().every((c) => c.init.headers.Authorization === 'Bearer sk_api'));
-
-  calls = [];
-  orders[`order.${SESSION_KEY}`].status = 'fulfilled';
+  assert.equal(sanityClientConfig().token, 'sk_api');
   delete process.env.SANITY_API_TOKEN;
   process.env.SANITY_TOKEN = 'sk_old';
+  assert.equal(sanityClientConfig().token, 'sk_old');
+  assert.equal(sanityClientConfig().useCdn, false);
   await handler(req(shipped()));
-  assert.ok(sanityCalls().length > 0);
-  assert.ok(sanityCalls().every((c) => c.init.headers.Authorization === 'Bearer sk_old'));
+  assert.equal(orders[`order.${SESSION_KEY}`].status, 'shipped');
 });
 
 test('no Sanity token at all: 200 and no Sanity calls', async () => {
@@ -323,15 +391,18 @@ test('no Sanity token at all: 200 and no Sanity calls', async () => {
   const res = await handler(req(shipped()));
   assert.equal(res.status, 200);
   assert.equal(calls.length, 0);
+  assert.equal(getSanityCalls, 0);
 });
 
 /* ── Never throws ──────────────────────────────────────────────────────── */
 
 test('Sanity errors and network failures still return 200', async () => {
-  globalThis.fetch = async () => ({ ok: false, status: 500, text: async () => 'boom' });
-  assert.equal((await handler(req(shipped()))).status, 200);
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
-  assert.equal((await handler(req(failed()))).status, 200);
+  const broken = { fetch: async () => { throw new Error('Sanity 500'); }, getDocument: async () => { throw new TypeError('fetch failed'); } };
+  const h = createHandler({ getSanity: () => broken, start: async () => ({}) });
+  assert.equal((await h(req(shipped()))).status, 200);
+  assert.equal((await h(req(failed()))).status, 200);
+  const h2 = createHandler({ getSanity: () => ({ ...client, getDocument: async () => { throw new Error('boom'); } }), start: async () => ({}) });
+  assert.equal((await h2(req(shipped()))).status, 200);
 });
 
 test('other events, bad method and bad JSON', async () => {

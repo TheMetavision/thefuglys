@@ -12,6 +12,9 @@
  *                   was applied without a code).
  *   welcomeCodes  — those that are this brand's newsletter welcome offer
  *                   (CHAOS10), for the repeat-customer check.
+ *   promos        — the expanded Stripe promotion code objects, for the
+ *                   referral thank-you (netlify/functions/_shared/referral.mjs
+ *                   referralsFrom picks out this brand's friend codes).
  *   otherBrand    — codes whose metadata.brand names a DIFFERENT brand.
  *                   All four IP brands share one Stripe account, and a
  *                   coupon with inline price_data can't be limited to one
@@ -30,15 +33,21 @@
    "first-time order only" restriction, or by name as a fallback. */
 const WELCOME_CODES = ['CHAOS10'];
 
+/* Codes the referral programme makes carry metadata.kind ('referral-friend',
+   'referral-reward'; netlify/functions/_shared/referral.mjs). A friend code is
+   first-time-only too, so metadata.kind is checked FIRST: a code with any kind
+   other than 'welcome' is never the welcome offer. */
 function isWelcomeCode(promo) {
   if (!promo || typeof promo !== 'object') return false;
+  const kind = promo.metadata && promo.metadata.kind;
+  if (kind) return kind === 'welcome';
   return (promo.restrictions && promo.restrictions.first_time_transaction === true)
     || WELCOME_CODES.includes(String(promo.code || '').toUpperCase());
 }
 
 async function readDiscount(stripe, session, brandKey) {
   const amountPence = (session && session.total_details && session.total_details.amount_discount) || 0;
-  const out = { amountPence, codes: [], welcomeCodes: [], otherBrand: [] };
+  const out = { amountPence, codes: [], welcomeCodes: [], promos: [], otherBrand: [] };
   if (!amountPence) return out;
 
   try {
@@ -59,6 +68,7 @@ async function readDiscount(stripe, session, brandKey) {
       const code = (promo && promo.code) || (coupon && (coupon.name || coupon.id)) || null;
       if (!code) continue;
       if (!out.codes.includes(code)) out.codes.push(code);
+      if (promo && typeof promo === 'object' && !out.promos.some((p) => p.id === promo.id)) out.promos.push(promo);
       if (isWelcomeCode(promo) && !out.welcomeCodes.includes(code)) out.welcomeCodes.push(code);
       const codeBrand = (promo && promo.metadata && promo.metadata.brand) || (coupon && coupon.metadata && coupon.metadata.brand) || null;
       if (codeBrand && codeBrand !== brandKey && !out.otherBrand.some((o) => o.code === code)) {

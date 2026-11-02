@@ -26,14 +26,17 @@
  * (wallArtCarrier, wallArtTrackingNumber): the order's carrier and
  * trackingNumber are Printful's.
  *
- * AFTER THE EMAIL. Nothing hangs off "dispatch email sent" today. Anything
- * added later goes in afterDispatchEmail(), which runs once, after the send is
- * marked, on both paths above.
+ * AFTER THE EMAIL. afterDispatchEmail() runs once, after the send is marked,
+ * on both paths above: it starts the post-delivery sequence
+ * (post-delivery.mjs), which runs once per order whichever of this email and
+ * Printful's "It's shipped" comes first. It never throws and never touches
+ * the email already sent.
  */
 import { readDecideWrite, serverPatch } from './server-patch.mjs';
 import { carrierName, trackingUrlFor, isWallArtLine, isClothingLine } from './parcel-plan.mjs';
 import { orderRefFor } from './order-ref.mjs';
 import { setting } from './site-config.mjs';
+import { startPostDelivery } from './post-delivery.mjs';
 
 export const CLAIM_TTL_MS = 10 * 60 * 1000;
 
@@ -158,10 +161,16 @@ export function orderNotDue(order) {
 
 /**
  * Hook for anything that must follow the dispatch email. Runs once per order,
- * after the send is marked, on every dispatch path. Never throws. Empty today.
+ * after the send is marked, on every dispatch path. Never throws.
+ * Starts the post-delivery sequence (wall art shipped first, unless Printful's
+ * email already started it).
  */
-export async function afterDispatchEmail(_order, { log = console } = {}) {
-  void log;
+export async function afterDispatchEmail(order, { log = console, sanity, start = startPostDelivery } = {}) {
+  try {
+    await start({ sanity, id: order?._id, trigger: 'wallart', log });
+  } catch (err) {
+    log.error(`dispatch-email: post-delivery start failed:`, err?.message || err);
+  }
 }
 
 /**
@@ -217,6 +226,6 @@ export async function sendDispatchEmail({ id, sanity, getResend, now = () => Dat
     await sanity.patch(id).set(set).commit().catch(() => {});
   }
   log.log(`dispatch-email: ${name} emailed`);
-  try { await after({ ...doc, ...set }, { log }); } catch (err) { log.error(`dispatch-email: ${name}: after-send step failed:`, err?.message || err); }
+  try { await after({ ...doc, ...set }, { log, sanity }); } catch (err) { log.error(`dispatch-email: ${name}: after-send step failed:`, err?.message || err); }
   return { sent: true, status: 200, reason: 'OK' };
 }

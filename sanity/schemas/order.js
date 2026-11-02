@@ -1,5 +1,6 @@
 import {defineType, defineField, defineArrayMember} from 'sanity';
 import {shippingFields, wallArtDispatchFields} from './shippingFields';
+import { postDeliveryFields } from './postDeliveryFields';
 
 // Ported from Cats On Crack live schema (project 8ksun996), extended for The Fuglys
 // with a `shipped` status + tracking / failure fields written by the printful-webhook,
@@ -130,6 +131,8 @@ export default defineType({
     defineField({name: 'shippedAt', title: 'Shipped At', type: 'datetime', readOnly: true}),
     defineField({name: 'failureReason', title: 'Printful Failure Reason', type: 'string', readOnly: true,
       description: 'Why Printful didn’t take or make the order: Printful’s reason, a variant that isn’t in this store, or a note on a record that isn’t this brand’s.'}),
+    // Consent, referral programme, post-delivery sequence, Printful packages (all server-written).
+    ...postDeliveryFields(),
   ]),
   orderings: [
     {

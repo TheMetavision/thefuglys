@@ -41,7 +41,22 @@ require.cache[require.resolve('stripe')] = {
   }),
 };
 const stripeWebhook = require('../netlify/functions/stripe-webhook.cjs');
-const { default: printfulWebhook } = await import('../netlify/functions/printful-webhook.mjs');
+const { createHandler } = await import('../netlify/functions/printful-webhook.mjs');
+const { fakeSanityOver } = await import('./_fake-sanity.mjs');
+// printful-webhook writes through @sanity/client (server-patch.mjs): here a
+// fake client over the same `docs` the fetch-stubbed stripe-webhook writes.
+// The post-delivery start is stubbed (tests/post-delivery.test.mjs covers it).
+const printfulWebhook = createHandler({
+  getSanity: () => fakeSanityOver(() => docs, {
+    fetch: async (q, p) => {
+      const all = Object.values(docs);
+      const hit = q.includes('printfulOrderId == $pid') ? all.find((d) => d.printfulOrderId === p.pid)
+        : q.includes('_id in [$a, $b]') ? (docs[p.a] || docs[p.b]) : null;
+      return hit ? structuredClone(hit) : null;
+    },
+  }),
+  start: async () => ({}),
+});
 
 /* ── In-memory Sanity + Printful + Resend ──────────────────────────────── */
 

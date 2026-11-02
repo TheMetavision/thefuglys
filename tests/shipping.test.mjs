@@ -26,6 +26,11 @@ import { processReturn } from '../netlify/functions/_shared/shipping-returns.mjs
 import { setting, intSetting, flag, sanityWriteToken, SITE_CONFIG } from '../netlify/functions/_shared/site-config.mjs';
 import { shippingEnabled, sign, verifyShippingCallback } from '../netlify/functions/_shared/shipping-client.mjs';
 
+// The wall-art dispatch email now starts the post-delivery sequence
+// (afterDispatchEmail -> post-delivery.mjs). Never with real keys from the shell.
+delete process.env.STRIPE_SECRET_KEY;
+delete process.env.MAILERLITE_API_KEY;
+
 const ENV = { SHIPPING_SECRET: 'test-shipping-secret' };
 const NOW = Date.parse('2026-11-10T12:00:00Z');
 const TEAM = SITE_CONFIG.TEAM_EMAIL;

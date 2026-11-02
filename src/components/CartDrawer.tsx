@@ -51,6 +51,10 @@ export default function CartDrawer() {
   const [confirmClear, setConfirmClear] = useState(false);
   // 'GB' on the server render; the saved or guessed country once mounted.
   const [country, setCountry] = useState('GB');
+  // "Don't send me offers or referral emails": unticked by default (soft
+  // opt-in). Ticked, create-checkout stamps metadata.marketing_opt_out and the
+  // order gets no referral code and is never added to MailerLite.
+  const [noOffers, setNoOffers] = useState(false);
   const [regions] = useState(countryOptions);
   useEffect(() => { setCountry(initialCountry()); }, []);
   function chooseCountry(cc: string) {
@@ -108,6 +112,7 @@ export default function CartDrawer() {
           })),
           ga,
           country,
+          marketingOptOut: noOffers,
         }),
       });
       const data = await res.json();
@@ -440,6 +445,10 @@ export default function CartDrawer() {
             <p style={styles.payNote}>
               Payments are taken by The Metavision Multimedia Ltd and show on your statement as THE METAVISION.
             </p>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '0 0 12px', color: textMuted, fontSize: '12px', lineHeight: 1.4, cursor: 'pointer' }}>
+              <input type="checkbox" checked={noOffers} onChange={(e) => setNoOffers(e.target.checked)} style={{ marginTop: '2px', accentColor: accent }} />
+              <span>Don&rsquo;t send me offers or referral emails</span>
+            </label>
             <button
               style={{ ...styles.checkoutBtn, ...(cantShip.length > 0 ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }}
               onClick={handleCheckout}

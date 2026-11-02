@@ -240,7 +240,7 @@ exports.handler = async (event) => {
   if (!process.env.STRIPE_SECRET_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Stripe not configured' }) };
 
   try {
-    const { items, ga, country: rawCountry } = JSON.parse(event.body || '{}');
+    const { items, ga, country: rawCountry, marketingOptOut } = JSON.parse(event.body || '{}');
     if (!items || items.length === 0) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Cart is empty' }) };
 
     // Destination first: one country, in a region we deliver to.
@@ -390,7 +390,10 @@ exports.handler = async (event) => {
       // can't change what's made or shipped. stripe-webhook reads it back.
       allow_promotion_codes: true,
       // GA ids are only sent by browsers that accepted analytics; invalid ones are dropped.
-      metadata: { source: 'thefuglys-web', brand: BRAND_KEY, delivery_country: country, ...validGaIds(ga && ga.clientId, ga && ga.sessionId) },
+      // marketing_opt_out: the cart drawer's "Don't send me offers or referral
+      // emails" box ('true' only when ticked; _shared/marketing-consent.mjs
+      // optOutMetadata). stripe-webhook records it as the order's marketingConsent.
+      metadata: { source: 'thefuglys-web', brand: BRAND_KEY, delivery_country: country, marketing_opt_out: marketingOptOut === true ? 'true' : 'false', ...validGaIds(ga && ga.clientId, ga && ga.sessionId) },
     });
 
     return { statusCode: 200, headers, body: JSON.stringify({ url: session.url }) };

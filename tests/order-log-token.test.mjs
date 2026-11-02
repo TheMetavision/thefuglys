@@ -11,7 +11,9 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
 const { saveOrder } = require('../netlify/functions/stripe-webhook.cjs');
-const { default: printfulHandler } = await import('../netlify/functions/printful-webhook.mjs');
+// printful-webhook writes through @sanity/client (server-patch.mjs); its token is
+// checked on the client config, so no request is made.
+const { sanityClientConfig } = await import('../netlify/functions/printful-webhook.mjs');
 
 const session = {
   id: 'cs_test_order_log_token', created: 1700000000, amount_total: 3195, currency: 'gbp',
@@ -66,22 +68,18 @@ test('stripe-webhook skips the order log when neither token is set', async () =>
   assert.equal(calls.length, 0);
 });
 
-const shipped = () => new Request('https://thefuglys.com/.netlify/functions/printful-webhook', {
-  method: 'POST',
-  body: JSON.stringify({ type: 'package_shipped', data: { order: { id: 987 }, shipment: { carrier: 'Royal Mail', tracking_number: 'RM1' } } }),
-});
-
-test('printful-webhook status sync uses SANITY_API_TOKEN when only that is set', async () => {
+test('printful-webhook status sync uses SANITY_API_TOKEN when only that is set', () => {
   process.env.SANITY_API_TOKEN = 'api-token';
-  const res = await printfulHandler(shipped());
-  assert.equal(res.status, 200);
-  assert.equal(mutations().length, 1);
-  for (const c of calls) assert.equal(c.auth, 'Bearer api-token');
+  assert.equal(sanityClientConfig().token, 'api-token');
 });
 
-test('printful-webhook status sync still works with only SANITY_TOKEN', async () => {
+test('printful-webhook status sync still works with only SANITY_TOKEN', () => {
   process.env.SANITY_TOKEN = 'legacy-token';
-  await printfulHandler(shipped());
-  assert.equal(mutations().length, 1);
-  for (const c of calls) assert.equal(c.auth, 'Bearer legacy-token');
+  assert.equal(sanityClientConfig().token, 'legacy-token');
+});
+
+test('printful-webhook prefers SANITY_API_TOKEN when both are set', () => {
+  process.env.SANITY_API_TOKEN = 'api-token';
+  process.env.SANITY_TOKEN = 'legacy-token';
+  assert.equal(sanityClientConfig().token, 'api-token');
 });

@@ -30,8 +30,27 @@ class Patch {
   ifRevisionId(r) { this.rev = r; return this; }
 }
 
-export function fakeSanity(docs = {}, { fetch: fetchImpl = async () => null, beforeCommit } = {}) {
+export function fakeSanity(docs = {}, opts = {}) {
   const store = new Map(Object.entries(clone(docs)).map(([id, d]) => [id, { _id: id, _rev: 'r0', ...d }]));
+  return makeClient(store, opts);
+}
+
+/**
+ * The same client over a plain { id: doc } object the test owns, read through
+ * getDocs() on every call (so the test may replace the object). For tests
+ * where a fetch-stubbed function (stripe-webhook) and a client-using one
+ * (printful-webhook) share one store. Revisions it writes are 'f1', 'f2', ...
+ */
+export function fakeSanityOver(getDocs, opts = {}) {
+  const store = {
+    get: (id) => getDocs()[id],
+    has: (id) => Object.prototype.hasOwnProperty.call(getDocs(), id),
+    set: (id, d) => { getDocs()[id] = d; },
+  };
+  return makeClient(store, { revPrefix: 'f', ...opts });
+}
+
+function makeClient(store, { fetch: fetchImpl = async () => null, beforeCommit, revPrefix = 'r' } = {}) {
   let revs = 0;
   const writes = [];
 
@@ -44,7 +63,7 @@ export function fakeSanity(docs = {}, { fetch: fetchImpl = async () => null, bef
       if (op === 'set') for (const [k, val] of Object.entries(v)) setPath(doc, k, val);
       if (op === 'unset') for (const k of v) unsetPath(doc, k);
     }
-    doc._rev = `r${++revs}`;
+    doc._rev = `${revPrefix}${++revs}`;
     writes.push({ id, ops: clone(patch.ops) });
   }
 
@@ -52,7 +71,7 @@ export function fakeSanity(docs = {}, { fetch: fetchImpl = async () => null, bef
     store, writes,
     async getDocument(id) { return clone(store.get(id)) ?? null; },
     async fetch(q, params) { return fetchImpl(q, params, store); },
-    async create(doc) { if (store.has(doc._id)) throw new Error('exists'); store.set(doc._id, { _rev: `r${++revs}`, ...clone(doc) }); return doc; },
+    async create(doc) { if (store.has(doc._id)) throw new Error('exists'); store.set(doc._id, { _rev: `${revPrefix}${++revs}`, ...clone(doc) }); return doc; },
     patch(id) {
       const p = new Patch();
       return Object.assign(p, { commit: async () => apply(id, p) });

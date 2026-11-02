@@ -196,11 +196,11 @@ test('handler: inactive, unknown and bad-quantity lines are refused with 422', a
 test('handler: stores valid GA ids only, and a session id only with a client id', async () => {
   const meta = async (ga) => { await post([tee('M', 25)], PRODUCTS, ga === undefined ? {} : { ga }); return sessionParams.metadata; };
   assert.deepEqual(await meta({ clientId: '123.456', sessionId: '1700000000' }),
-    { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB', ga_client_id: '123.456', ga_session_id: '1700000000' });
+    { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB', marketing_opt_out: 'false', ga_client_id: '123.456', ga_session_id: '1700000000' });
   assert.deepEqual(await meta({ clientId: '123.456', sessionId: 'abc' }),
-    { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB', ga_client_id: '123.456' });
-  assert.deepEqual(await meta({ clientId: 'GA1.2.3', sessionId: '1700000000' }), { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB' });
-  assert.deepEqual(await meta(undefined), { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB' });
+    { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB', marketing_opt_out: 'false', ga_client_id: '123.456' });
+  assert.deepEqual(await meta({ clientId: 'GA1.2.3', sessionId: '1700000000' }), { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB', marketing_opt_out: 'false' });
+  assert.deepEqual(await meta(undefined), { source: 'thefuglys-web', brand: 'thefuglys', delivery_country: 'GB', marketing_opt_out: 'false' });
 });
 
 test('handler: each line carries slug, type, colour, size and wall-art format', async () => {
@@ -214,4 +214,26 @@ test('handler: each line carries slug, type, colour, size and wall-art format', 
       { item_slug: 'axel-run-fast', item_name: 'Axel - Run Fast', item_type: 'wallart', item_colour: undefined, item_size: 'large', item_format: 'canvas-gallery' },
     ],
   );
+});
+
+/* ── Marketing opt-out (cart drawer box) ──────────────────────────────── */
+
+test('handler: stamps metadata.marketing_opt_out — "true" only when the box was ticked', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ result: PRODUCTS }) });
+  const optOut = async (extra) => {
+    sessionParams = null;
+    await handler({ httpMethod: 'POST', body: JSON.stringify({ items: [tee('M', 25)], country: 'GB', ...extra }) });
+    return sessionParams.metadata.marketing_opt_out;
+  };
+  try {
+    assert.equal(await optOut({ marketingOptOut: true }), 'true');
+    assert.equal(await optOut({ marketingOptOut: false }), 'false');
+    assert.equal(await optOut({}), 'false');
+    // Only a literal true counts.
+    assert.equal(await optOut({ marketingOptOut: 'true' }), 'false');
+    assert.equal(await optOut({ marketingOptOut: 1 }), 'false');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
