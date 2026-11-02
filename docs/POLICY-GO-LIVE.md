@@ -54,6 +54,8 @@ Added 2026-11-02 on branch `feat/post-delivery-sequence`. **Nothing here is appl
 
 ⚠ Legal wording, and one real legal question. The soft opt-in (PECR reg. 22) needs the customer to have been given a simple way to refuse **when their details were collected**. Buyers from now on get that (the "Don't send me offers or referral emails" box in the cart). Buyers from before the box existed were not offered it at checkout, so emailing them on the soft opt-in is arguable rather than clear-cut. The wording below covers them as you asked ("unless you opt out"), but decide yourself (or with advice) whether past buyers get anything before they have had a chance to refuse; a first email to them that leads with the opt-out is the cautious route.
 
+Update (same branch): orders placed before the box existed (no `marketingConsent` on the order) are now sent to MailerLite with `<prefix>_marketing_ok = "no"`, so they never get the referral email; they still get the service emails. Gate any offers email in the automation on `_marketing_ok = yes` too. Retention stays at three years.
+
 **a) "4. Why we use it (legal bases)":** replace the bullet
 
 > Consent — for marketing emails (our newsletter) and for Google Analytics cookies. You can withdraw consent at any time using the unsubscribe link in any email, or the "Cookie settings" link at the bottom of any page.

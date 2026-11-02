@@ -18,7 +18,9 @@
  * anything is created, so of any number of racing calls exactly one starts.
  *
  * A buyer who ticked "Don't send me offers or referral emails" gets neither a
- * code nor MailerLite, and no claim is written. The customer email has
+ * code nor MailerLite, and no claim is written. An order with no
+ * marketingConsent predates the box: it is added (the service emails still
+ * go) with <prefix>_marketing_ok = 'no', so it never gets the referral email. The customer email has
  * already gone; it is transactional and unaffected.
  *
  * Never throws, and always runs AFTER the email that called it: a referral
@@ -26,7 +28,7 @@
  * Studio, and never holds up or undoes that email.
  */
 import { readDecideWrite, serverPatch } from './server-patch.mjs';
-import { marketingRefused } from './marketing-consent.mjs';
+import { marketingRefused, referralEmailAllowed } from './marketing-consent.mjs';
 import { friendCodeFor } from './referral.mjs';
 import { addShippedCustomer } from './mailerlite-customer.mjs';
 import { orderRefFor } from './order-ref.mjs';
@@ -78,6 +80,10 @@ export async function startPostDelivery({ sanity, id, trigger, log = console }, 
       const why = skip || 'nothing to do';
       log.log(`post-delivery: ${name}: ${why === 'refused' ? 'buyer refused marketing at checkout; no referral code, not added to MailerLite' : why}`);
       return { skipped: why };
+    }
+
+    if (!referralEmailAllowed(order.marketingConsent)) {
+      log.log(`post-delivery: ${name}: no marketingConsent (order predates the opt-out box): marketing_ok = no, no referral email`);
     }
 
     const problems = [];

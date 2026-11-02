@@ -20,7 +20,10 @@
  *   fg_contents          'merch', 'wallart' or 'both'
  *   fg_first_shipped     'merch' (Printful's package_shipped came first) or
  *                        'wallart' (the in-house dispatch email came first)
- *   fg_marketing_ok      'yes' or 'no'
+ *   fg_marketing_ok      'yes' only when the order recorded 'not_asked' (box
+ *                        seen, left unticked). 'no' for an order with no
+ *                        marketingConsent: it predates the box, so never the
+ *                        referral email (the service emails still go)
  *
  * A buyer who ticked "Don't send me offers or referral emails" is never added
  * at all, so the automation never starts for them; _marketing_ok stays as a
@@ -36,7 +39,7 @@
  */
 import { fetchWithTimeout } from './timing.mjs';
 import { setting } from './site-config.mjs';
-import { marketingRefused } from './marketing-consent.mjs';
+import { marketingRefused, referralEmailAllowed } from './marketing-consent.mjs';
 import { orderRefFor } from './order-ref.mjs';
 
 const ML = 'https://connect.mailerlite.com/api';
@@ -85,9 +88,10 @@ export function customerPayload(order, { referralCode, firstShipped, groupId, pr
       [f.referralCode]: referralCode || '',
       [f.contents]: contentsFor(order),
       [f.firstShipped]: firstShipped === 'wallart' ? 'wallart' : 'merch',
-      // Not ticking the box ('not_asked') allows the referral email under the
-      // soft opt-in; it carries an unsubscribe link.
-      [f.marketingOk]: marketingRefused(order.marketingConsent) ? 'no' : 'yes',
+      // 'yes' only for 'not_asked' (box seen, left unticked): the referral
+      // email under the soft opt-in, with an unsubscribe link. No
+      // marketingConsent = an order from before the box: 'no'.
+      [f.marketingOk]: referralEmailAllowed(order.marketingConsent) ? 'yes' : 'no',
     },
   };
 }

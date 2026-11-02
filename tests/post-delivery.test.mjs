@@ -21,7 +21,7 @@ import {
   codeBody, friendCodeFor, issueReward, referralsFrom, ensureCoupon, isFriendCode, isRewardCode,
   KIND_FRIEND, KIND_REWARD, referralConfig,
 } from '../netlify/functions/_shared/referral.mjs';
-import { optOutMetadata, consentFromSession, marketingRefused } from '../netlify/functions/_shared/marketing-consent.mjs';
+import { optOutMetadata, consentFromSession, marketingRefused, referralEmailAllowed } from '../netlify/functions/_shared/marketing-consent.mjs';
 import { customerPayload, addShippedCustomer, productTitleFor, contentsFor, fieldKeys } from '../netlify/functions/_shared/mailerlite-customer.mjs';
 import { startPostDelivery, EARLIER_CODE_QUERY } from '../netlify/functions/_shared/post-delivery.mjs';
 import { rewardReferrer, rewardEmail } from '../netlify/functions/_shared/referral-reward.mjs';
@@ -367,6 +367,60 @@ test('MailerLite add: one upsert to the committed group; refused, unconfigured o
   assert.deepEqual(await addShippedCustomer(order(), {}, { MAILERLITE_API_KEY: 'k' }, failing), { ok: false, status: 422, error: 'bad field' });
   const throwing = async () => { throw new Error('network'); };
   assert.deepEqual(await addShippedCustomer(order(), {}, { MAILERLITE_API_KEY: 'k' }, throwing), { ok: false, error: 'network' });
+});
+
+/* ------------------------------------------------------------------ orders from before the box */
+
+test('referralEmailAllowed: only an order that recorded not_asked (box seen, left unticked)', () => {
+  assert.equal(referralEmailAllowed('not_asked'), true);
+  for (const v of [undefined, null, '', 'refused', 'opt_out', 'anything']) assert.equal(referralEmailAllowed(v), false, String(v));
+});
+
+test('MailerLite payload: an order with no marketingConsent (before the box) sends marketing_ok = no', () => {
+  const ok = (over) => customerPayload(order(over), { groupId: 'g', prefix: P }).fields[`${P}_marketing_ok`];
+  assert.equal(ok({ marketingConsent: 'not_asked' }), 'yes');
+  assert.equal(ok({}), 'no', 'no marketingConsent recorded');
+  assert.equal(ok({ marketingConsent: null }), 'no');
+  assert.equal(ok({ marketingConsent: '' }), 'no');
+});
+
+test('post-delivery: an order from before the box is still added (service emails) but with marketing_ok = no', async () => {
+  const pre = order();
+  assert.equal('marketingConsent' in pre, false, 'the fixture predates the box');
+  const sanity = fakeSanity({ [ORDER_ID]: pre }, { fetch: groq });
+  const sent = [];
+  const fetchFn = async (url, init) => { sent.push(JSON.parse(init.body)); return { ok: true, status: 201, text: async () => '' }; };
+  const d = pd();
+  const deps = { ...d.deps, addCustomer: (o, x) => addShippedCustomer(o, x, { MAILERLITE_API_KEY: 'k' }, fetchFn) };
+  const r = await startPostDelivery({ sanity, id: ORDER_ID, trigger: 'merch', log: quiet }, deps);
+  assert.equal(r.mailerlite.ok, true);
+  assert.equal(sent.length, 1, 'still added to the Customers group');
+  assert.deepEqual(sent[0].groups, [C.MAILERLITE_CUSTOMERS_GROUP_ID]);
+  assert.equal(sent[0].fields[`${P}_marketing_ok`], 'no');
+  assert.equal(sent[0].fields.name, 'Ada');
+  assert.ok(sanity.store.get(ORDER_ID).postDeliveryStartedAt);
+});
+
+test('post-delivery: a new order with the box left unticked sends marketing_ok = yes', async () => {
+  const sanity = fakeSanity({ [ORDER_ID]: order({ marketingConsent: 'not_asked' }) }, { fetch: groq });
+  const sent = [];
+  const fetchFn = async (url, init) => { sent.push(JSON.parse(init.body)); return { ok: true, status: 201, text: async () => '' }; };
+  const deps = { ...pd().deps, addCustomer: (o, x) => addShippedCustomer(o, x, { MAILERLITE_API_KEY: 'k' }, fetchFn) };
+  await startPostDelivery({ sanity, id: ORDER_ID, trigger: 'wallart', log: quiet }, deps);
+  assert.equal(sent[0].fields[`${P}_marketing_ok`], 'yes');
+});
+
+test('an order from before the box, through both triggers: both shipping emails go, one start, marketing_ok = no', async () => {
+  const sanity = fakeSanity({ [ORDER_ID]: order() }, { fetch: groq });
+  const d = pd();
+  const w = wired(sanity, d);
+  await w.printful(printfulReq(PKG1));
+  w.markWallArtDispatched();
+  await w.dispatch();
+  assert.equal(shippedEmails.length, 1);
+  assert.equal(w.resend.sent.length, 1);
+  assert.equal(d.ml.length, 1);
+  assert.equal(customerPayload(d.ml[0].order, { groupId: 'g', prefix: P }).fields[`${P}_marketing_ok`], 'no');
 });
 
 /* ------------------------------------------------------------------ startPostDelivery */

@@ -18,7 +18,10 @@
  *
  * Values on an order (`marketingConsent`):
  *   'refused'    ticked the box: no referral code, never added to MailerLite
- *   'not_asked'  did not tick it, or bought before the box existed
+ *   'not_asked'  saw the box and did not tick it: offers and referral emails
+ *                allowed under the soft opt-in
+ *   (missing)    placed before the box existed. Never gets the referral email
+ *                (<prefix>_marketing_ok = 'no'); still gets the service emails
  *
  * create-checkout.cjs and stripe-webhook.cjs are CommonJS and carry one-line
  * copies of optOutMetadata / consentFromSession; tests/post-delivery.test.mjs
@@ -33,6 +36,15 @@ export function optOutMetadata(marketingOptOut) {
 /** stripe-webhook: the marketingConsent to record for a paid session. */
 export function consentFromSession(session) {
   return session?.metadata?.marketing_opt_out === 'true' ? 'refused' : 'not_asked';
+}
+
+/**
+ * True only when the buyer saw the opt-out box and left it unticked. An order
+ * with no marketingConsent predates the box: the buyer was never offered the
+ * refusal at checkout, so no referral email (Alan, 2 Nov 2026).
+ */
+export function referralEmailAllowed(consent) {
+  return consent === 'not_asked';
 }
 
 /** True when this buyer must get no marketing: no referral code, not added to MailerLite. */

@@ -28,7 +28,7 @@ export function postDeliveryFields() {
           { title: 'Refused at checkout (no offers or referral emails)', value: 'refused' },
         ],
       },
-      description: 'From the “Don’t send me offers or referral emails” box in the cart. Empty on orders placed before it existed (treated as not asked).',
+      description: 'From the “Don’t send me offers or referral emails” box in the cart. Empty on orders placed before it existed: those never get the referral email (MailerLite marketing_ok = no).',
     }),
     defineField({
       name: 'referralCode',
