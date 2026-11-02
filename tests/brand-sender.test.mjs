@@ -47,8 +47,9 @@ test('team emails keep their recipient and their own sender', async () => {
   }
 });
 
-test('the returns contact address comes from site-config', () => {
+test('the returns contact address is the brand inbox, from site-config', () => {
   assert.equal(CONTACT, SITE_CONFIG.CONTACT_EMAIL);
+  assert.equal(SITE_CONFIG.CONTACT_EMAIL, BRAND_REPLY);
 });
 
 test('no file that sends customer email hard-codes an address or reads an old sender variable', () => {

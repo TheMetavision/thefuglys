@@ -47,8 +47,9 @@ export const SITE_CONFIG = Object.freeze({
   TEAM_EMAIL_REPLY_TO: 'contact@themetavision.co.uk',
   // Shipping, returns and alert emails to the team (NOTIFICATION_TO).
   TEAM_EMAIL: 'chaos@thefuglys.com',
-  // The address the policies tell customers to write to.
-  CONTACT_EMAIL: 'contact@themetavision.co.uk',
+  // The address the policies and /returns tell customers to write to: the
+  // brand inbox, the same address customer emails come from.
+  CONTACT_EMAIL: 'chaos@thefuglys.com',
 
   // The look of the customer emails: the "It's shipped" email's palette
   // (printful-webhook.mjs), so both read as one brand.
