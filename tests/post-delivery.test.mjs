@@ -24,7 +24,10 @@ import {
 import { optOutMetadata, consentFromSession, marketingRefused, referralEmailAllowed } from '../netlify/functions/_shared/marketing-consent.mjs';
 import { customerPayload, addShippedCustomer, productTitleFor, contentsFor, fieldKeys } from '../netlify/functions/_shared/mailerlite-customer.mjs';
 import { startPostDelivery, EARLIER_CODE_QUERY } from '../netlify/functions/_shared/post-delivery.mjs';
-import { rewardReferrer, rewardEmail } from '../netlify/functions/_shared/referral-reward.mjs';
+import {
+  rewardReferrer, rewardEmail, checkReferral, referralNote, normEmail, EARLIER_ORDER_QUERY,
+  SELF_REFERRAL, REPEAT_CUSTOMER, LOOKUP_FAILED,
+} from '../netlify/functions/_shared/referral-reward.mjs';
 import { sendDispatchEmail, afterDispatchEmail } from '../netlify/functions/_shared/dispatch-email.mjs';
 import { createHandler } from '../netlify/functions/printful-webhook.mjs';
 
@@ -33,6 +36,7 @@ const require = createRequire(import.meta.url);
 process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
 delete process.env.MAILERLITE_API_KEY;
 const { isWelcomeCode, readDiscount, WELCOME_CODES } = require('../src/lib/promo-codes.cjs');
+process.env.ORDER_NOTIFICATION_TO = process.env.ORDER_NOTIFICATION_TO || 'team@example.com';
 const stripeWebhook = require('../netlify/functions/stripe-webhook.cjs');
 
 const C = SITE_CONFIG;
@@ -98,6 +102,13 @@ function groq(q, p, store) {
       .filter((d) => d._id !== p.id && String(d.customerEmail || '').toLowerCase() === p.email && d.referralCode != null)
       .sort((a, b) => String(a._createdAt || '').localeCompare(String(b._createdAt || '')))[0];
     return hit ? hit.referralCode : null;
+  }
+  if (q === EARLIER_ORDER_QUERY) {
+    return all
+      .filter((d) => d._id !== p.docId && d.stripeSessionId !== p.sid && String(d.customerEmail || '').toLowerCase() === p.email)
+      .filter((d) => !['other-brand', 'cancelled', 'refunded'].includes(d.status) && (p.test || d.test !== true))
+      .sort((a, b) => String(a.placedAt || '').localeCompare(String(b.placedAt || '')))
+      .map((d) => ({ _id: d._id, orderRef: d.orderRef, placedAt: d.placedAt }))[0] || null;
   }
   if (q.includes('printfulOrderId == $pid')) return all.find((d) => d.printfulOrderId === p.pid) || null;
   if (q.includes('_id in [$a, $b]')) return store.get(p.a) || store.get(p.b) || null;
@@ -653,14 +664,13 @@ test('reward: once only — a second delivery (or a racing one) issues nothing m
   assert.equal((await rewardReferrer(rewardArgs(sanity, stripe, resend, [friendPromo()]))).skipped, 'already rewarded');
 });
 
-test('reward: nothing for no code, the welcome code, your own code, or another brand\'s friend code', async () => {
+test('reward: nothing for no code, the welcome code or another brand\'s friend code', async () => {
   const sanity = fakeSanity({ [ORDER_ID]: order() });
   const stripe = fakeStripe();
   const resend = fakeResend();
   for (const promos of [
     [],
     [{ id: 'w', code: WELCOME_CODES[0], restrictions: { first_time_transaction: true }, metadata: { brand: C.BRAND_KEY } }],
-    [friendPromo({ metadata: { ...friendPromo().metadata, referrer_email: 'buyer@example.com' } })],
     [friendPromo({ metadata: { ...friendPromo().metadata, brand: otherBrand } })],
   ]) {
     assert.deepEqual(await rewardReferrer(rewardArgs(sanity, stripe, resend, promos)), { rewarded: false });
@@ -697,6 +707,157 @@ test('stripe-webhook rewardStep: rewards through the shared module; nothing to d
   const broken = { getDocument: async () => { throw new Error('down'); } };
   const r3 = await stripeWebhook.rewardStep(session, ORDER_ID, { promos: [friendPromo()] }, { sanity: broken, resend, stripe });
   assert.equal(r3.rewarded, false);
+});
+
+/* ------------------------------------------------------------------ new customers only */
+
+const EARLIER_ID = 'order.zzEARLIERzz';
+const earlierOrder = (over = {}) => ({ _type: 'order', orderRef: 'EARLY001', stripeSessionId: 'cs_live_earlier', placedAt: '2026-10-01T10:00:00Z', customerEmail: 'buyer@example.com', status: 'shipped', ...over });
+const nothingIssued = (stripe, resend) => { assert.equal(stripe.calls.promos.length, 0, 'no reward code'); assert.equal(resend.sent.length, 0, 'no reward email'); };
+
+test('new customers only: a new customer on a friend code is rewarded and emailed', async () => {
+  const sanity = fakeSanity({ [ORDER_ID]: order({ customerEmail: 'buyer@example.com' }) }, { fetch: groq });
+  const stripe = fakeStripe();
+  const resend = fakeResend();
+  const r = await rewardReferrer(rewardArgs(sanity, stripe, resend, [friendPromo()], { sessionId: `cs_live_${SESSION_KEY}` }));
+  assert.equal(r.rewarded, true);
+  assert.deepEqual(resend.sent[0].to, ['ref@example.com']);
+  assert.equal(sanity.store.get(ORDER_ID).referralError, undefined);
+});
+
+test('new customers only: the code owner on their own code gets nothing; referralError self_referral', async () => {
+  const sanity = fakeSanity({ [ORDER_ID]: order() }, { fetch: groq });
+  const stripe = fakeStripe();
+  const resend = fakeResend();
+  const r = await rewardReferrer(rewardArgs(sanity, stripe, resend, [friendPromo()], { buyerEmail: 'ref@example.com' }));
+  assert.deepEqual(r, { rewarded: false, refused: SELF_REFERRAL });
+  nothingIssued(stripe, resend);
+  assert.equal(sanity.store.get(ORDER_ID).referralError, 'self_referral');
+  assert.equal(sanity.store.get(ORDER_ID).referredBy, undefined);
+});
+
+test('new customers only: a repeat buyer on a friend code gets nothing; referralError repeat_customer', async () => {
+  const sanity = fakeSanity({ [ORDER_ID]: order({ customerEmail: 'buyer@example.com' }), [EARLIER_ID]: earlierOrder() }, { fetch: groq });
+  const stripe = fakeStripe();
+  const resend = fakeResend();
+  const r = await rewardReferrer(rewardArgs(sanity, stripe, resend, [friendPromo()], { sessionId: `cs_live_${SESSION_KEY}` }));
+  assert.deepEqual(r, { rewarded: false, refused: REPEAT_CUSTOMER });
+  nothingIssued(stripe, resend);
+  assert.equal(sanity.store.get(ORDER_ID).referralError, 'repeat_customer');
+});
+
+test('new customers only: this order, another brand\'s misrouted order and a preview test order are not "earlier"', async () => {
+  const docs = {
+    [ORDER_ID]: order({ customerEmail: 'buyer@example.com' }),
+    'order.misrouted': earlierOrder({ stripeSessionId: 'cs_live_m', status: 'other-brand' }),
+    'order.preview': earlierOrder({ stripeSessionId: 'cs_test_p', test: true }),
+    [`drafts.${EARLIER_ID}`]: earlierOrder(),
+  };
+  const args = { promos: [friendPromo()], buyerEmail: 'buyer@example.com', docId: ORDER_ID, sessionId: `cs_live_${SESSION_KEY}`, log: quiet };
+  const live = await checkReferral({ ...args, sanity: fakeSanity(docs, { fetch: groq }) });
+  assert.equal(live.eligible, true);
+  // From a test checkout, earlier test orders do count (so previews behave like live).
+  const fromTest = await checkReferral({ ...args, sanity: fakeSanity(docs, { fetch: groq }), test: true });
+  assert.equal(fromTest.reason, REPEAT_CUSTOMER);
+});
+
+test('new customers only: case and whitespace in either email are the same email', async () => {
+  assert.equal(normEmail(' Contact@TheMetavision.co.uk '), 'contact@themetavision.co.uk');
+  const own = friendPromo({ metadata: { ...friendPromo().metadata, referrer_email: 'contact@themetavision.co.uk ' } });
+  const self = await checkReferral({ sanity: fakeSanity({}, { fetch: groq }), promos: [own], buyerEmail: ' Contact@TheMetavision.co.uk ', docId: ORDER_ID, log: quiet });
+  assert.equal(self.reason, SELF_REFERRAL);
+  const seen = [];
+  const sanity = fakeSanity({ [EARLIER_ID]: earlierOrder({ customerEmail: 'Buyer@Example.com' }) }, { fetch: (q, p, store) => { seen.push(p); return groq(q, p, store); } });
+  const repeat = await checkReferral({ sanity, promos: [friendPromo()], buyerEmail: '  BUYER@example.COM ', docId: ORDER_ID, sessionId: 'cs_live_now', log: quiet });
+  assert.equal(repeat.reason, REPEAT_CUSTOMER);
+  assert.equal(seen[0].email, 'buyer@example.com');
+  assert.match(EARLIER_ORDER_QUERY, /lower\(customerEmail\) == \$email/);
+});
+
+test('new customers only: a failed Sanity lookup skips the reward, is recorded and never thrown', async () => {
+  const sanity = fakeSanity({ [ORDER_ID]: order() }, { fetch: async () => { throw new Error('Sanity is down'); } });
+  const stripe = fakeStripe();
+  const resend = fakeResend();
+  const r = await rewardReferrer(rewardArgs(sanity, stripe, resend, [friendPromo()]));
+  assert.deepEqual(r, { rewarded: false, refused: LOOKUP_FAILED });
+  nothingIssued(stripe, resend);
+  assert.match(sanity.store.get(ORDER_ID).referralError, /^lookup_failed — Sanity is down/);
+});
+
+test('new customers only: the team email line names the code and the reason', () => {
+  const fc = `${C.REFERRAL_FRIEND_PREFIX}-ABC234`;
+  assert.equal(referralNote(null), '');
+  assert.equal(referralNote({ code: fc, eligible: true }), '');
+  assert.equal(referralNote({ code: fc, eligible: false, reason: SELF_REFERRAL }),
+    `Friend code ${fc} used by an existing customer (the code's own owner) — no reward issued (self-referral).`);
+  assert.equal(referralNote({ code: fc, eligible: false, reason: REPEAT_CUSTOMER, earlier: { orderRef: 'EARLY001' } }),
+    `Friend code ${fc} used by an existing customer (earlier order EARLY001) — no reward issued (repeat customer).`);
+  assert.match(referralNote({ code: fc, referrerEmail: 'ref@example.com', eligible: false, reason: LOOKUP_FAILED, error: 'down' }),
+    /new-customer check failed \(down\) — no reward issued.*ref@example\.com/);
+});
+
+/** Runs sendMerchantEmail with fetch stubbed; returns what it posted to Resend. */
+async function teamEmailFor(session, promo) {
+  const realFetch = globalThis.fetch;
+  const key = process.env.RESEND_API_KEY;
+  const posted = [];
+  globalThis.fetch = async (url, init) => { posted.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({}), text: async () => '' }; };
+  process.env.RESEND_API_KEY = 're_test';
+  try {
+    await stripeWebhook.sendMerchantEmail(session, { data: [] }, 'fulfilled', '1', promo);
+  } finally {
+    globalThis.fetch = realFetch;
+    if (key === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = key;
+  }
+  return posted;
+}
+
+test('stripe-webhook: the check runs before the team email, which carries the line; the reward then honours it', async () => {
+  const session = { id: `cs_live_${SESSION_KEY}`, livemode: true, customer_details: { email: ' Buyer@Example.com ', name: 'B' }, amount_total: 2000 };
+  const stripe = fakeStripe();
+  const resend = fakeResend();
+  const sanity = fakeSanity({ [ORDER_ID]: order({ customerEmail: 'Buyer@Example.com' }), [EARLIER_ID]: earlierOrder() }, { fetch: groq });
+  const promo = { promos: [friendPromo()], codes: [friendPromo().code] };
+  await stripeWebhook.referralCheckStep(session, ORDER_ID, promo, { sanity });
+  assert.equal(promo.referral.reason, REPEAT_CUSTOMER);
+  assert.match(promo.referralNote, /no reward issued \(repeat customer\)/);
+
+  const posted = await teamEmailFor(session, promo);
+  assert.equal(posted.length, 1);
+  assert.match(posted[0].html, /FRIEND CODE &mdash; NO REWARD/);
+  assert.match(posted[0].html, new RegExp(`Friend code ${C.REFERRAL_FRIEND_PREFIX}-ABC234 used by an existing customer`));
+
+  const r = await stripeWebhook.rewardStep(session, ORDER_ID, promo, { sanity, resend, stripe });
+  assert.deepEqual(r, { rewarded: false, refused: REPEAT_CUSTOMER });
+  nothingIssued(stripe, resend);
+  assert.equal(sanity.store.get(ORDER_ID).referralError, 'repeat_customer');
+
+  const src = code(read('../netlify/functions/stripe-webhook.cjs'));
+  const check = src.indexOf('await referralCheckStep(session, orderId, promo)');
+  const team = src.indexOf('await sendMerchantEmail(', check);
+  assert.ok(check > 0 && team > check, 'the check comes before the team email');
+});
+
+test('stripe-webhook: a new customer\'s team email has no referral warning', async () => {
+  const session = { id: `cs_live_${SESSION_KEY}`, customer_details: { email: 'buyer@example.com' } };
+  const promo = { promos: [friendPromo()] };
+  await stripeWebhook.referralCheckStep(session, ORDER_ID, promo, { sanity: fakeSanity({ [ORDER_ID]: order() }, { fetch: groq }) });
+  assert.equal(promo.referral.eligible, true);
+  assert.equal(promo.referralNote, '');
+  const posted = await teamEmailFor(session, promo);
+  assert.doesNotMatch(posted[0].html, /NO REWARD/);
+});
+
+test('stripe-webhook: a failed lookup never blocks the team email; it carries the warning', async () => {
+  const session = { id: `cs_live_${SESSION_KEY}`, customer_details: { email: 'buyer@example.com' } };
+  const sanity = fakeSanity({ [ORDER_ID]: order() }, { fetch: async () => { throw new Error('Sanity is down'); } });
+  const promo = { promos: [friendPromo()] };
+  await stripeWebhook.referralCheckStep(session, ORDER_ID, promo, { sanity });
+  assert.equal(promo.referral.reason, LOOKUP_FAILED);
+  assert.match(promo.referralNote, /new-customer check failed \(Sanity is down\)/);
+  const posted = await teamEmailFor(session, promo);
+  assert.equal(posted.length, 1, 'the team email still goes');
+  assert.match(posted[0].html, /new-customer check failed/);
 });
 
 /* ------------------------------------------------------------------ wiring in the source */

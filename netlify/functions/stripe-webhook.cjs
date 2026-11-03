@@ -319,6 +319,7 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId, pr
           ${promo.fulfilmentAlert ? `<p style="background:#fde8eb;color:#b00020;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; NOT OUR VARIANT</strong><br>${esc(promo.fulfilmentAlert)}</p>` : ''}
           ${promo.crossBrandCode ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; OTHER BRAND&rsquo;S CODE</strong><br>${esc(promo.crossBrandCode)}</p>` : ''}
           ${promo.repeatWelcomeCode ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; REPEAT WELCOME CODE</strong><br>${esc(promo.repeatWelcomeCode)}</p>` : ''}
+          ${promo.referralNote ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; FRIEND CODE &mdash; NO REWARD</strong><br>${esc(promo.referralNote)}</p>` : ''}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
             <tr>
               <th align="left" style="font-size:11px;color:#888;text-transform:uppercase;padding-bottom:4px;">Item</th>
@@ -361,6 +362,10 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId, pr
    (a Stripe retry) — no second merchant alert and no second GA4 purchase. */
 async function finalize(session, lineItems, status, printfulOrderId, alreadyRecorded, promo) {
   const orderId = await saveOrder(session, lineItems, status, printfulOrderId, promo);
+  // Is a friend code on this order owed a thank-you? Decided now so the team
+  // email can say when it is not (self-referral, repeat customer, failed
+  // check). First delivery only, like the reward. Never throws.
+  if (!alreadyRecorded && orderId) await referralCheckStep(session, orderId, promo);
   if (alreadyRecorded) {
     console.log(`[MERCHANT-SKIP] session ${session.id}: order already in the Sanity log (Stripe retry) — alert not resent.`);
   } else {
@@ -552,15 +557,43 @@ async function saveOrder(session, lineItems, status, printfulOrderId, promo = {}
    creating anything, so a racing duplicate delivery can't issue two codes.
    Writes go through server-patch.mjs (draft mirrored), which needs
    @sanity/client. Never throws; a failure lands in referralError.
+   New customers only: referralCheckStep has already asked the shared
+   module's checkReferral (not the code's owner, no earlier paid order from
+   the buyer's email) and put the answer on promo.referral; a refusal is
+   recorded as referralError, with no code and no email.
    `deps` is for tests. */
+function referralSanity(deps) {
+  return deps.sanity || require('@sanity/client').createClient({
+    projectId: SANITY_PROJECT_ID, dataset: SANITY_DATASET, apiVersion: '2026-04-14',
+    token: sanityWriteToken(), useCdn: false,
+  });
+}
+
+/* Sets promo.referral (checkReferral's answer, null for no friend code) and
+   promo.referralNote (the team email's line, '' when the reward goes ahead).
+   A failure leaves promo.referral unset, and rewardStep checks again. */
+async function referralCheckStep(session, orderId, promo, deps = {}) {
+  if (!promo || !promo.promos || !promo.promos.length) return null;
+  try {
+    const { checkReferral, referralNote } = await import('./_shared/referral-reward.mjs');
+    promo.referral = await checkReferral({
+      sanity: referralSanity(deps), promos: promo.promos, docId: orderId, sessionId: session.id,
+      buyerEmail: (session.customer_details && session.customer_details.email) || '',
+      test: session.livemode === false, log: console,
+    });
+    promo.referralNote = referralNote(promo.referral);
+    return promo.referral;
+  } catch (err) {
+    console.error(`[REFERRAL] session ${session.id}: new-customer check failed:`, err && err.message ? err.message : err);
+    return null;
+  }
+}
+
 async function rewardStep(session, orderId, promo, deps = {}) {
   if (!promo || !promo.promos || !promo.promos.length) return { rewarded: false };
   try {
     const { rewardReferrer } = await import('./_shared/referral-reward.mjs');
-    const sanity = deps.sanity || require('@sanity/client').createClient({
-      projectId: SANITY_PROJECT_ID, dataset: SANITY_DATASET, apiVersion: '2026-04-14',
-      token: sanityWriteToken(), useCdn: false,
-    });
+    const sanity = referralSanity(deps);
     // Resend over fetch, like every other email this webhook sends.
     const resend = deps.resend !== undefined ? deps.resend : (!process.env.RESEND_API_KEY ? null : {
       emails: {
@@ -580,6 +613,8 @@ async function rewardStep(session, orderId, promo, deps = {}) {
       ref: `#${String(session.id).slice(-8).toUpperCase()}`,
       promos: promo.promos,
       buyerEmail: (session.customer_details && session.customer_details.email) || '',
+      sessionId: session.id, test: session.livemode === false,
+      check: promo.referral,
       log: console,
     });
   } catch (err) {
@@ -769,3 +804,5 @@ exports.saveOrder = saveOrder;
 exports.printfulConfirm = printfulConfirm;
 exports.inhouseLineLabel = inhouseLineLabel;
 exports.rewardStep = rewardStep;
+exports.referralCheckStep = referralCheckStep;
+exports.sendMerchantEmail = sendMerchantEmail;
