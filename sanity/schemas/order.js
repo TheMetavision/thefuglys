@@ -15,7 +15,15 @@ import { postDeliveryFields } from './postDeliveryFields';
    Status, the wall-art carrier / tracking number (wallArtDispatchFields) and
    the Sendcloud shipment switch and parcel plan (shippingFields). The Printful
    fields stay Printful's. */
-const EDITABLE = new Set(['inhouseStatus']);
+// The operator's fields. Anything not listed here (and without its own readOnly)
+// is locked, so a new operator field must be added here or it shows read-only.
+const EDITABLE = new Set([
+  'inhouseStatus',
+  // wallArtDispatchFields()
+  'wallArtCarrier', 'wallArtCarrierOther', 'wallArtTrackingNumber',
+  // shippingFields(): the Sendcloud switch and the parcel plan
+  'shipment', 'parcelPlan',
+]);
 const lockWebhookFields = (fields) =>
   fields.map((f) => (EDITABLE.has(f.name) || f.readOnly !== undefined ? f : { ...f, readOnly: true }));
 
