@@ -27,7 +27,10 @@ export const teamAddress = () => setting('TEAM_EMAIL');
 /** A team email's recipient and sender: the team keeps its own sender, so only customer emails use EMAIL_FROM. */
 export const toTeam = () => ({ to: [teamAddress()], from: setting('TEAM_EMAIL_FROM'), reply_to: setting('TEAM_EMAIL_REPLY_TO') });
 const money = (n) => `£${(Number(n) || 0).toFixed(2)}`;
-const testTag = () => (['true', '1', 'yes'].includes(String(process.env.SHIPPING_TEST_MODE || '').toLowerCase()) ? '[TEST] ' : '');
+/* [TEST] while SHIPPING_TEST_MODE is on, and always for an order paid in
+   Stripe test mode (who.test, from order.test), so a test order's team
+   emails stay marked once production's test mode is off. */
+const testTag = (test = false) => (test === true || ['true', '1', 'yes'].includes(String(process.env.SHIPPING_TEST_MODE || '').toLowerCase()) ? '[TEST] ' : '');
 const brand = () => setting('BRAND_SHORT');
 const dateOnly = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' }) : '');
 
@@ -67,7 +70,7 @@ export function labelReadyEmail(who, parcels, { renewed = false, expiresAt } = {
   const n = parcels.length;
   return {
     ...toTeam(),
-    subject: `${testTag()}🏷️ ${brand()} ${renewed ? 'new label links' : 'label ready'} — ${who.ref} (${n} parcel${n === 1 ? '' : 's'})`,
+    subject: `${testTag(who.test)}🏷️ ${brand()} ${renewed ? 'new label links' : 'label ready'} — ${who.ref} (${n} parcel${n === 1 ? '' : 's'})`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">${renewed ? 'New print links for' : `Wall-art label${n === 1 ? '' : 's'} ready for`} ${esc(brand())} order ${esc(who.ref)}</h2>
       <p>${esc(who.name || '')} — ${esc([who.address?.city, who.address?.postalCode].filter(Boolean).join(', '))}</p>
@@ -81,7 +84,7 @@ export function labelReadyEmail(who, parcels, { renewed = false, expiresAt } = {
 export function shipmentProblemEmail(who, reason) {
   return {
     ...toTeam(),
-    subject: `${testTag()}⚠ ${brand()} shipping problem — ${who.ref}`,
+    subject: `${testTag(who.test)}⚠ ${brand()} shipping problem — ${who.ref}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">No label for ${esc(brand())} order ${esc(who.ref)}</h2>
       <p>The shipment is marked <strong>Exception</strong> and nothing more will happen until you change it.</p>
@@ -97,7 +100,7 @@ export function parcelAlertEmail(who, parcel, event, kind) {
   const what = kind === 'returned_to_sender' ? 'is being returned to sender' : 'has a delivery problem';
   return {
     ...toTeam(),
-    subject: `${testTag()}⚠ ${brand()} ${who.ref}: wall-art parcel ${parcel?.parcelRef || ''} ${what}`,
+    subject: `${testTag(who.test)}⚠ ${brand()} ${who.ref}: wall-art parcel ${parcel?.parcelRef || ''} ${what}`,
     html: plainWrap(`
       <h2 style="margin:0 0 8px">${esc(who.ref)}: parcel ${esc(parcel?.parcelRef || '?')} ${what}</h2>
       ${table(`

@@ -155,7 +155,7 @@ export async function applyParcelEvent(event, deps) {
 
   const resend = getResend();
   if (effects.alert) {
-    const who = { ref, id: doc._id, name: doc.customerName, email: doc.customerEmail };
+    const who = { ref, id: doc._id, name: doc.customerName, email: doc.customerEmail, test: doc.test === true };
     const sent = await sendEmail(resend, parcelAlertEmail(who, effects.parcel, event, effects.kind));
     if (!sent.ok) log.error(`shipping-event: ${ref} alert email not sent: ${sent.error}`);
   }

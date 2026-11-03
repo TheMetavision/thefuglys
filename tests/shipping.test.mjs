@@ -24,7 +24,7 @@ import {
 import { handleReturns, issueSession } from '../netlify/functions/_shared/returns-api.mjs';
 import { processReturn } from '../netlify/functions/_shared/shipping-returns.mjs';
 import { setting, intSetting, flag, sanityWriteToken, SITE_CONFIG } from '../netlify/functions/_shared/site-config.mjs';
-import { shippingEnabled, sign, verifyShippingCallback } from '../netlify/functions/_shared/shipping-client.mjs';
+import { shippingEnabled, sign, verifyShippingCallback, shippingRequest, testOrderFlag } from '../netlify/functions/_shared/shipping-client.mjs';
 
 // The wall-art dispatch email now starts the post-delivery sequence
 // (afterDispatchEmail -> post-delivery.mjs). Never with real keys from the shell.
@@ -647,4 +647,69 @@ test('processReturn: a free label (faulty print, raised in the Studio) deducts n
   assert.equal(sanity.store.get('returnRequest.ret-3').postageDeduction, 0);
   assert.doesNotMatch(resend.sent[0].html, /will be deducted/);
   assert.match(resend.sent[0].html, /This label is free/);
+});
+
+/* ------------------------------------------------------------------ test-mode orders: free labels */
+
+test('testOrderFlag: { test: true } only for an order with test === true', () => {
+  assert.deepEqual(testOrderFlag(order({ test: true })), { test: true });
+  for (const o of [order(), order({ test: false }), order({ test: 'true' }), null, undefined]) assert.deepEqual(testOrderFlag(o), {});
+});
+
+test('dispatch: a Stripe test-mode order asks the service for a test label; a live order does not', async () => {
+  const run = async (over) => {
+    const doc = order({ items: [poster('a', 'large')], shipment: { status: 'ready_to_ship' }, ...over });
+    const ship = fakeShipping();
+    const r = await dispatchShipment(doc._id, { sanity: fakeSanity({ [doc._id]: doc }), shipping: ship.fn, getResend: () => fakeResend(), env: ENV, now: () => NOW, log: quiet });
+    assert.equal(r.outcome, 'label_created');
+    return ship.calls;
+  };
+  const testCalls = await run({ test: true });
+  assert.equal(testCalls[0].path, 'create-parcel');
+  assert.equal(testCalls[0].body.test, true);
+  const liveCalls = await run({});
+  assert.equal('test' in liveCalls[0].body, false, 'a live order never sends test');
+});
+
+test('processReturn: the return of a test-mode order asks for a test label; a live order\'s does not', async () => {
+  const run = async (over) => {
+    const doc = delivered(over);
+    const ret = { _type: 'returnRequest', returnRef: 'ret-t', returnNumber: '#ZQ9XK2BT-R1', orderId: doc._id, orderNumber: '#ZQ9XK2BT', customerName: 'Ada', customerEmail: 'ada@example.com', status: 'approved', band: 'P4', lines: [{ lineKey: 'l1', title: 'Art l1 — Poster Print · large', quantity: 1, unitPrice: 16.99 }] };
+    const calls = [];
+    const r = await processReturn('returnRequest.ret-t', {
+      sanity: fakeSanity({ [doc._id]: doc, 'returnRequest.ret-t': ret }), getResend: () => fakeResend(), log: quiet, now: () => NOW,
+      shipping: async (path, body) => { calls.push({ path, body }); return { carrier: 'inpost_gb', method: 'inpost_gb:l2l/size=m', labelId: 'RL1', trackingNumber: 'IP1', quotedPrice: { amount: 0, currency: 'GBP' } }; },
+      fetchLabel: async () => Buffer.from('%PDF'),
+    });
+    assert.equal(r.outcome, 'label_sent');
+    return calls;
+  };
+  const testCalls = await run({ test: true });
+  assert.equal(testCalls[0].path, 'create-return');
+  assert.equal(testCalls[0].body.test, true);
+  assert.equal('test' in (await run({}))[0].body, false);
+});
+
+test('shippingRequest: a test order\'s flag reaches the service with SHIPPING_TEST_MODE off; a live body stays live', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => { sent.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+  await shippingRequest('create-parcel', { body: { orderRef: 'A', ...testOrderFlag({ test: true }) }, env: ENV, fetchImpl, now: NOW });
+  await shippingRequest('create-parcel', { body: { orderRef: 'B', ...testOrderFlag({}) }, env: ENV, fetchImpl, now: NOW });
+  assert.equal(sent[0].test, true);
+  assert.equal('test' in sent[1], false);
+});
+
+test('team emails: a test-mode order\'s label email is [TEST] even with SHIPPING_TEST_MODE off; a live order\'s is not', async () => {
+  const saved = process.env.SHIPPING_TEST_MODE;
+  delete process.env.SHIPPING_TEST_MODE;
+  try {
+    const subjectFor = async (over) => {
+      const doc = order({ items: [poster('a', 'large')], shipment: { status: 'ready_to_ship' }, ...over });
+      const resend = fakeResend();
+      await dispatchShipment(doc._id, { sanity: fakeSanity({ [doc._id]: doc }), shipping: fakeShipping().fn, getResend: () => resend, env: ENV, now: () => NOW, log: quiet });
+      return resend.sent[0].subject;
+    };
+    assert.match(await subjectFor({ test: true }), /^\[TEST\] /);
+    assert.doesNotMatch(await subjectFor({}), /\[TEST\]/);
+  } finally { if (saved !== undefined) process.env.SHIPPING_TEST_MODE = saved; }
 });

@@ -30,7 +30,7 @@
  * customer has, without the "#".
  */
 import { readDecideWrite, serverPatch } from './server-patch.mjs';
-import { quotedPounds } from './shipping-client.mjs';
+import { quotedPounds, testOrderFlag } from './shipping-client.mjs';
 import { proposeParcelPlan, validateParcelPlan, parcelItems, recipientFor, isWallArtLine, INTERNATIONAL_NOTE } from './parcel-plan.mjs';
 import { orderRefFor, bareOrderRef } from './order-ref.mjs';
 import { signLabelLink, labelLinkStale } from './shipping-internal.mjs';
@@ -123,7 +123,7 @@ export async function dispatchShipment(id, deps) {
   const ref = orderRefFor(doc) || doc._id;
   const address = doc.shippingAddress || {};
   const name = address.name || doc.customerName || '';
-  const who = { ref, id: doc._id, name, email: doc.customerEmail || '', address };
+  const who = { ref, id: doc._id, name, email: doc.customerEmail || '', address, test: doc.test === true };
 
   const fail = async (reason, extra = {}) => {
     await serverPatch(sanity, id, {
@@ -198,6 +198,8 @@ export async function dispatchShipment(id, deps) {
         // Posters after the first in a tube: the service adds it to the
         // band's weight (README, "Extra weight").
         ...(extra ? { extraWeightG: extra } : {}),
+        // A Stripe test-mode order: the free void label (shipping-client.mjs).
+        ...testOrderFlag(doc),
       });
       made.push(parcelRecord(planned, res, res.labelId != null ? signLabelLink(res.labelId, { env, now: now() }) : null));
     } catch (err) {

@@ -28,7 +28,7 @@
  * customer: the label says it, and nothing else we send does.
  */
 import { readDecideWrite, serverPatch } from './server-patch.mjs';
-import { quotedPounds } from './shipping-client.mjs';
+import { quotedPounds, testOrderFlag } from './shipping-client.mjs';
 import { ALL_BANDS, recipientFor } from './parcel-plan.mjs';
 import { sendEmail, returnLabelEmail, returnDeclinedEmail, returnProblemEmail, claimReplacementEmail, claimRefundEmail } from './shipping-emails.mjs';
 import { normaliseOrderRef } from './order-ref.mjs';
@@ -111,6 +111,8 @@ export async function processReturn(retId, { sanity, shipping, fetchLabel, getRe
         // Name, address and email: a collection from the customer's door is
         // booked against them.
         customer: { ...recipientFor(order.shippingAddress?.name || order.customerName, order.shippingAddress), email: ret.customerEmail || order.customerEmail || '' },
+        // The return of a Stripe test-mode order: the free void label (shipping-client.mjs).
+        ...testOrderFlag(order),
         items: ret.lines.map((l) => ({
           description: String(l.title || 'Item').slice(0, 120),
           qty: Math.max(1, Math.floor(Number(l.quantity) || 1)),
