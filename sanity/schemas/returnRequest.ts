@@ -164,7 +164,7 @@ export default defineType({
       description: '14 days from delivery; a deduction is allowed if it has been worn or washed (returns policy).',
     }),
     defineField({ name: 'testOrder', title: 'Test order (Stripe test mode)', type: 'boolean', readOnly: true, hidden: ({ value }) => !value }),
-    defineField({ name: 'windowEndsOn', title: '14 days end', type: 'string', readOnly: true, hidden: ({ value }) => !value }),
+    defineField({ name: 'windowEndsOn', title: 'Return window ends', type: 'string', description: 'Wall art: from delivery. Merchandise: from Printful’s ship date.', readOnly: true, hidden: ({ value }) => !value }),
     defineField({
       name: 'lines',
       title: 'Items',
