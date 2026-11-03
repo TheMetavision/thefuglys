@@ -66,6 +66,18 @@ export const isFriendCode = (promo, brand) =>
 export const isRewardCode = (promo, brand) =>
   kindOf(promo) === KIND_REWARD && (!brand || brandOf(promo) === brand);
 
+// Stripe refuses a coupon name over 40 characters ("Invalid string: ... must
+// be at most 40 characters"). The old "<brand> referral: friend 10% off first
+// order" was 44-52 characters for every IP brand, so no coupon and no code was
+// ever created. The name shows at checkout, so keep it short and readable.
+export const COUPON_NAME_MAX = 40;
+
+/** "<Brand>: <what>", cut to Stripe's 40-character limit. */
+export function couponName(brandName, what) {
+  const full = brandName ? `${brandName}: ${what}` : String(what);
+  return full.length <= COUPON_NAME_MAX ? full : full.slice(0, COUPON_NAME_MAX).trimEnd();
+}
+
 /** Create the coupon if it does not exist yet. Returns its id. */
 export async function ensureCoupon(stripe, id, { name, brand, kind }) {
   try {
@@ -75,7 +87,7 @@ export async function ensureCoupon(stripe, id, { name, brand, kind }) {
     if (err?.statusCode !== 404 && err?.code !== 'resource_missing') throw err;
   }
   try {
-    await stripe.coupons.create({ id, name, percent_off: 10, duration: 'once', metadata: { brand, kind } });
+    await stripe.coupons.create({ id, name: couponName('', name), percent_off: 10, duration: 'once', metadata: { brand, kind } });
   } catch (err) {
     // Two deliveries racing to create it: the other one won, which is fine.
     if (err?.code !== 'resource_already_exists') throw err;
@@ -105,7 +117,7 @@ async function createPromo(stripe, prefix, params, tries = 3) {
  */
 export async function friendCodeFor(stripe, { email, orderRef, existingCode }, cfg = referralConfig()) {
   if (existingCode) return existingCode;
-  await ensureCoupon(stripe, cfg.friendCoupon, { name: `${cfg.brandName} referral: friend 10% off first order`, brand: cfg.brand, kind: KIND_FRIEND });
+  await ensureCoupon(stripe, cfg.friendCoupon, { name: couponName(cfg.brandName, 'referral 10% off'), brand: cfg.brand, kind: KIND_FRIEND });
   const promo = await createPromo(stripe, cfg.friendPrefix, {
     coupon: cfg.friendCoupon,
     restrictions: { first_time_transaction: true },
@@ -121,7 +133,7 @@ export async function friendCodeFor(stripe, { email, orderRef, existingCode }, c
 
 /** A single-use 10% thank-you code for the referrer. Returns the code string. */
 export async function issueReward(stripe, { referrerEmail, referredOrder }, cfg = referralConfig()) {
-  await ensureCoupon(stripe, cfg.rewardCoupon, { name: `${cfg.brandName} referral: thank-you 10% off next order`, brand: cfg.brand, kind: KIND_REWARD });
+  await ensureCoupon(stripe, cfg.rewardCoupon, { name: couponName(cfg.brandName, 'thank-you 10% off'), brand: cfg.brand, kind: KIND_REWARD });
   const promo = await createPromo(stripe, cfg.rewardPrefix, {
     coupon: cfg.rewardCoupon,
     max_redemptions: 1,

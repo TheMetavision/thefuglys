@@ -19,6 +19,7 @@ import { fakeSanity, fakeResend, quiet } from './_fake-sanity.mjs';
 import { SITE_CONFIG } from '../netlify/functions/_shared/site-config.mjs';
 import {
   codeBody, friendCodeFor, issueReward, referralsFrom, ensureCoupon, isFriendCode, isRewardCode,
+  couponName, COUPON_NAME_MAX,
   KIND_FRIEND, KIND_REWARD, referralConfig,
 } from '../netlify/functions/_shared/referral.mjs';
 import { optOutMetadata, consentFromSession, marketingRefused, referralEmailAllowed } from '../netlify/functions/_shared/marketing-consent.mjs';
@@ -61,7 +62,14 @@ function fakeStripe({ couponExists = false, clashes = 0, failPromos = false } = 
         if (couponExists || calls.couponsCreated.some((c) => c.id === id)) return { id };
         throw Object.assign(new Error('No such coupon'), { statusCode: 404, code: 'resource_missing' });
       },
-      create: async (c) => { calls.couponsCreated.push(c); return c; },
+      create: async (c) => {
+        // As Stripe does: this is what stopped every IP brand's referral codes.
+        if (String(c.name || '').length > 40) {
+          throw Object.assign(new Error(`Invalid string: ${c.name}; must be at most 40 characters`), { statusCode: 400, code: 'parameter_invalid_string' });
+        }
+        calls.couponsCreated.push(c);
+        return c;
+      },
     },
     promotionCodes: {
       create: async (p) => {
@@ -217,6 +225,22 @@ test('friend code: an existing one is reused, nothing created; a clashing random
   await friendCodeFor(clashing, { email: 'a@b.c' });
   assert.equal(clashing.calls.promos.length, 1);
   assert.equal(clashing.calls.couponsCreated.length, 0, 'the coupon already existed');
+});
+
+test('coupon names fit the Stripe 40-character limit for this brand and the longest IP brand name', async () => {
+  for (const brandName of [C.BRAND_NAME, 'The Biker Babies', 'Cats On Crack', 'Labrats', 'The Fuglys']) {
+    const cfg = { ...referralConfig(), brandName };
+    const stripe = fakeStripe();
+    await friendCodeFor(stripe, { email: 'a@b.c', orderRef: '#X' }, cfg);
+    await issueReward(stripe, { referrerEmail: 'r@b.c', referredOrder: '#Y' }, cfg);
+    assert.deepEqual(stripe.calls.couponsCreated.map((c) => c.name),
+      [`${brandName}: referral 10% off`, `${brandName}: thank-you 10% off`]);
+    for (const c of stripe.calls.couponsCreated) assert.ok(c.name.length <= COUPON_NAME_MAX, c.name);
+  }
+  assert.equal(couponName('A very long brand name indeed, far too long', 'referral 10% off').length, COUPON_NAME_MAX);
+  const passed = fakeStripe();
+  await ensureCoupon(passed, 'x', { name: 'y'.repeat(60), brand: 'b', kind: 'k' });
+  assert.equal(passed.calls.couponsCreated[0].name, 'y'.repeat(40), 'ensureCoupon clamps whatever a caller passes');
 });
 
 test('ensureCoupon: a rival creating it first is fine; other errors are not swallowed', async () => {
