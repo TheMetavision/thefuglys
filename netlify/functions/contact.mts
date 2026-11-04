@@ -25,7 +25,9 @@
  *   RESEND_API_KEY, NOTIFICATION_FROM, NOTIFICATION_TO (the team notification;
  *   the customer's acknowledgement uses EMAIL_FROM / EMAIL_REPLY_TO, site-config)
  *   BRAND_NAME, SITE_URL
- *   LOGO_URL          absolute https URL of the logo for the email header
+ *   LOGO_URL          absolute https URL of the logo for the email header; read
+ *                     through site-config, so the brand's committed URL is used
+ *                     when it isn't set
  *   EMAIL_HEADER_BG   header background (default #0e0e14; use #000000 for a
  *                     logo that sits on a black background, to avoid a seam)
  *   BRAND_ACCENT      hex for the thin accent rule under the header
@@ -109,7 +111,7 @@ function renderEmailShell({ brandName, logoUrl, headerBg, accent, siteUrl, prehe
   const bg = headerBg || '#0e0e14';
   const rule = accent || bg;
   const header = logoUrl
-    ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" width="200" style="display:block;width:200px;max-width:64%;height:auto;border:0;margin:0 auto;" />`
+    ? `<img src="${escapeHtml(logoUrl).replace(/"/g, '&quot;')}" alt="${escapeHtml(brandName)}" width="200" style="display:block;width:200px;max-width:64%;height:auto;border:0;margin:0 auto;" />`
     : `<span style="font-size:20px;font-weight:800;letter-spacing:1px;color:#ffffff;">${escapeHtml(brandName)}</span>`;
   const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '') : '';
   return `<!DOCTYPE html>
@@ -163,7 +165,7 @@ export function buildNotificationHtml({ refCode, name, email, company, subject, 
 }
 
 // ── Acknowledgement email (to the customer) ──────────────────────────────
-function buildAckHtml(brand, { firstName, refCode, subject, message }) {
+export function buildAckHtml(brand, { firstName, refCode, subject, message }) {
   const inner = `
     <h1 style="margin:0 0 14px;font-size:18px;font-weight:700;color:#1a1a2e;">Thanks &mdash; we&rsquo;ve got your message</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">Hi ${escapeHtml(firstName)}, thanks for getting in touch with ${escapeHtml(brand.brandName)}. We&rsquo;ve received your message and will get back to you as soon as we can. Here&rsquo;s a copy for your records:</p>
@@ -201,7 +203,8 @@ export const handler = async (event) => {
   const NOTIFICATION_TO = process.env.NOTIFICATION_TO || '';
   const BRAND_NAME = process.env.BRAND_NAME || 'Website';
   const SITE_URL = process.env.SITE_URL || '';
-  const LOGO_URL = process.env.LOGO_URL || '';
+  // Via site-config (brandLook): the env value if set, else the brand's committed URL.
+  const LOGO_URL = brandLook().logo;
   const EMAIL_HEADER_BG = process.env.EMAIL_HEADER_BG || '#0e0e14';
   const BRAND_ACCENT = process.env.BRAND_ACCENT || EMAIL_HEADER_BG;
 
