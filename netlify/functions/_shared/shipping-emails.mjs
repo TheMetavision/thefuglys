@@ -17,7 +17,8 @@
  */
 import { carrierName } from './parcel-plan.mjs';
 import { setting } from './site-config.mjs';
-import { esc, brandCard, brandLook } from './dispatch-email.mjs';
+import { esc, brandCard, brandLook, emailInk } from './dispatch-email.mjs';
+import { readableOn } from './readable-colour.mjs';
 import { RETURN_WINDOW_DAYS, MERCH_WINDOW_DAYS, PRINTFUL_CLAIM_DAYS, longDate as longDateOf } from './returns-eligibility.mjs';
 
 export { esc };
@@ -57,7 +58,7 @@ export async function sendEmail(resend, message) {
 export function teamLogoBar(b = brandLook()) {
   const mark = b.logo
     ? `<img src="${esc(b.logo)}" alt="${esc(b.name)}" width="160" style="max-width:160px;width:160px;height:auto;display:inline-block;border:0;" />`
-    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:800;letter-spacing:2px;color:${esc(b.accent)};text-transform:uppercase;">${esc(b.name)}</span>`;
+    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:800;letter-spacing:2px;color:${esc(readableOn(b.accent, b.headerBg))};text-transform:uppercase;">${esc(b.name)}</span>`;
   return `<div style="background:${esc(b.headerBg)};border-radius:6px;padding:12px 16px;margin:0 0 16px;text-align:center;">${mark}</div>`;
 }
 
@@ -74,8 +75,8 @@ const table = (rows) => `<table cellpadding="6" cellspacing="0" border="1" style
 export function labelReadyEmail(who, parcels, { renewed = false, expiresAt } = {}) {
   const rows = `<tr style="background:#f3f3f3"><th>Parcel</th><th>Band</th><th>Carrier / option</th><th>Quoted</th><th>Tracking</th><th>Label</th></tr>`
     + parcels.map((p) => `<tr>
-      <td>${esc(p.parcelRef)}</td><td>${esc(p.band)}${p.extraWeightG ? `<br><span style="color:#777">+${esc(p.extraWeightG)} g</span>` : ''}</td>
-      <td>${esc(carrierName(p.carrier))}<br><span style="color:#777">${esc(p.option || '')}</span></td>
+      <td>${esc(p.parcelRef)}</td><td>${esc(p.band)}${p.extraWeightG ? `<br><span style="color:#666">+${esc(p.extraWeightG)} g</span>` : ''}</td>
+      <td>${esc(carrierName(p.carrier))}<br><span style="color:#666">${esc(p.option || '')}</span></td>
       <td>${p.quotedPrice != null ? money(p.quotedPrice) : '—'}</td>
       <td>${esc(p.trackingNumber || '—')}</td>
       <td>${p.labelUrl ? `<a href="${esc(p.labelUrl)}"><strong>Print label</strong></a>` : '<span style="color:#c00">no link (SHIPPING_SECRET unset?)</span>'}</td></tr>`).join('');
@@ -130,7 +131,7 @@ export function parcelAlertEmail(who, parcel, event, kind) {
 
 const returnLinesTable = (ret) => table(
   `<tr style="background:#f3f3f3"><th>Item</th><th>Format / size</th><th>Qty</th><th>Price</th></tr>`
-  + (ret.lines || []).map((l) => `<tr><td>${esc(l.title)}${l.fulfilment === 'printful' ? ' <span style="color:#777">(merchandise)</span>' : ''}</td><td>${esc([l.format, l.size].filter(Boolean).join(' / '))}</td>
+  + (ret.lines || []).map((l) => `<tr><td>${esc(l.title)}${l.fulfilment === 'printful' ? ' <span style="color:#666">(merchandise)</span>' : ''}</td><td>${esc([l.format, l.size].filter(Boolean).join(' / '))}</td>
     <td>${esc(l.quantity)}</td><td>${money((l.unitPrice || 0) * (l.quantity || 1))}</td></tr>`).join(''));
 
 export function newReturnEmail(ret) {
@@ -229,14 +230,14 @@ export function returnLabelEmail(ret, { pdf, instructions, postage }, b = brandL
     html: brandCard('Your return label is attached', `
       ${p(`Hi ${esc(String(ret.customerName || '').split(' ')[0] || 'there')}, we've approved your return for order <strong>${esc(ret.orderNumber)}</strong>. Your label is attached to this email as a PDF.`)}
       <ul style="margin: 0 0 14px; padding-left: 20px;">${items}</ul>
-      <p style="margin:22px 0 8px;font-size:11px;letter-spacing:1px;color:${esc(b.muted)};text-transform:uppercase;">How to send it</p>
+      <p style="margin:22px 0 8px;font-size:11px;letter-spacing:1px;color:${esc(emailInk(b).muted)};text-transform:uppercase;">How to send it</p>
       ${box(esc(instructions || ''))}
       ${ret.trackingNumber ? p(`Tracking number: <strong>${esc(ret.trackingNumber)}</strong>`) : ''}
       ${deduction}
       ${ret.freeLabel
         ? p("This label is free: you don't pay anything to send it back.")
         : p('Pack it securely in its original tube or box. We refund to your original payment method within 14 days of receiving it back.')}
-      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Return reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(emailInk(b).muted)};">Return reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
   };
 }
 
@@ -252,7 +253,7 @@ export function returnDeclinedEmail(ret, b = brandLook()) {
       ${ret.type === 'printfulClaim'
         ? p('If you have more photos or details, reply to this email and we will look again.')
         : p("If your item arrived faulty, damaged or not as described, your rights are not affected — reply to this email with your order reference and some photos, and we'll put it right.")}
-      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Return reference: ${esc(ret.returnNumber)}</p>`, b),
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(emailInk(b).muted)};">Return reference: ${esc(ret.returnNumber)}</p>`, b),
   };
 }
 
@@ -304,7 +305,7 @@ export function claimReceivedEmail(ret, b = brandLook()) {
       ${itemList(ret)}
       <div style="border-left: 3px solid ${esc(b.accent)}; padding: 12px 14px; margin: 0 0 14px;"><strong>Please reply to this email with a photo of the problem</strong> (and of the packaging, if it arrived damaged).</div>
       ${p("You don't need to send anything back. Once we've seen the photo we'll arrange a replacement and email you when it's on its way.")}
-      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(emailInk(b).muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
   };
 }
 
@@ -318,7 +319,7 @@ export function claimReplacementEmail(ret, b = brandLook()) {
       ${p(`Hi ${firstName(ret)}, thanks for the photo. We're sorry the item from order <strong>${esc(ret.orderNumber)}</strong> wasn't right, and a replacement is on its way:`)}
       ${itemList(ret)}
       ${p("It's made to order, so allow a few days for it to be printed. There's nothing to send back and nothing to pay.")}
-      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(emailInk(b).muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
   };
 }
 
@@ -333,6 +334,6 @@ export function claimRefundEmail(ret, b = brandLook()) {
       ${p(`Hi ${firstName(ret)}, thanks for the photo. We're sorry the item from order <strong>${esc(ret.orderNumber)}</strong> wasn't right:`)}
       ${itemList(ret)}
       ${p(`Instead of a replacement, we're refunding ${Number.isFinite(amount) && amount > 0 ? `<strong>${money(amount)}</strong>` : 'you'} to your original payment method. You'll have it within 14 days. There's nothing to send back.`)}
-      <p style="margin-top: 20px; font-size: 12px; color:${esc(b.muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
+      <p style="margin-top: 20px; font-size: 12px; color:${esc(emailInk(b).muted)};">Reference: <strong>${esc(ret.returnNumber)}</strong></p>`, b),
   };
 }

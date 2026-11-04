@@ -305,13 +305,13 @@ test('Resend failure: 200, order still shipped, and a repeat does not retry the 
   assert.equal(emails().length, 1);
 });
 
-test('accent: BRAND_ACCENT, then EMAIL_ACCENT, then the default (same as the order confirmation)', async () => {
+test("accent: BRAND_ACCENT, then EMAIL_ACCENT, then site-config's (same as the order confirmation)", async () => {
   delete process.env.BRAND_ACCENT;
   await handler(req(shipped()));
   assert.match(emails()[0].html, /#123456/);
   delete process.env.EMAIL_ACCENT;
   await handler(req(shipped({ tracking_number: 'RM2' })));
-  assert.match(emails()[1].html, /#99132F/);
+  assert.match(emails()[1].html, /#FF2E45/);
 });
 
 test("without LOGO_URL the header keeps site-config's logo; non-http tracking links are dropped", async () => {

@@ -40,10 +40,12 @@
  *   RESEND_API_KEY          — optional; without it the tracking email is skipped
  *   (sender and reply-to: EMAIL_FROM / EMAIL_REPLY_TO in _shared/site-config.mjs)
  *                             (the order confirmation's sender in stripe-webhook.cjs)
- *   BRAND_NAME              — optional; default "The Fuglys"
- *   BRAND_ACCENT            — optional; falls back to EMAIL_ACCENT, then #99132F (site --color-accent)
- *                             (the order confirmation's accent in stripe-webhook.cjs)
- *   EMAIL_HEADER_BG         — optional; default #263F44
+ *   BRAND_NAME              — optional; site-config value when unset
+ *   BRAND_ACCENT            — optional; falls back to EMAIL_ACCENT, then site-config
+ *                             (the order confirmation's accent in stripe-webhook.cjs). As
+ *                             text or a button it is drawn in the nearest shade that reads
+ *                             (_shared/readable-colour.mjs)
+ *   EMAIL_HEADER_BG         — optional; site-config value when unset
  *   LOGO_URL                — optional; absolute https logo for the email header (text wordmark without it)
  *
  * Point Printful's webhook at:
@@ -55,6 +57,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createClient } from '@sanity/client';
 import { setting } from './_shared/site-config.mjs';
+import { readableOn } from './_shared/readable-colour.mjs';
 import { findPrintfulOrder, recordShipped, recordFailed } from './_shared/printful-shipped.mjs';
 import { startPostDelivery } from './_shared/post-delivery.mjs';
 
@@ -69,9 +72,11 @@ const sanityWriteToken = () => process.env.SANITY_API_TOKEN || process.env.SANIT
 // Accent and sender match the order confirmation (stripe-webhook.cjs), so both
 // emails look alike and come from the address already verified in Resend.
 const brand = () => ({
-  name: process.env.BRAND_NAME || 'The Fuglys',
-  accent: process.env.BRAND_ACCENT || process.env.EMAIL_ACCENT || '#99132F',
-  headerBg: process.env.EMAIL_HEADER_BG || '#263F44',
+  name: setting('BRAND_NAME'),
+  // site-config's accent unless BRAND_ACCENT (or the older EMAIL_ACCENT) is set.
+  accent: String(process.env.BRAND_ACCENT || '').trim() || !String(process.env.EMAIL_ACCENT || '').trim()
+    ? setting('BRAND_ACCENT') : String(process.env.EMAIL_ACCENT).trim(),
+  headerBg: setting('EMAIL_HEADER_BG'),
   logoUrl: setting('LOGO_URL'), // site-config's logo unless LOGO_URL is set
   from: setting('EMAIL_FROM'),
   replyTo: setting('EMAIL_REPLY_TO'),
@@ -107,11 +112,15 @@ export function buildShippedEmailHtml(order, shipment, b = brand()) {
   const carrier = esc(shipment.carrier || 'the carrier');
   const num = esc(shipment.tracking_number || '');
   const url = safeUrl(shipment.tracking_url);
+  // The accent wherever it is text or a button: the nearest shade of it that
+  // reads on what it sits on (WCAG AA, readable-colour.mjs).
+  const accentText = readableOn(b.accent, '#1e3238');
+  const buttonBg = readableOn(b.accent, '#fff');
   const header = b.logoUrl
     ? `<img src="${esc(b.logoUrl)}" alt="${esc(b.name)}" width="240" style="max-width:240px;width:240px;height:auto;display:inline-block;border:0;" />`
-    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:${esc(b.accent)};text-transform:uppercase;">${esc(b.name)}</span>`;
+    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:${esc(readableOn(b.accent, b.headerBg))};text-transform:uppercase;">${esc(b.name)}</span>`;
   const trackBtn = url
-    ? `<a href="${esc(url)}" style="display:inline-block;margin-top:8px;padding:12px 26px;background:${esc(b.accent)};color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-decoration:none;border-radius:3px;font-size:14px;">Track your order</a>`
+    ? `<a href="${esc(url)}" style="display:inline-block;margin-top:8px;padding:12px 26px;background:${esc(buttonBg)};color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-decoration:none;border-radius:3px;font-size:14px;">Track your order</a>`
     : '';
   return `<!doctype html><html><body style="margin:0;padding:0;background:#16262b;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#16262b;padding:32px 16px;"><tr><td align="center">
@@ -119,7 +128,7 @@ export function buildShippedEmailHtml(order, shipment, b = brand()) {
         <tr><td style="background:${esc(b.headerBg)};padding:22px 28px;text-align:center;">${header}</td></tr>
         <tr><td style="padding:32px 28px;">
           <h1 style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:24px;letter-spacing:1px;color:#ffffff;text-transform:uppercase;">It's shipped</h1>
-          <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#9aa8aa;">Order ref <strong style="color:${esc(b.accent)};">#${ref}</strong></p>
+          <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#9aa8aa;">Order ref <strong style="color:${esc(accentText)};">#${ref}</strong></p>
           <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#c4d0d1;">
             Your gear's left the wasteland and is on its way${num ? ` via ${carrier}` : ''}.
           </p>
@@ -127,7 +136,7 @@ export function buildShippedEmailHtml(order, shipment, b = brand()) {
           ${num ? `<p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;color:#9aa8aa;text-transform:uppercase;">Tracking number</p>
           <p style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#ffffff;font-weight:700;">${num}</p>` : ''}
           ${trackBtn}
-          <p style="margin:24px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#7e9093;border-top:1px solid #2e4a51;padding-top:16px;">
+          <p style="margin:24px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#9aa8aa;border-top:1px solid #2e4a51;padding-top:16px;">
             ${esc(b.name)} — printed &amp; shipped on demand. Questions? Just reply to this email.
           </p>
         </td></tr>

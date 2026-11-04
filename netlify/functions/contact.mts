@@ -28,9 +28,11 @@
  *   LOGO_URL          absolute https URL of the logo for the email header; read
  *                     through site-config, so the brand's committed URL is used
  *                     when it isn't set
- *   EMAIL_HEADER_BG   header background (default #0e0e14; use #000000 for a
- *                     logo that sits on a black background, to avoid a seam)
- *   BRAND_ACCENT      hex for the thin accent rule under the header
+ *   EMAIL_HEADER_BG   header background (site-config's EMAIL_HEADER_BG when unset)
+ *   BRAND_ACCENT      hex for the thin accent rule under the header and the
+ *                     footer link (site-config's BRAND_ACCENT when unset); as
+ *                     link text it is drawn in the nearest shade that reads on
+ *                     white (_shared/readable-colour.mjs)
  */
 
 import { createClient } from '@sanity/client';
@@ -39,6 +41,7 @@ import crypto from 'node:crypto';
 import { setting } from './_shared/site-config.mjs';
 import { brandLook } from './_shared/dispatch-email.mjs';
 import { teamLogoBar } from './_shared/shipping-emails.mjs';
+import { readableOn } from './_shared/readable-colour.mjs';
 
 // ── CORS — restrict to the live origin + localhost for dev ───────────────
 const ALLOWED_ORIGINS = [
@@ -112,7 +115,7 @@ function renderEmailShell({ brandName, logoUrl, headerBg, accent, siteUrl, prehe
   const rule = accent || bg;
   const header = logoUrl
     ? `<img src="${escapeHtml(logoUrl).replace(/"/g, '&quot;')}" alt="${escapeHtml(brandName)}" width="200" style="display:block;width:200px;max-width:64%;height:auto;border:0;margin:0 auto;" />`
-    : `<span style="font-size:20px;font-weight:800;letter-spacing:1px;color:#ffffff;">${escapeHtml(brandName)}</span>`;
+    : `<span style="font-size:20px;font-weight:800;letter-spacing:1px;color:${readableOn('#ffffff', bg)};">${escapeHtml(brandName)}</span>`;
   const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '') : '';
   return `<!DOCTYPE html>
 <html lang="en"><head>
@@ -128,8 +131,8 @@ function renderEmailShell({ brandName, logoUrl, headerBg, accent, siteUrl, prehe
     <tr><td align="center" bgcolor="${bg}" style="padding:24px 28px;background:${bg};">${header}</td></tr>
     <tr><td style="height:3px;background:${rule};font-size:0;line-height:0;">&nbsp;</td></tr>
     <tr><td style="padding:28px;">${innerHtml}</td></tr>
-    <tr><td style="padding:18px 28px;border-top:1px solid #eee;font-size:12px;line-height:1.6;color:#9aa0aa;">
-      ${escapeHtml(brandName)}${host ? ` &middot; <a href="${siteUrl}" style="color:${rule};text-decoration:none;">${escapeHtml(host)}</a>` : ''}<br />&copy; ${year} ${escapeHtml(brandName)}
+    <tr><td style="padding:18px 28px;border-top:1px solid #eee;font-size:12px;line-height:1.6;color:#6b7280;">
+      ${escapeHtml(brandName)}${host ? ` &middot; <a href="${siteUrl}" style="color:${readableOn(rule, '#ffffff')};text-decoration:none;">${escapeHtml(host)}</a>` : ''}<br />&copy; ${year} ${escapeHtml(brandName)}
     </td></tr>
   </table>
 </body></html>`;
@@ -203,10 +206,11 @@ export const handler = async (event) => {
   const NOTIFICATION_TO = process.env.NOTIFICATION_TO || '';
   const BRAND_NAME = process.env.BRAND_NAME || 'Website';
   const SITE_URL = process.env.SITE_URL || '';
-  // Via site-config (brandLook): the env value if set, else the brand's committed URL.
-  const LOGO_URL = brandLook().logo;
-  const EMAIL_HEADER_BG = process.env.EMAIL_HEADER_BG || '#0e0e14';
-  const BRAND_ACCENT = process.env.BRAND_ACCENT || EMAIL_HEADER_BG;
+  // Via site-config (brandLook): the env value if set, else the brand's committed value.
+  const look = brandLook();
+  const LOGO_URL = look.logo;
+  const EMAIL_HEADER_BG = look.headerBg;
+  const BRAND_ACCENT = look.accent;
 
   if (!SANITY_PROJECT_ID || !SANITY_TOKEN || !RESEND_API_KEY || !NOTIFICATION_TO) {
     console.error('contact endpoint misconfigured: missing required env vars');

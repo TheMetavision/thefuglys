@@ -37,6 +37,7 @@ import { carrierName, trackingUrlFor, isWallArtLine, isClothingLine } from './pa
 import { orderRefFor } from './order-ref.mjs';
 import { setting } from './site-config.mjs';
 import { startPostDelivery } from './post-delivery.mjs';
+import { readableOn } from './readable-colour.mjs';
 
 export const CLAIM_TTL_MS = 10 * 60 * 1000;
 
@@ -65,22 +66,46 @@ export function brandLook(env = process.env) {
 }
 
 /**
+ * The colours text is actually drawn in, from a brandLook(): each brand colour
+ * moved to the nearest shade of its own hue that reads on what it sits on
+ * (WCAG AA, readable-colour.mjs). The palette can be overridden from the
+ * environment, so this is worked out at render time, never assumed.
+ *   accent        the accent as text on the card (order refs, links)
+ *   headerAccent  the accent as text on the header colour (the no-logo wordmark)
+ *   button        a button's background, so its EMAIL_BUTTON_TEXT label reads
+ *   text, heading, muted  body copy, headings and small print on the card
+ * Borders and rules keep the brand colour as it is.
+ */
+export function emailInk(b = brandLook()) {
+  const card = b.cardBg || '#ffffff';
+  return {
+    accent: readableOn(b.accent, card),
+    headerAccent: readableOn(b.accent, b.headerBg || card),
+    button: readableOn(b.accent, b.buttonText || '#ffffff'),
+    text: readableOn(b.text, card),
+    heading: readableOn(b.heading, card),
+    muted: readableOn(b.muted, card),
+  };
+}
+
+/**
  * The brand's customer email card -- the same frame as printful-webhook's
  * "It's shipped" email: logo header, bordered card, heading, footer line.
  */
 export function brandCard(title, inner, b = brandLook()) {
+  const ink = emailInk(b);
   const header = b.logo
     ? `<img src="${esc(b.logo)}" alt="${esc(b.name)}" width="240" style="max-width:240px;width:240px;height:auto;display:inline-block;border:0;" />`
-    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:${esc(b.accent)};text-transform:uppercase;">${esc(b.name)}</span>`;
+    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:3px;color:${esc(ink.headerAccent)};text-transform:uppercase;">${esc(b.name)}</span>`;
   return `<!doctype html><html><body style="margin:0;padding:0;background:${esc(b.pageBg)};">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${esc(b.pageBg)};padding:32px 16px;"><tr><td align="center">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${esc(b.cardBg)};border:1px solid ${esc(b.accent)};">
         <tr><td style="background:${esc(b.headerBg)};padding:22px 28px;text-align:center;">${header}</td></tr>
-        <tr><td style="padding:32px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:${esc(b.text)};">
-          <h1 style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:24px;letter-spacing:1px;color:${esc(b.heading)};text-transform:uppercase;">${title}</h1>
+        <tr><td style="padding:32px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:${esc(ink.text)};">
+          <h1 style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:24px;letter-spacing:1px;color:${esc(ink.heading)};text-transform:uppercase;">${title}</h1>
           ${inner}
-          <p style="margin:24px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:${esc(b.muted)};border-top:1px solid ${esc(b.rule)};padding-top:16px;">
-            ${esc(b.name)} · <a href="${esc(b.site)}" style="color:${esc(b.accent)};text-decoration:none;">${esc(b.host)}</a>. Questions? Just reply to this email.
+          <p style="margin:24px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:${esc(ink.muted)};border-top:1px solid ${esc(b.rule)};padding-top:16px;">
+            ${esc(b.name)} · <a href="${esc(b.site)}" style="color:${esc(ink.accent)};text-decoration:none;">${esc(b.host)}</a>. Questions? Just reply to this email.
           </p>
         </td></tr>
       </table>
@@ -88,8 +113,8 @@ export function brandCard(title, inner, b = brandLook()) {
   </body></html>`;
 }
 
-/** A button in the brand's accent. */
-export const brandButton = (href, label, b = brandLook()) => `<a href="${esc(href)}" style="display:inline-block;margin-top:8px;padding:12px 26px;background:${esc(b.accent)};color:${esc(b.buttonText)};font-family:Arial,Helvetica,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-decoration:none;border-radius:3px;font-size:14px;">${esc(label)}</a>`;
+/** A button in the brand's accent (a shade its label reads on: emailInk().button). */
+export const brandButton = (href, label, b = brandLook()) => `<a href="${esc(href)}" style="display:inline-block;margin-top:8px;padding:12px 26px;background:${esc(emailInk(b).button)};color:${esc(b.buttonText)};font-family:Arial,Helvetica,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px;text-decoration:none;border-radius:3px;font-size:14px;">${esc(label)}</a>`;
 
 /** The parcels to show: Sendcloud's, or the one entered by hand. */
 function parcelsToShow(order) {
@@ -116,7 +141,8 @@ export function buildDispatchEmail(order, b = brandLook()) {
   const art = (order.items || []).filter(isWallArtLine);
   const mixed = (order.items || []).some(isClothingLine);
   const first = esc(String(order.customerName || '').split(' ')[0] || 'there');
-  const label = (t) => `<p style="margin:0 0 4px;font-size:11px;letter-spacing:1px;color:${esc(b.muted)};text-transform:uppercase;">${t}</p>`;
+  const ink = emailInk(b);
+  const label = (t) => `<p style="margin:0 0 4px;font-size:11px;letter-spacing:1px;color:${esc(ink.muted)};text-transform:uppercase;">${t}</p>`;
 
   const blocks = parcels.map((p, i) => `
     <div style="margin:16px 0;padding:14px 16px;border-left:3px solid ${esc(b.accent)};">
@@ -129,7 +155,7 @@ export function buildDispatchEmail(order, b = brandLook()) {
   const items = art.map((l) => `<li style="margin:4px 0;">${esc(l.title)}${Number(l.quantity) > 1 ? ` × ${esc(l.quantity)}` : ''}</li>`).join('');
 
   const inner = `
-    <p style="margin:0 0 16px;font-size:14px;color:${esc(b.muted)};">Order ref <strong style="color:${esc(b.accent)};">${esc(ref)}</strong></p>
+    <p style="margin:0 0 16px;font-size:14px;color:${esc(ink.muted)};">Order ref <strong style="color:${esc(ink.accent)};">${esc(ref)}</strong></p>
     <p style="margin:0 0 16px;">Hi ${first}. ${esc(setting('DISPATCH_LINE'))}${parcels.length > 1 ? ` in ${parcels.length} parcels` : ''}. Tracking's below; it can take a few hours to wake up.</p>
     ${items ? `${label('Wall art in this delivery')}<ul style="margin:0 0 8px;padding-left:18px;font-size:14px;">${items}</ul>` : ''}
     ${blocks}

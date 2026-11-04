@@ -35,7 +35,7 @@
 import { issueReward, isFriendCode, referralConfig } from './referral.mjs';
 import { readDecideWrite, serverPatch } from './server-patch.mjs';
 import { setting } from './site-config.mjs';
-import { brandCard, brandLook, esc } from './dispatch-email.mjs';
+import { brandCard, brandLook, esc, emailInk } from './dispatch-email.mjs';
 
 export const SELF_REFERRAL = 'self_referral';
 export const REPEAT_CUSTOMER = 'repeat_customer';
@@ -102,10 +102,11 @@ const refusalError = (check) =>
 
 /** @returns {{ subject: string, html: string }} */
 export function rewardEmail(rewardCode, b = brandLook()) {
+  const ink = emailInk(b);
   const inner = `
     <p style="margin:0 0 16px;">Someone you shared your code with has just placed their first ${esc(b.name)} order. As promised, here's 10% off your next one:</p>
-    <p style="margin:0 0 16px;padding:16px;border:1px solid ${esc(b.accent)};text-align:center;font-size:24px;font-weight:700;letter-spacing:2px;color:${esc(b.heading)};">${esc(rewardCode)}</p>
-    <p style="margin:0;font-size:13px;color:${esc(b.muted)};">Enter it in the promotion code box at checkout. It works once.</p>`;
+    <p style="margin:0 0 16px;padding:16px;border:1px solid ${esc(b.accent)};text-align:center;font-size:24px;font-weight:700;letter-spacing:2px;color:${esc(ink.heading)};">${esc(rewardCode)}</p>
+    <p style="margin:0;font-size:13px;color:${esc(ink.muted)};">Enter it in the promotion code box at checkout. It works once.</p>`;
   return {
     subject: `Your friend ordered. Here’s your 10% thank you from ${b.short}`,
     html: brandCard('Thanks for the referral', inner, b),

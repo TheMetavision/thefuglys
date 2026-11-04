@@ -70,7 +70,8 @@ const ML = "https://connect.mailerlite.com/api";
 const FAILED = "Could not sign you up right now. Please try again later.";
 const UNAVAILABLE = "Sign-up is temporarily unavailable. Please try again later.";
 
-const COPY = {
+// Exported for tests/email-contrast.test.mjs, which renders the real confirmation.
+export const COPY = {
   subject: "Confirm your subscription — The Fuglys",
   preheader: "One click and you’re on the list, survivor. Didn’t sign up? Ignore this and nothing happens.",
   heading: "Confirm you’re one of us",
