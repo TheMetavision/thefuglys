@@ -98,7 +98,7 @@ test('one variant from another store: nothing is ordered, the alert and the log 
   assert.match(order().failureReason, /5346616824: not in this Printful store/);
   assert.doesNotMatch(order().failureReason, /101/);
   assert.match(alert().subject, /ACTION NEEDED/);
-  assert.match(alert().html, /NOT OUR VARIANT/);
+  assert.match(alert().html, /WHY IT FAILED/);
   assert.match(alert().html, /5346616824/);
 });
 

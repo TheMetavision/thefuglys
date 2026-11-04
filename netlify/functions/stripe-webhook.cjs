@@ -62,7 +62,8 @@ const {
    "Discount" row would take it off twice. */
 const lineSubtotal = (li) => (li.amount_subtotal != null ? li.amount_subtotal : li.amount_total);
 
-const PRINTFUL_ORDERS_URL = 'https://api.printful.com/orders';
+// Order POST with one retry on a 5xx / timeout / network error (shared, byte-identical).
+const { createPrintfulOrder } = require('../../src/lib/printful-order.cjs');
 const PRINTFUL_STORE_VARIANTS_URL = 'https://api.printful.com/store/variants';
 const RESEND_URL = 'https://api.resend.com/emails';
 // The customer's sender and reply-to: the brand's own address (site-config).
@@ -316,7 +317,7 @@ async function sendMerchantEmail(session, lineItems, status, printfulOrderId, pr
           <p style="margin:0 0 16px;color:#666;font-size:13px;">The Fuglys &middot; ${esc(new Date().toLocaleString('en-GB'))}</p>
           ${banner}
           ${session.livemode === false ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>TEST MODE</strong> &mdash; Stripe test payment from a preview. Nobody was charged.</p>` : ''}
-          ${promo.fulfilmentAlert ? `<p style="background:#fde8eb;color:#b00020;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; NOT OUR VARIANT</strong><br>${esc(promo.fulfilmentAlert)}</p>` : ''}
+          ${promo.fulfilmentAlert ? `<p style="background:#fde8eb;color:#b00020;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; WHY IT FAILED</strong><br>${esc(promo.fulfilmentAlert)}</p>` : ''}
           ${promo.crossBrandCode ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; OTHER BRAND&rsquo;S CODE</strong><br>${esc(promo.crossBrandCode)}</p>` : ''}
           ${promo.repeatWelcomeCode ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; REPEAT WELCOME CODE</strong><br>${esc(promo.repeatWelcomeCode)}</p>` : ''}
           ${promo.referralNote ? `<p style="background:#fff4e5;color:#8a4b00;padding:12px 16px;border-radius:6px;font-size:14px;margin:0 0 16px;"><strong>&#9888; FRIEND CODE &mdash; NO REWARD</strong><br>${esc(promo.referralNote)}</p>` : ''}
@@ -728,6 +729,7 @@ exports.handler = async (event) => {
         return { statusCode: 200, body: JSON.stringify({ received: true, inhouse: inhouseLines.length }) };
       }
       console.error(`[FULFILMENT-FAIL] session ${session.id}: nothing to send to Printful and no in-house items — place it manually.`);
+      promo.fulfilmentAlert = 'Nothing to send to Printful and no in-house items on the order. Place it manually.';
       await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded, promo);
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
@@ -735,6 +737,7 @@ exports.handler = async (event) => {
     const ship = getShip(session);
     if (!ship || !ship.address) {
       console.error(`[FULFILMENT-FAIL] session ${session.id}: no shipping address on session — order NOT fulfilled. Place it manually.`);
+      promo.fulfilmentAlert = 'No shipping address on the Stripe session. Place it manually.';
       await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded, promo);
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
@@ -766,34 +769,24 @@ exports.handler = async (event) => {
     // which is set in the production context only, and never for a Stripe test-mode
     // payment: those stay Printful DRAFTS, deleted after each test. Always explicit.
     const confirm = printfulConfirm(session);
-    const res = await fetch(`${PRINTFUL_ORDERS_URL}?confirm=${confirm ? 'true' : 'false'}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + process.env.PRINTFUL_API_KEY,
-      },
-      body: JSON.stringify(printfulOrder),
-    });
+    const r = await createPrintfulOrder({ apiKey: process.env.PRINTFUL_API_KEY, order: printfulOrder, confirm });
 
-    const bodyText = await res.text();
-
-    if (!res.ok) {
-      console.error(
-        `[FULFILMENT-FAIL] session ${session.id}: Printful API ${res.status} — order NOT created. Response: ${bodyText}`
-      );
+    if (!r.ok) {
+      console.error(`[FULFILMENT-FAIL] session ${session.id}: ${r.error} — order NOT created.`);
+      promo.fulfilmentAlert = `Not sent to Printful: ${r.error}`;
       await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded, promo);
       return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'failed' }) };
     }
 
-    let printfulId;
-    try { printfulId = JSON.parse(bodyText).result?.id; } catch (_) { /* ignore */ }
-    console.log(`[FULFILMENT-OK] session ${session.id}: Printful ${confirm ? 'confirmed' : 'DRAFT'} order created${printfulId ? ' #' + printfulId : ''} (${printfulItems.length} item(s)).`);
+    const printfulId = r.id;
+    console.log(`[FULFILMENT-OK] session ${session.id}: Printful ${r.confirmed ? 'confirmed' : 'DRAFT'} order ${r.existing ? 'already there' : 'created'}${printfulId ? ' #' + printfulId : ''} (${printfulItems.length} item(s)${r.attempts > 1 ? ', second attempt' : ''}).`);
 
-    promo.printfulConfirmed = confirm;
+    promo.printfulConfirmed = r.confirmed;
     await finalize(session, lineItems, 'fulfilled', printfulId, alreadyRecorded, promo);
     return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'created' }) };
   } catch (err) {
     console.error(`[FULFILMENT-FAIL] session ${session.id}: unexpected error —`, err && err.message ? err.message : err);
+    promo.fulfilmentAlert = `Unexpected error: ${err && err.message ? err.message : err}`;
     await finalize(session, lineItems, 'fulfilment-failed', null, alreadyRecorded, promo);
     return { statusCode: 200, body: JSON.stringify({ received: true, printful: 'error' }) };
   }
