@@ -63,8 +63,7 @@ const {
 const lineSubtotal = (li) => (li.amount_subtotal != null ? li.amount_subtotal : li.amount_total);
 
 // Order POST with one retry on a 5xx / timeout / network error (shared, byte-identical).
-const { createPrintfulOrder } = require('../../src/lib/printful-order.cjs');
-const PRINTFUL_STORE_VARIANTS_URL = 'https://api.printful.com/store/variants';
+const { createPrintfulOrder, checkStoreVariants, printfulDeadline } = require('../../src/lib/printful-order.cjs');
 const RESEND_URL = 'https://api.resend.com/emails';
 // The customer's sender and reply-to: the brand's own address (site-config).
 const { setting } = require('./_shared/site-config.mjs');
@@ -131,18 +130,11 @@ function printfulConfirm(session) {
    answers 200 only for this store's variants (another store's id is a 404).
    Returns one note per variant that isn't ours or couldn't be checked; an
    empty list means every line is ours. Never throws. */
-async function ownStoreCheck(ids) {
-  const problems = [];
-  for (const id of ids) {
-    try {
-      const res = await fetch(`${PRINTFUL_STORE_VARIANTS_URL}/${encodeURIComponent(id)}`, {
-        headers: { Authorization: 'Bearer ' + process.env.PRINTFUL_API_KEY },
-      });
-      if (!res.ok) problems.push(`${id}: ${res.status === 404 ? 'not in this Printful store' : `could not be checked (Printful ${res.status})`}`);
-    } catch (err) {
-      problems.push(`${id}: could not be checked (${err && err.message ? err.message : err})`);
-    }
-  }
+async function ownStoreCheck(ids, deadline, sessionId = '') {
+  // Shared check (printful-order.cjs): in parallel, 4 s per call, no retry. A call
+  // that times out is "couldn't verify": logged, and the order still goes ahead.
+  const { problems, unverified } = await checkStoreVariants({ apiKey: process.env.PRINTFUL_API_KEY, ids, deadline });
+  for (const u of unverified) console.warn(`[OWN-STORE-UNVERIFIED] session ${sessionId}: ${u} — couldn't verify, carrying on to the order.`);
   return problems;
 }
 
@@ -742,7 +734,9 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: JSON.stringify({ received: true }) };
     }
 
-    const notOurs = await ownStoreCheck(printfulItems.map((it) => it.sync_variant_id));
+    // One time budget for the check, the order and its retry (inside Netlify's 10 s limit).
+    const printfulBy = printfulDeadline();
+    const notOurs = await ownStoreCheck(printfulItems.map((it) => it.sync_variant_id), printfulBy, session.id);
     if (notOurs.length > 0) {
       console.error(`[FULFILMENT-FAIL] session ${session.id}: variant(s) not in the Fuglys Printful store — order NOT created:`, notOurs);
       promo.fulfilmentAlert = `Not sent to Printful: ${notOurs.length === 1 ? 'this variant is' : 'these variants are'} not in the Fuglys store. ${notOurs.join('; ')}`;
@@ -769,7 +763,7 @@ exports.handler = async (event) => {
     // which is set in the production context only, and never for a Stripe test-mode
     // payment: those stay Printful DRAFTS, deleted after each test. Always explicit.
     const confirm = printfulConfirm(session);
-    const r = await createPrintfulOrder({ apiKey: process.env.PRINTFUL_API_KEY, order: printfulOrder, confirm });
+    const r = await createPrintfulOrder({ apiKey: process.env.PRINTFUL_API_KEY, order: printfulOrder, confirm, deadline: printfulBy });
 
     if (!r.ok) {
       console.error(`[FULFILMENT-FAIL] session ${session.id}: ${r.error} — order NOT created.`);

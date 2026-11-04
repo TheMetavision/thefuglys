@@ -33,11 +33,14 @@ const { handler } = require('../netlify/functions/stripe-webhook.cjs');
 
 const OURS = new Set(['101', '102']);
 let docs, emails, ordersPlaced, variantChecks, variantStatus;
+let storeHang = false;
 let printful, created, lookups, existingStatus;
 const printfulOrderConfig = require('../src/lib/printful-order.cjs').config;
 const DEFAULT_TIMING = { ...printfulOrderConfig };
 printfulOrderConfig.retryDelayMs = 0;
 const json = (status, body) => ({ ok: status < 300, status, json: async () => body, text: async () => JSON.stringify(body) });
+
+const hang = (signal) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
 
 async function fakeFetch(url, init = {}) {
   const u = new URL(String(url));
@@ -45,6 +48,7 @@ async function fakeFetch(url, init = {}) {
   if (u.hostname === 'api.printful.com' && u.pathname.startsWith('/store/variants/')) {
     const id = decodeURIComponent(u.pathname.split('/').pop());
     variantChecks.push(id);
+    if (storeHang) return hang(init.signal);
     if (variantStatus) return json(variantStatus, { error: { message: 'down' } });
     return OURS.has(id) ? json(200, { result: { id } }) : json(404, { error: { message: 'Not Found' } });
   }
@@ -59,6 +63,7 @@ async function fakeFetch(url, init = {}) {
       return json(500, { code: 500, result: 'An internal server error occurred', error: { reason: 'InternalServerError', message: 'An internal server error occurred' } });
     }
     if (next === 'timeout-but-created') { created = true; throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }); }
+    if (next === 'hang') return hang(init.signal);
     if (next === 'timeout') throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
     if (next === 'network') throw new TypeError('fetch failed');
     if (next === '400') return json(400, { code: 400, result: 'Recipient: Invalid address', error: { reason: 'BadRequest', message: 'Recipient: Invalid address' } });
@@ -81,7 +86,7 @@ async function fakeFetch(url, init = {}) {
 
 beforeEach(() => {
   docs = {}; emails = []; ordersPlaced = []; variantChecks = []; variantStatus = null;
-  printful = []; created = false; lookups = []; existingStatus = 'draft';
+  printful = []; created = false; lookups = []; storeHang = false; existingStatus = 'draft';
   globalThis.fetch = fakeFetch;
   Object.assign(process.env, { RESEND_API_KEY: 're_test', PRINTFUL_API_KEY: 'pf_test', SANITY_API_TOKEN: 'sk_api' });
   for (const k of ['SANITY_TOKEN', 'GA4_MEASUREMENT_ID', 'GA4_API_SECRET', 'PRINTFUL_AUTO_CONFIRM']) delete process.env[k];
@@ -205,11 +210,15 @@ test('no shipping address: the reason is recorded', async () => {
   assert.match(order().failureReason, /No shipping address/);
 });
 
-test("Printful timing fits inside Netlify's default 10 s function limit: 4 s per attempt, 1 s between", () => {
-  assert.deepEqual(DEFAULT_TIMING, { retryDelayMs: 1000, timeoutMs: 4000 });
-  const worstCase = DEFAULT_TIMING.timeoutMs + DEFAULT_TIMING.retryDelayMs + DEFAULT_TIMING.timeoutMs;
-  assert.equal(worstCase, 9000);
-  assert.ok(worstCase < 10000);
+test("Printful timing fits inside Netlify's default 10 s function limit: 4 s per call, 1 s between, one 9 s budget", () => {
+  const t = DEFAULT_TIMING;
+  assert.deepEqual(t, { retryDelayMs: 1000, timeoutMs: 4000, budgetMs: 9000, minAttemptMs: 1000 });
+  assert.ok(t.budgetMs < 10000);
+  // A fast check, then order timeout, wait, timeout: 9 s, inside the budget.
+  assert.ok(t.timeoutMs + t.retryDelayMs + t.timeoutMs <= t.budgetMs);
+  // A timed-out check (4 s) and a timed-out first order attempt (4 s) leave 1 s:
+  // not enough for the wait plus a retry, so it stops at 8 s instead of 13 s.
+  assert.ok(t.budgetMs - 2 * t.timeoutMs < t.retryDelayMs + t.minAttemptMs);
 });
 
 test('Printful timeout twice: fulfilment-failed, the reason says it did not answer within 4 s', async () => {
@@ -219,4 +228,40 @@ test('Printful timeout twice: fulfilment-failed, the reason says it did not answ
   assert.equal(ordersPlaced.length, 2, 'exactly one retry');
   assert.match(order().failureReason, /Printful did not answer within 4 s \(tried twice\)/);
   assert.match(alert().html, /did not answer within 4 s/);
+});
+
+/* Real (short) timeouts against a Printful that hangs until the call is aborted. */
+async function withTiming(timing, fn) {
+  Object.assign(printfulOrderConfig, timing);
+  try { await fn(); } finally { Object.assign(printfulOrderConfig, DEFAULT_TIMING, { retryDelayMs: 0 }); }
+}
+
+test("slow store check: each call is cut off at the timeout, no retry, logged as couldn't verify, and the order still goes through", async () => {
+  await withTiming({ timeoutMs: 50, minAttemptMs: 50 }, async () => {
+    storeHang = true;
+    const started = Date.now();
+    lineItems = { data: [line('li_1', '101'), line('li_2', '102')] };
+    await deliver();
+    assert.ok(Date.now() - started < 1000, 'the hung checks were abandoned at the timeout');
+    assert.ok(variantChecks.length >= 1);
+    assert.equal(ordersPlaced.length, 1, 'the order was still placed, once');
+    assert.equal(order().status, 'fulfilled');
+    assert.equal(order().printfulOrderId, '555');
+    assert.equal(order().failureReason, undefined);
+  });
+});
+
+test('slow store check and a slow order: no time left in the budget to retry, the reason says so', async () => {
+  await withTiming({ budgetMs: 300, timeoutMs: 100, minAttemptMs: 100, retryDelayMs: 100 }, async () => {
+    storeHang = true;
+    printful = ['hang'];
+    const started = Date.now();
+    lineItems = { data: [line('li_1', '101'), line('li_2', '102')] };
+    await deliver();
+    assert.ok(Date.now() - started < 300, 'inside the budget');
+    assert.equal(ordersPlaced.length, 1, 'no retry: the budget was spent');
+    assert.equal(order().status, 'fulfilment-failed');
+    assert.match(order().failureReason, /Printful did not answer within \d+ s \(no time left to retry\)/);
+    assert.match(alert().html, /no time left to retry/);
+  });
 });
