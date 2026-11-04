@@ -49,7 +49,19 @@ export async function sendEmail(resend, message) {
   }
 }
 
-const plainWrap = (inner) => `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #222; max-width: 680px;">${inner}</div>`;
+/**
+ * The brand's logo in a small bar of its email header colour, for the team
+ * emails: the logos are drawn for that dark header, so the bar keeps them
+ * legible on a plain white email. The brand name instead if there is no logo.
+ */
+export function teamLogoBar(b = brandLook()) {
+  const mark = b.logo
+    ? `<img src="${esc(b.logo)}" alt="${esc(b.name)}" width="160" style="max-width:160px;width:160px;height:auto;display:inline-block;border:0;" />`
+    : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:800;letter-spacing:2px;color:${esc(b.accent)};text-transform:uppercase;">${esc(b.name)}</span>`;
+  return `<div style="background:${esc(b.headerBg)};border-radius:6px;padding:12px 16px;margin:0 0 16px;text-align:center;">${mark}</div>`;
+}
+
+const plainWrap = (inner) => `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #222; max-width: 680px;">${teamLogoBar()}${inner}</div>`;
 const table = (rows) => `<table cellpadding="6" cellspacing="0" border="1" style="border-collapse: collapse; border-color: #ddd; font-size: 13px; margin: 12px 0;">${rows}</table>`;
 
 /* ------------------------------------------------------------------ team: outbound */
