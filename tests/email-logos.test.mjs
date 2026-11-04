@@ -144,3 +144,24 @@ test("Printful's shipped email has the site-config logo with LOGO_URL unset", ()
   const html = buildShippedEmailHtml({ orderRef: 'FG-TEST1' }, { carrier: 'Royal Mail', tracking_number: 'RM1', tracking_url: 'https://example.com/t' });
   assertOwnLogo(html, 'shipped email');
 });
+
+/* ── contact form: the team notification (contact.mts) ────────────────── */
+
+const BRAND_NAMES = ['The Fuglys', 'Labrats', 'Cats On Crack', 'The Biker Babies'];
+
+test("contact-form team email opens with this brand's logo bar; no other brand's name or domain, no Metavision", async () => {
+  const { buildNotificationHtml } = await import('../netlify/functions/contact.mts');
+  const html = buildNotificationHtml({
+    refCode: 'MSG-TEST1234', name: 'Ada Test', email: 'ada@example.com', company: 'Acme',
+    subject: 'General Enquiry', message: 'Hello <there>', pageUri: 'https://example.com/contact/',
+  });
+  assertOwnLogo(html, 'contact team');
+  assert.ok(html.includes(`background:${esc(SITE_CONFIG.EMAIL_HEADER_BG)}`), 'logo bar uses EMAIL_HEADER_BG');
+  assert.ok(html.indexOf(esc(OWN)) < html.indexOf('New contact-form submission'), 'logo is above the heading');
+  assert.ok(BRAND_NAMES.includes(SITE_CONFIG.BRAND_NAME), SITE_CONFIG.BRAND_NAME);
+  for (const other of BRAND_NAMES.filter((n) => n !== SITE_CONFIG.BRAND_NAME)) {
+    assert.ok(!html.toLowerCase().includes(other.toLowerCase()), `contact team: must not name ${other}`);
+  }
+  assert.doesNotMatch(html, /metavision/i);
+  assert.ok(html.includes('Hello &lt;there&gt;'), 'the message is escaped');
+});

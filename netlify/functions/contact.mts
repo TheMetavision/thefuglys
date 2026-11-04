@@ -35,6 +35,8 @@ import { createClient } from '@sanity/client';
 import { Resend } from 'resend';
 import crypto from 'node:crypto';
 import { setting } from './_shared/site-config.mjs';
+import { brandLook } from './_shared/dispatch-email.mjs';
+import { teamLogoBar } from './_shared/shipping-emails.mjs';
 
 // ── CORS — restrict to the live origin + localhost for dev ───────────────
 const ALLOWED_ORIGINS = [
@@ -132,19 +134,32 @@ function renderEmailShell({ brandName, logoUrl, headerBg, accent, siteUrl, prehe
 }
 
 // ── Notification email (to the team) ─────────────────────────────────────
-function buildNotificationHtml(brand, { refCode, name, email, company, subject, message, pageUri }) {
-  const inner = `
-    <h1 style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a2e;">New contact-form submission</h1>
+// Same frame as the other team emails (shipping-emails.mjs plainWrap): the
+// brand's small logo bar on top. brandLook() reads the logo through
+// site-config (LOGO_URL from the environment if set, the brand's committed URL
+// otherwise), so a missing Netlify variable can't drop it.
+export function buildNotificationHtml({ refCode, name, email, company, subject, message, pageUri }, b = brandLook()) {
+  const row = (label, value, extra = '') => `<tr><td style="color:#6b7280;width:110px;padding:4px 0;vertical-align:top;">${label}</td><td${extra}>${value}</td></tr>`;
+  return `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:16px;background:#ffffff;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(`New enquiry from ${name} (${refCode})`)}</div>
+  <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #222; max-width: 680px;">${teamLogoBar(b)}
+    <h2 style="margin:0 0 12px;font-size:18px;">New contact-form submission</h2>
     <table cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;line-height:1.6;">
-      <tr><td style="color:#6b7280;width:110px;padding:4px 0;">Reference</td><td style="font-weight:700;">${escapeHtml(refCode)}</td></tr>
-      <tr><td style="color:#6b7280;padding:4px 0;">From</td><td>${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;</td></tr>
-      ${company ? `<tr><td style="color:#6b7280;padding:4px 0;">Company</td><td>${escapeHtml(company)}</td></tr>` : ''}
-      <tr><td style="color:#6b7280;padding:4px 0;">Subject</td><td>${escapeHtml(subject)}</td></tr>
-      <tr><td style="color:#6b7280;padding:4px 0;vertical-align:top;">Submitted from</td><td style="word-break:break-all;">${escapeHtml(pageUri)}</td></tr>
+      ${row('Reference', escapeHtml(refCode), ' style="font-weight:700;"')}
+      ${row('From', `${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;`)}
+      ${company ? row('Company', escapeHtml(company)) : ''}
+      ${row('Subject', escapeHtml(subject))}
+      ${row('Submitted from', escapeHtml(pageUri), ' style="word-break:break-all;"')}
     </table>
     <hr style="margin:20px 0;border:0;border-top:1px solid #e5e7eb;" />
-    <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;color:#1a1a2e;">${escapeHtml(message)}</div>`;
-  return renderEmailShell({ ...brand, preheader: `New enquiry from ${name} (${refCode})`, innerHtml: inner });
+    <div style="white-space:pre-wrap;">${escapeHtml(message)}</div>
+  </div>
+</body></html>`;
 }
 
 // ── Acknowledgement email (to the customer) ──────────────────────────────
@@ -319,7 +334,7 @@ export const handler = async (event) => {
       to: NOTIFICATION_TO,
       replyTo: email,
       subject: `[${BRAND_NAME}] ${subject} \u2014 ${refCode}`,
-      html: buildNotificationHtml(brand, { refCode, name, email, company, subject, message, pageUri }),
+      html: buildNotificationHtml({ refCode, name, email, company, subject, message, pageUri }),
       text:
         `New contact-form submission\n\n` +
         `Reference: ${refCode}\n` +
