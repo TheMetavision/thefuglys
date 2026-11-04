@@ -19,7 +19,7 @@ import { fakeSanity, fakeResend, quiet } from './_fake-sanity.mjs';
 import { SITE_CONFIG } from '../netlify/functions/_shared/site-config.mjs';
 import {
   codeBody, friendCodeFor, issueReward, referralsFrom, ensureCoupon, isFriendCode, isRewardCode,
-  couponName, COUPON_NAME_MAX,
+  couponName, COUPON_NAME_MAX, promoCreate, isUnknownCouponParam, newPromoShape,
   KIND_FRIEND, KIND_REWARD, referralConfig,
 } from '../netlify/functions/_shared/referral.mjs';
 import { optOutMetadata, consentFromSession, marketingRefused, referralEmailAllowed } from '../netlify/functions/_shared/marketing-consent.mjs';
@@ -51,8 +51,22 @@ const code = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]
 
 /* ------------------------------------------------------------------ fakes */
 
-function fakeStripe({ couponExists = false, clashes = 0, failPromos = false } = {}) {
-  const calls = { couponsCreated: [], promos: [] };
+/*
+ * `api` picks the promotion-code format the fake accepts, as Stripe does:
+ *   'old'  stripe-node <= v18 (^17.x): top-level `coupon`; `promotion` unknown.
+ *   'new'  stripe-node v19+ (^22.x, 2026-05-27.dahlia): `promotion: { type:
+ *          'coupon', coupon }`; a top-level `coupon` is "Received unknown
+ *          parameter: coupon" (Biker Babies #TCVHPUNT, 4 Nov 2026).
+ * calls.promoAttempts records every create call, accepted or refused.
+ */
+const unknownParam = (param) => Object.assign(new Error(`Received unknown parameter: ${param}`),
+  { type: 'StripeInvalidRequestError', statusCode: 400, code: 'parameter_unknown', param });
+/** The coupon a recorded promotion-code create named, in either format. */
+const couponOf = (p) => (p.promotion ? p.promotion.coupon : p.coupon);
+const API_FORMATS = ['old', 'new'];
+
+function fakeStripe({ couponExists = false, clashes = 0, failPromos = false, api = 'old' } = {}) {
+  const calls = { couponsCreated: [], promos: [], promoAttempts: [] };
   let clashLeft = clashes;
   let n = 0;
   return {
@@ -73,7 +87,13 @@ function fakeStripe({ couponExists = false, clashes = 0, failPromos = false } = 
     },
     promotionCodes: {
       create: async (p) => {
+        calls.promoAttempts.push(p);
         if (failPromos) throw Object.assign(new Error('Stripe is down'), { statusCode: 500 });
+        if (api === 'new' && 'coupon' in p) throw unknownParam('coupon');
+        if (api === 'old' && 'promotion' in p) throw unknownParam('promotion');
+        if (api === 'new' && !(p.promotion && p.promotion.type === 'coupon' && p.promotion.coupon)) {
+          throw Object.assign(new Error('Missing required param: promotion.'), { statusCode: 400, code: 'parameter_missing', param: 'promotion' });
+        }
         if (clashLeft-- > 0) throw new Error('A promotion code with this code already exists');
         calls.promos.push(p);
         return { id: `promo_${++n}`, ...p };
@@ -204,38 +224,41 @@ test('codes: no look-alike characters', () => {
   for (let i = 0; i < 200; i++) assert.match(codeBody(), /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6}$/);
 });
 
-test('friend code: brand prefix, brand coupon created on first use, first order only, brand + kind on code and coupon', async () => {
-  const stripe = fakeStripe();
+for (const api of API_FORMATS) test(`friend code (${api} API): brand prefix, brand coupon created on first use, first order only, brand + kind on code and coupon`, async () => {
+  const stripe = fakeStripe({ api });
   const c = await friendCodeFor(stripe, { email: ' Ada@Example.com ', orderRef: '#M3N4O5P6' });
   assert.match(c, new RegExp(`^${C.REFERRAL_FRIEND_PREFIX}-[A-Z2-9]{6}$`));
   assert.deepEqual(stripe.calls.couponsCreated.map((x) => [x.id, x.percent_off, x.duration, x.metadata.brand, x.metadata.kind]),
     [[C.REFERRAL_FRIEND_COUPON_ID, 10, 'once', C.BRAND_KEY, KIND_FRIEND]]);
   const promo = stripe.calls.promos[0];
-  assert.equal(promo.coupon, C.REFERRAL_FRIEND_COUPON_ID);
+  assert.equal(couponOf(promo), C.REFERRAL_FRIEND_COUPON_ID);
+  if (api === 'new') assert.deepEqual(promo.promotion, { type: 'coupon', coupon: C.REFERRAL_FRIEND_COUPON_ID });
+  else assert.equal(promo.promotion, undefined);
   assert.deepEqual(promo.restrictions, { first_time_transaction: true });
   assert.equal(promo.max_redemptions, undefined, 'a friend code can be shared with many friends');
   assert.deepEqual(promo.metadata, { brand: C.BRAND_KEY, kind: KIND_FRIEND, referrer_email: 'ada@example.com', referrer_order: '#M3N4O5P6' });
 });
 
-test('friend code: an existing one is reused, nothing created; a clashing random code is retried', async () => {
-  const stripe = fakeStripe();
+for (const api of API_FORMATS) test(`friend code (${api} API): an existing one is reused, nothing created; a clashing random code is retried`, async () => {
+  const stripe = fakeStripe({ api });
   assert.equal(await friendCodeFor(stripe, { email: 'a@b.c', existingCode: `${C.REFERRAL_FRIEND_PREFIX}-OLD123` }), `${C.REFERRAL_FRIEND_PREFIX}-OLD123`);
   assert.equal(stripe.calls.promos.length + stripe.calls.couponsCreated.length, 0);
-  const clashing = fakeStripe({ couponExists: true, clashes: 2 });
+  const clashing = fakeStripe({ couponExists: true, clashes: 2, api });
   await friendCodeFor(clashing, { email: 'a@b.c' });
   assert.equal(clashing.calls.promos.length, 1);
   assert.equal(clashing.calls.couponsCreated.length, 0, 'the coupon already existed');
 });
 
-test('coupon names fit the Stripe 40-character limit for this brand and the longest IP brand name', async () => {
+for (const api of API_FORMATS) test(`coupon names (${api} API) fit the Stripe 40-character limit for this brand and the longest IP brand name`, async () => {
   for (const brandName of [C.BRAND_NAME, 'The Biker Babies', 'Cats On Crack', 'Labrats', 'The Fuglys']) {
     const cfg = { ...referralConfig(), brandName };
-    const stripe = fakeStripe();
+    const stripe = fakeStripe({ api });
     await friendCodeFor(stripe, { email: 'a@b.c', orderRef: '#X' }, cfg);
     await issueReward(stripe, { referrerEmail: 'r@b.c', referredOrder: '#Y' }, cfg);
     assert.deepEqual(stripe.calls.couponsCreated.map((c) => c.name),
       [`${brandName}: referral 10% off`, `${brandName}: thank-you 10% off`]);
     for (const c of stripe.calls.couponsCreated) assert.ok(c.name.length <= COUPON_NAME_MAX, c.name);
+    assert.equal(stripe.calls.promos.length, 2, 'both codes created');
   }
   assert.equal(couponName('A very long brand name indeed, far too long', 'referral 10% off').length, COUPON_NAME_MAX);
   const passed = fakeStripe();
@@ -253,16 +276,75 @@ test('ensureCoupon: a rival creating it first is fine; other errors are not swal
   await assert.rejects(ensureCoupon(down, 'x', { name: 'n', brand: 'b', kind: 'k' }), /Stripe down/);
 });
 
-test('reward code: brand prefix, single use, brand reward coupon, brand + kind recorded', async () => {
-  const stripe = fakeStripe();
+for (const api of API_FORMATS) test(`reward code (${api} API): brand prefix, single use, brand reward coupon, brand + kind recorded`, async () => {
+  const stripe = fakeStripe({ api });
   const c = await issueReward(stripe, { referrerEmail: 'Ref@Example.com', referredOrder: '#ZZZZ9999' });
   assert.match(c, new RegExp(`^${C.REFERRAL_REWARD_PREFIX}-[A-Z2-9]{6}$`));
   const promo = stripe.calls.promos[0];
-  assert.equal(promo.coupon, C.REFERRAL_REWARD_COUPON_ID);
+  assert.equal(couponOf(promo), C.REFERRAL_REWARD_COUPON_ID);
+  if (api === 'new') assert.deepEqual(promo.promotion, { type: 'coupon', coupon: C.REFERRAL_REWARD_COUPON_ID });
+  else assert.equal(promo.promotion, undefined);
   assert.equal(promo.max_redemptions, 1);
   assert.equal(promo.restrictions, undefined);
   assert.deepEqual(promo.metadata, { brand: C.BRAND_KEY, kind: KIND_REWARD, referrer_email: 'ref@example.com', referred_order: '#ZZZZ9999' });
   assert.equal(stripe.calls.couponsCreated[0].metadata.kind, KIND_REWARD);
+});
+
+test('promoCreate: old API takes coupon first time, one call; never tries the new shape', async () => {
+  const stripe = fakeStripe({ api: 'old' });
+  await promoCreate(stripe, { coupon: 'c1', code: 'X-1' });
+  assert.deepEqual(stripe.calls.promoAttempts, [{ coupon: 'c1', code: 'X-1' }]);
+});
+
+test('promoCreate: new API refuses coupon, retried once as promotion; the client is then remembered', async () => {
+  const stripe = fakeStripe({ api: 'new' });
+  const p = await promoCreate(stripe, { coupon: 'c1', code: 'X-1', max_redemptions: 1, metadata: { kind: 'k' } });
+  assert.equal(p.code, 'X-1');
+  assert.deepEqual(stripe.calls.promoAttempts, [
+    { coupon: 'c1', code: 'X-1', max_redemptions: 1, metadata: { kind: 'k' } },
+    { promotion: { type: 'coupon', coupon: 'c1' }, code: 'X-1', max_redemptions: 1, metadata: { kind: 'k' } },
+  ]);
+  await promoCreate(stripe, { coupon: 'c2', code: 'X-2' });
+  assert.equal(stripe.calls.promoAttempts.length, 3, 'second code goes straight to the new shape');
+  assert.deepEqual(stripe.calls.promoAttempts[2], { promotion: { type: 'coupon', coupon: 'c2' }, code: 'X-2' });
+  const other = fakeStripe({ api: 'old' });
+  await promoCreate(other, { coupon: 'c3', code: 'X-3' });
+  assert.deepEqual(other.calls.promoAttempts, [{ coupon: 'c3', code: 'X-3' }], 'memory is per client');
+});
+
+test('promoCreate: other errors are not retried in the new shape', async () => {
+  const down = fakeStripe({ api: 'new', failPromos: true });
+  await assert.rejects(promoCreate(down, { coupon: 'c1', code: 'X-1' }), /Stripe is down/);
+  assert.equal(down.calls.promoAttempts.length, 1);
+  let n = 0;
+  const otherParam = { promotionCodes: { create: async () => { n++; throw unknownParam('restrictions'); } } };
+  await assert.rejects(promoCreate(otherParam, { coupon: 'c1', code: 'X-1' }), /restrictions/);
+  assert.equal(n, 1);
+});
+
+test('promoCreate: retries once only; a refusal of the new shape too is thrown', async () => {
+  let n = 0;
+  const neither = { promotionCodes: { create: async (p) => { n++; throw unknownParam('promotion' in p ? 'promotion' : 'coupon'); } } };
+  await assert.rejects(promoCreate(neither, { coupon: 'c1', code: 'X-1' }), /unknown parameter: promotion/);
+  assert.equal(n, 2);
+});
+
+test('isUnknownCouponParam / newPromoShape', () => {
+  assert.ok(isUnknownCouponParam(unknownParam('coupon')));
+  assert.ok(isUnknownCouponParam(new Error('Received unknown parameter: coupon')), 'message alone, as a raw API error reads');
+  assert.ok(!isUnknownCouponParam(unknownParam('promotion')));
+  assert.ok(!isUnknownCouponParam(new Error('No such coupon: x')));
+  assert.ok(!isUnknownCouponParam(null));
+  assert.deepEqual(newPromoShape({ coupon: 'c', code: 'A', restrictions: { first_time_transaction: true } }),
+    { code: 'A', restrictions: { first_time_transaction: true }, promotion: { type: 'coupon', coupon: 'c' } });
+});
+
+test('friend code on the new API is created (Biker Babies #TCVHPUNT, 4 Nov 2026)', async () => {
+  const stripe = fakeStripe({ api: 'new' });
+  const code = await friendCodeFor(stripe, { email: 'a@b.c', orderRef: '#TCVHPUNT' });
+  assert.match(code, new RegExp(`^${C.REFERRAL_FRIEND_PREFIX}-`));
+  assert.equal(stripe.calls.promos.length, 1);
+  assert.equal(couponOf(stripe.calls.promos[0]), C.REFERRAL_FRIEND_COUPON_ID);
 });
 
 const friendPromo = (over = {}) => ({
@@ -460,9 +542,9 @@ test('an order from before the box, through both triggers: both shipping emails 
 
 /* ------------------------------------------------------------------ startPostDelivery */
 
-test('post-delivery: code created and saved, buyer added, once only', async () => {
+for (const api of API_FORMATS) test(`post-delivery (${api} API): code created and saved, buyer added, once only`, async () => {
   const sanity = fakeSanity({ [ORDER_ID]: order() }, { fetch: groq });
-  const d = pd();
+  const d = pd({ stripe: fakeStripe({ api }) });
   const r = await startPostDelivery({ sanity, id: ORDER_ID, trigger: 'merch', log: quiet }, d.deps);
   assert.match(r.referralCode, new RegExp(`^${C.REFERRAL_FRIEND_PREFIX}-`));
   const doc = sanity.store.get(ORDER_ID);

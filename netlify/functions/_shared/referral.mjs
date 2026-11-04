@@ -95,13 +95,51 @@ export async function ensureCoupon(stripe, id, { name, brand, kind }) {
   return id;
 }
 
+/*
+ * Stripe changed how a promotion code names its coupon. Older API versions
+ * (stripe-node up to v18, e.g. ^17.x here) take a top-level `coupon`; newer
+ * ones (v19+, e.g. ^22.x's default 2026-05-27.dahlia) refuse it with
+ * "Received unknown parameter: coupon" and want
+ * `promotion: { type: 'coupon', coupon }`. That refusal stopped Biker Babies
+ * post-delivery on 4 Nov 2026. Callers pass `coupon`; promoCreate sends it as
+ * is first and, if Stripe rejects it as unknown, retries once in the new
+ * shape. A client that needed the new shape is remembered, so later codes on
+ * the same client go straight there.
+ */
+const NEW_PROMO_SHAPE = new WeakSet();
+
+/** Did Stripe refuse a top-level `coupon` as an unknown parameter? */
+export function isUnknownCouponParam(err) {
+  if (!err) return false;
+  if (err.code === 'parameter_unknown' && err.param === 'coupon') return true;
+  return /unknown parameter:\s*coupon\b/i.test(err.message || '');
+}
+
+/** `{ coupon, ...rest }` in the newer API's shape. */
+export function newPromoShape({ coupon, ...rest }) {
+  return { ...rest, promotion: { type: 'coupon', coupon } };
+}
+
+/** promotionCodes.create on either API generation (see above). */
+export async function promoCreate(stripe, params) {
+  const remembered = stripe && typeof stripe === 'object' && NEW_PROMO_SHAPE.has(stripe);
+  if (remembered) return stripe.promotionCodes.create(newPromoShape(params));
+  try {
+    return await stripe.promotionCodes.create(params);
+  } catch (err) {
+    if (!isUnknownCouponParam(err)) throw err;
+    if (stripe && typeof stripe === 'object') NEW_PROMO_SHAPE.add(stripe);
+    return stripe.promotionCodes.create(newPromoShape(params));
+  }
+}
+
 /** Create a promotion code, retrying on the (very unlikely) clash of a random code. */
 async function createPromo(stripe, prefix, params, tries = 3) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     const code = `${prefix}-${codeBody()}`;
     try {
-      return await stripe.promotionCodes.create({ ...params, code });
+      return await promoCreate(stripe, { ...params, code });
     } catch (err) {
       lastErr = err;
       if (!/already exists/i.test(err?.message || '')) throw err;
