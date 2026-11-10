@@ -54,6 +54,14 @@
 # Assets keep their filenames between releases (no content hash), so a week's
 # cache rather than "immutable"; index.html, game.js and game.css keep Netlify's
 # default (max-age=0, must-revalidate) so a new release is picked up at once.
+# The game's GLTFLoader decodes kart textures with fetch() on blob: URLs, which
+# the site-wide connect-src does not list (a report-only violation per texture).
+# Same policy as /* plus blob: in connect-src, for the game's path only.
+[[headers]]
+  for = "/games/junkyard-racers/*"
+  [headers.values]
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.sanity.io https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; font-src 'self'; connect-src 'self' blob: https://cdn.sanity.io https://*.api.sanity.io https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; media-src 'self' https://cdn.sanity.io; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
 [[headers]]
   for = "/games/junkyard-racers/models/*"
   [headers.values]
