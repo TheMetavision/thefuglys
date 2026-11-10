@@ -6,7 +6,7 @@ export const BOARD_SIZE = 100;
 export const KEEP_MONTHS = 24;          // monthly boards older than this are deleted          // entries kept per board
 export const PUBLIC_SIZE = 20;          // entries returned to players
 export const MIN_BOARD_DIST = 100;      // shorter runs are accepted but not stored
-export const CONTACT_EMAIL = 'contact@thefuglys.com';   // [Alan to confirm] month-end summary and claims go here
+export const CONTACT_EMAIL = 'contact@thefuglys.com';   // month-end summary and claims go here
 
 /* ---------- storage ---------- */
 let storeOverride = null;               // tests inject an in-memory store
