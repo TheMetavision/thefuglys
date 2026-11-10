@@ -42,7 +42,7 @@ const games = [
               <div class="game-body">
                 <h2 class="game-title">{game.title}</h2>
                 <p class="game-desc">{game.blurb}</p>
-                <span class="game-cta">Play now →</span>
+                <span class="btn btn-primary game-cta">Play now →</span>
               </div>
             </a>
           ))}
@@ -149,13 +149,19 @@ const games = [
     margin: 0 0 16px;
   }
 
-  .game-cta {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.9rem;
-    color: #fff;
+  /* "Play now" uses the site's .btn .btn-primary (maroon, Bebas Neue). It is a
+     span inside the card link, so it also lightens when the card is hovered or
+     focused, and the card gets a visible keyboard focus ring. */
+  .game-card:hover .game-cta,
+  .game-card:focus-visible .game-cta {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .game-card:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
   }
 
   @media (max-width: 768px) {

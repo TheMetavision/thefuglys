@@ -149,3 +149,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (orientation: portrait) and (pointer: coarse) { body.racing #rotate { display: block; animation: fadeOut 4s forwards; } }
 @keyframes fadeOut { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
+
+/* links back to the website (title and pause screens) */
+.sitelinks { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.sitelinks .btn.small { margin-top: 8px; }
