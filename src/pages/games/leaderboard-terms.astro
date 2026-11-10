@@ -1,0 +1,127 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+
+// Scrap Dash leaderboard rules, adapted from Labrats' Vent Runner rules page
+// (labrats: src/pages/games/leaderboard-terms.astro, docs/vent-runner-leaderboard-copy.md).
+// Styles follow the legal pages (src/pages/legal/[slug].astro).
+// Contact address: contact@thefuglys.com (also CONTACT_EMAIL in netlify/lib/sd-shared.mjs).
+const CONTACT = 'contact@thefuglys.com';
+---
+
+<Layout
+  title="Scrap Dash leaderboard rules · The Fuglys"
+  description="Rules for the free Scrap Dash monthly leaderboard on thefuglys.com: the furthest run each month wins a Fuglys T-shirt."
+>
+  <Nav />
+  <article class="legal">
+    <header class="legal__header">
+      <p class="legal__eyebrow">Fuglys Games</p>
+      <h1 class="legal__title">Scrap Dash leaderboard rules</h1>
+    </header>
+
+    <div class="legal__body">
+      <p><strong>Who runs it.</strong> The Scrap Dash leaderboard is run by The Metavision Multimedia Limited (company number 16282479), 167-169 Great Portland Street, London, trading as The Fuglys ("we").</p>
+
+      <p><strong>Promoter:</strong> The Fuglys, 5th Floor, 167-169 Great Portland Street, London W1W 5PF. <strong>Contact:</strong> <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.</p>
+
+      <p><strong>Free to play, no purchase needed.</strong> Every run of Scrap Dash played on thefuglys.com is entered automatically under the player's racing name. Nobody has to buy anything or sign up to take part.</p>
+
+      <p><strong>Young players.</strong> Players under 18 need a parent or guardian's permission to take part. A prize is claimed by the winner, or by their parent or guardian if the winner is under 18. Whoever claims must be 18 or over.</p>
+
+      <p><strong>How the winner is decided.</strong> Each month is a separate competition, running from the 1st to the last day of the calendar month, UK time, and starting from an empty leaderboard. Runs from earlier months don't count. The winner is the player with the furthest distance in a single run that month, as recorded by our leaderboard. If two runs are equal, the earlier one wins. Each device's best run counts once.</p>
+
+      <p><strong>The prize.</strong> One Fuglys T-shirt each month: any design, colour and size. Whoever claims it chooses any Fuglys T-shirt design from our shop, then a colour and size from those that design comes in. There's no cash alternative. If the chosen T-shirt can't be made, we'll ask for another choice, or may send a Fuglys item of equal or higher value instead.</p>
+
+      <p><strong>Claiming.</strong> The winner sees a "You won!" message with a prize code the next time they open Scrap Dash on the device they played on. The winner, or their parent or guardian if they're under 18, claims the prize at <a href="/games/claim/">thefuglys.com/games/claim/</a> using that code within 30 days of the end of the month. Prizes can only be posted to addresses in England, Scotland, Wales and Northern Ireland: we can't post them to the Channel Islands, the Isle of Man or BFPO addresses. We post prizes within 28 days of a valid claim.</p>
+
+      <p><strong>If the winner can't claim.</strong> If the winner can't give an address in England, Scotland, Wales or Northern Ireland, doesn't claim within 30 days of the end of the month, or is disqualified, the prize passes to the next-highest eligible player on that month's leaderboard. They see a "You won!" message with a new prize code the next time they open Scrap Dash on the device they played on, and have 14 days to claim. If they can't claim either, it passes on again in the same way, down the top 10 of that month's leaderboard. If none of the top 10 claims it, the prize lapses.</p>
+
+      <p><strong>Fair play.</strong> Runs are checked automatically. We review the winning run before sending the prize and may disqualify any entry we reasonably believe involved cheating, automation, or tampering with the game, including after a prize has been claimed.</p>
+
+      <p><strong>Racing names.</strong> Players don't type their own names: the game creates a random racing name (for example "RustyHubcap07"), which can be changed with the New name button. We may show the winning racing name and distance on our website and social media. We never publish real names.</p>
+
+      <p><strong>Monthly leaderboards</strong> are kept for 24 months, then deleted.</p>
+
+      <p><strong>Changes.</strong> We may change or end the leaderboard by updating this page. Prizes already won will still be honoured.</p>
+
+      <p><strong>Questions.</strong> Email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.</p>
+    </div>
+
+    <nav class="legal__siblings" aria-label="Related pages">
+      <h2>Related</h2>
+      <ul>
+        <li><a href="/games/scrap-dash/">Play Scrap Dash</a></li>
+        <li><a href="/games/claim/">Claim a prize</a></li>
+        <li><a href="/legal/privacy-policy/">Privacy policy</a></li>
+      </ul>
+    </nav>
+  </article>
+  <Footer />
+</Layout>
+
+<style>
+  .legal {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 8rem 1.25rem 6rem;
+    color: #f5f5f5;
+  }
+  .legal__header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .legal__eyebrow {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #99132F;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+  }
+  .legal__title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    margin: 0;
+  }
+  .legal__body {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+  .legal__body p { margin: 0 0 1rem; }
+  .legal__body a {
+    color: #99132F;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .legal__siblings {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .legal__siblings h2 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #aaa;
+    margin: 0 0 1rem;
+  }
+  .legal__siblings ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+  .legal__siblings a {
+    color: #f5f5f5;
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+  }
+  .legal__siblings a:hover {
+    color: #99132F;
+  }
+</style>
