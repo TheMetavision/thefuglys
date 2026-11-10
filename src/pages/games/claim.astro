@@ -1,0 +1,507 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+
+// Prize claim form for the Scrap Dash monthly leaderboard, adapted from Labrats' Vent Runner
+// claim page. The game links here with ?month=YYYY-MM&code=XXXXXXXX; the script below reads both,
+// loads the T-shirt choices from /api/sd-prize-options and POSTs JSON to /api/sd-claim
+// (netlify/functions/sd-claim.mjs), or to /api/sd-decline to pass the prize on.
+// Postcodes: src/lib/uk-postcode.mjs (shared with the server). Form styles follow contact.astro.
+// [Alan to confirm] the contact address in the messages: contact@thefuglys.com.
+---
+
+<Layout
+  title="Claim a Scrap Dash prize · The Fuglys"
+  description="Claim the Fuglys T-shirt won on the Scrap Dash monthly leaderboard."
+  noIndex
+>
+  <Nav />
+  <main class="claim">
+    <header class="claim__header">
+      <p class="claim__eyebrow">Fuglys Games</p>
+      <h1 class="claim__title">Claim a Scrap Dash prize</h1>
+      <p class="claim__intro"><em>Congratulations! Fill in this form to claim the Fuglys T-shirt won on the Scrap Dash leaderboard. The prize is claimed by the winner, or their parent or guardian if they're under 18. You'll need the prize code shown in the game.</em></p>
+    </header>
+
+    <form class="claim-form" id="claimForm" novalidate>
+      <input type="hidden" name="month" id="month" />
+
+      <div class="form-group">
+        <label for="claimCode" class="form-label">Prize code</label>
+        <input id="claimCode" name="claimCode" class="form-input claim-form__code" type="text" required minlength="8" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+      </div>
+
+      <div class="form-group" id="monthGroup" hidden>
+        <label for="monthPick" class="form-label">Month won</label>
+        <select id="monthPick" class="form-input form-select"></select>
+      </div>
+
+      <fieldset class="form-fieldset">
+        <legend class="form-label">Who's claiming?</legend>
+        <div class="form-check">
+          <input id="claimantWinner" name="claimant" type="radio" value="winner" required />
+          <label for="claimantWinner">I'm the winner and I'm 18 or over</label>
+        </div>
+        <div class="form-check">
+          <input id="claimantGuardian" name="claimant" type="radio" value="guardian" required />
+          <label for="claimantGuardian">I'm the winner's parent or guardian</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-fieldset">
+        <legend class="form-label">Choose the T-shirt</legend>
+        <p class="form-note">Any Fuglys T-shirt design from our shop, in the colours and sizes that design comes in.</p>
+        <div class="prize-pick">
+          <img id="prizeImage" class="prize-pick__image" alt="" width="160" height="160" hidden />
+          <div class="prize-pick__fields">
+            <div class="form-group">
+              <label for="design" class="form-label">Design</label>
+              <select id="design" name="design" class="form-input form-select" required disabled>
+                <option value="" selected>Loading designs...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="garment" class="form-label">T-shirt</label>
+              <select id="garment" name="garment" class="form-input form-select" required disabled>
+                <option value="" selected>Choose a design first</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="colour" class="form-label">Colour</label>
+              <select id="colour" name="colour" class="form-input form-select" required disabled>
+                <option value="" selected>Choose a design first</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="size" class="form-label">Size</label>
+              <select id="size" name="size" class="form-input form-select" required disabled>
+                <option value="" selected>Choose a colour first</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-group">
+        <label for="name" class="form-label">Your name</label>
+        <input id="name" name="name" class="form-input" type="text" required maxlength="80" autocomplete="name" />
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Your email</label>
+        <input id="email" name="email" class="form-input" type="email" required maxlength="120" autocomplete="email" />
+      </div>
+
+      <div class="form-group">
+        <label for="address1" class="form-label">Address line 1</label>
+        <input id="address1" name="address1" class="form-input" type="text" required maxlength="120" autocomplete="address-line1" />
+      </div>
+
+      <div class="form-group">
+        <label for="address2" class="form-label">Address line 2 (optional)</label>
+        <input id="address2" name="address2" class="form-input" type="text" maxlength="120" autocomplete="address-line2" />
+      </div>
+
+      <div class="form-group">
+        <label for="town" class="form-label">Town or city</label>
+        <input id="town" name="town" class="form-input" type="text" required maxlength="80" autocomplete="address-level2" />
+      </div>
+
+      <div class="form-group">
+        <label for="postcode" class="form-label">Postcode</label>
+        <input id="postcode" name="postcode" class="form-input" type="text" required maxlength="12" autocomplete="postal-code" autocapitalize="characters" aria-describedby="postcode-note" />
+        <p class="form-note" id="postcode-note">Prizes can only be posted to England, Scotland, Wales and Northern Ireland. We can't use Channel Islands, Isle of Man or BFPO addresses.</p>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">Country</span>
+        <p class="form-static">United Kingdom</p>
+      </div>
+
+      <div class="form-check">
+        <input id="consent" name="consent" type="checkbox" required />
+        <label for="consent">What I've ticked above is true, and I agree to the <a href="/games/leaderboard-terms/">leaderboard rules</a>. See our <a href="/legal/privacy-policy/">privacy policy</a>.</label>
+      </div>
+
+      <button type="submit" class="btn btn-primary form-submit" id="claimSubmit">
+        <span class="submit-text">Claim prize</span>
+        <span class="submit-sending" hidden>Sending...</span>
+      </button>
+
+      <p class="form-message form-message--error" id="claimError" role="alert" hidden></p>
+
+      <section class="claim-decline" aria-labelledby="declineTitle">
+        <h2 class="claim-decline__title" id="declineTitle">Can't use a UK address?</h2>
+        <p>We can only post prizes to England, Scotland, Wales and Northern Ireland. If you can't give an address there, you can pass the prize to the next player on the leaderboard. Enter the prize code above first. This can't be undone.</p>
+        <button type="button" class="form-secondary" id="declineStart">Pass the prize on</button>
+        <div class="claim-decline__confirm" id="declineConfirm" hidden>
+          <p><strong>Pass the prize to the next player?</strong></p>
+          <button type="button" class="form-secondary" id="declineYes">Yes, pass it on</button>
+          <button type="button" class="form-secondary form-secondary--ghost" id="declineNo">No, go back</button>
+        </div>
+      </section>
+    </form>
+
+    <p class="form-message form-message--success" id="claimSuccess" aria-live="polite" hidden><em>Thanks! We've emailed you a receipt. We'll check the winning run and post the T-shirt within 28 days.</em></p>
+    <p class="form-message form-message--success" id="declineSuccess" aria-live="polite" hidden><em>Thanks for letting us know. The prize has passed to the next player.</em></p>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  import { ukPostcode, POSTCODE_MESSAGES } from '../../lib/uk-postcode.mjs';
+
+  type Colour = { colour: string; image: string | null; sizes: string[] };
+  type Garment = { type: string; label: string; colours: Colour[] };
+  type Design = { slug: string; name: string; garments: Garment[] };
+
+  const MESSAGES: Record<string, string> = {
+    code: "That prize code doesn't match a prize waiting to be claimed. Check the code and month shown in the game.",
+    claimed: 'This prize has already been claimed. Questions? Email contact@thefuglys.com.',
+    expired: 'The time to claim this prize has run out, so it has passed to the next player. Questions? Email contact@thefuglys.com.',
+    busy: 'This prize is being claimed right now. Please wait a couple of minutes and try again.',
+    form: "Please fill in every field, choose who's claiming and the T-shirt, and tick the box.",
+    prize: "That T-shirt isn't available any more. Please choose another colour or size.",
+    'postcode-crown': POSTCODE_MESSAGES.crown,
+    'postcode-bfpo': POSTCODE_MESSAGES.bfpo,
+    'postcode-format': POSTCODE_MESSAGES.format,
+    options: "We couldn't load the T-shirt designs. Please refresh the page, or email contact@thefuglys.com.",
+    other: 'Something went wrong sending your claim. Please try again, or email contact@thefuglys.com.',
+  };
+
+  const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+  const form = $<HTMLFormElement>('claimForm');
+  const monthInput = $<HTMLInputElement>('month');
+  const monthGroup = $('monthGroup');
+  const monthPick = $<HTMLSelectElement>('monthPick');
+  const codeInput = $<HTMLInputElement>('claimCode');
+  const submit = $<HTMLButtonElement>('claimSubmit');
+  const errorEl = $('claimError');
+  const successEl = $('claimSuccess');
+  const designSel = $<HTMLSelectElement>('design');
+  const garmentSel = $<HTMLSelectElement>('garment');
+  const colourSel = $<HTMLSelectElement>('colour');
+  const sizeSel = $<HTMLSelectElement>('size');
+  const prizeImage = $<HTMLImageElement>('prizeImage');
+
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code');
+  if (code) codeInput.value = code.trim().toUpperCase().slice(0, 8);
+
+  const month = params.get('month');
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    monthInput.value = month;
+  } else {
+    // No month in the link: offer the last six calendar months (a prize can pass down for months).
+    const now = new Date();
+    for (let back = 1; back <= 6; back++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthPick.add(new Option(d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), value));
+    }
+    monthGroup.hidden = false;
+  }
+  const monthValue = () => monthInput.value || monthPick.value;
+
+  const showError = (reason: string) => {
+    errorEl.textContent = MESSAGES[reason] || MESSAGES.other;
+    errorEl.hidden = false;
+    errorEl.scrollIntoView({ block: 'center' });
+  };
+
+  /* ---------- the T-shirt: design -> adult/kids -> colour -> size, from the design's real variants ---------- */
+  let designs: Design[] = [];
+  const fill = (sel: HTMLSelectElement, placeholder: string, options: { value: string; label: string }[]) => {
+    const first = new Option(placeholder, '');
+    first.disabled = true;
+    sel.replaceChildren(first);
+    for (const o of options) sel.add(new Option(o.label, o.value));
+    sel.value = options.length === 1 ? options[0].value : '';
+    sel.disabled = options.length === 0;
+  };
+  const design = () => designs.find((d) => d.slug === designSel.value);
+  const garment = () => design()?.garments.find((g) => g.type === garmentSel.value);
+  const colour = () => garment()?.colours.find((c) => c.colour === colourSel.value);
+  const showImage = () => {
+    const img = colour()?.image || garment()?.colours.find((c) => c.image)?.image || null;
+    prizeImage.hidden = !img;
+    if (img) {
+      prizeImage.src = `${img}?w=320&h=320&fit=crop&auto=format`;
+      prizeImage.alt = [design()?.name, garment()?.label, colour()?.colour].filter(Boolean).join(', ');
+    }
+  };
+  const onColour = () => { fill(sizeSel, 'Choose a size', (colour()?.sizes || []).map((s) => ({ value: s, label: s }))); showImage(); };
+  const onGarment = () => { fill(colourSel, 'Choose a colour', (garment()?.colours || []).map((c) => ({ value: c.colour, label: c.colour }))); onColour(); };
+  const onDesign = () => { fill(garmentSel, 'Choose a T-shirt', (design()?.garments || []).map((g) => ({ value: g.type, label: g.label }))); onGarment(); };
+  designSel.addEventListener('change', onDesign);
+  garmentSel.addEventListener('change', onGarment);
+  colourSel.addEventListener('change', onColour);
+
+  fetch('/api/sd-prize-options')
+    .then((r) => r.json())
+    .then((data: { designs?: Design[] }) => {
+      designs = data.designs || [];
+      if (!designs.length) throw new Error('no designs');
+      fill(designSel, 'Choose a design', designs.map((d) => ({ value: d.slug, label: d.name })));
+      onDesign();
+    })
+    .catch(() => { fill(designSel, 'Designs unavailable', []); showError('options'); });
+
+  /* ---------- claim ---------- */
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    const val = (id: string) => ((form.elements.namedItem(id) as HTMLInputElement | null)?.value || '').trim();
+    const claimant = (form.querySelector('input[name="claimant"]:checked') as HTMLInputElement | null)?.value || '';
+    const body = {
+      month: monthValue(),
+      claimCode: val('claimCode').toUpperCase(),
+      claimant,
+      name: val('name'),
+      email: val('email'),
+      address1: val('address1'),
+      address2: val('address2'),
+      town: val('town'),
+      postcode: val('postcode').toUpperCase(),
+      design: designSel.value,
+      garment: garmentSel.value,
+      colour: colourSel.value,
+      size: sizeSel.value,
+      consent: (form.elements.namedItem('consent') as HTMLInputElement).checked,
+    };
+    if (!form.checkValidity() || !claimant || !body.design || !body.garment || !body.colour || !body.size) {
+      form.reportValidity();
+      showError('form');
+      return;
+    }
+    const pc = ukPostcode(body.postcode);
+    if (!pc.ok) { showError('postcode-' + pc.reason); $('postcode').focus(); return; }
+    body.postcode = pc.postcode;
+
+    submit.disabled = true;
+    (submit.querySelector('.submit-text') as HTMLElement).hidden = true;
+    (submit.querySelector('.submit-sending') as HTMLElement).hidden = false;
+    try {
+      const res = await fetch('/api/sd-claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        form.hidden = true;
+        successEl.hidden = false;
+        successEl.scrollIntoView({ block: 'center' });
+        return;
+      }
+      showError(data.reason || 'other');
+    } catch {
+      showError('other');
+    }
+    submit.disabled = false;
+    (submit.querySelector('.submit-text') as HTMLElement).hidden = false;
+    (submit.querySelector('.submit-sending') as HTMLElement).hidden = true;
+  });
+
+  /* ---------- "can't use a UK address": pass the prize on (two clicks, no browser dialog) ---------- */
+  const declineConfirm = $('declineConfirm');
+  const declineStart = $<HTMLButtonElement>('declineStart');
+  const declineYes = $<HTMLButtonElement>('declineYes');
+  declineStart.addEventListener('click', () => {
+    errorEl.hidden = true;
+    if (codeInput.value.trim().length !== 8) { showError('code'); codeInput.focus(); return; }
+    declineStart.hidden = true; declineConfirm.hidden = false;
+  });
+  $('declineNo').addEventListener('click', () => { declineConfirm.hidden = true; declineStart.hidden = false; });
+  declineYes.addEventListener('click', async () => {
+    declineYes.disabled = true;
+    try {
+      const res = await fetch('/api/sd-decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ month: monthValue(), claimCode: codeInput.value.trim().toUpperCase() }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) { form.hidden = true; $('declineSuccess').hidden = false; return; }
+      showError(data.reason || 'other');
+    } catch {
+      showError('other');
+    }
+    declineYes.disabled = false; declineConfirm.hidden = true; declineStart.hidden = false;
+  });
+</script>
+
+<style>
+  /* Page chrome follows the legal pages; fields follow contact.astro (#263F44 fields, maroon focus). */
+  .claim {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 8rem 1.25rem 6rem;
+    color: #f5f5f5;
+  }
+  .claim__header {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .claim__eyebrow {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #99132F;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+  }
+  .claim__title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    margin: 0 0 1rem;
+  }
+  .claim__intro {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.8);
+    margin: 0;
+  }
+
+  .claim-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .claim-form[hidden], .form-group[hidden] { display: none; }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .form-label {
+    display: block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.75);
+  }
+  .form-input {
+    background: #263F44;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    padding: 14px 20px;
+    color: #fff;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.95rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+  }
+  .form-input:focus {
+    border-color: #99132F;
+    box-shadow: 0 0 0 2px rgba(153, 19, 47, 0.2);
+  }
+  .claim-form__code {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+  .form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 44px;
+    cursor: pointer;
+  }
+  .form-select option {
+    background: #263F44;
+    color: #fff;
+  }
+  .form-note {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.7);
+  }
+  .form-check {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+  .form-check input {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: #99132F;
+  }
+  .form-check a {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .form-submit { align-self: flex-start; }
+  .form-submit:disabled { opacity: 0.6; cursor: default; transform: none; }
+  .form-message {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+  .form-message[hidden] { display: none; }
+  .form-message--error {
+    border: 1px solid #ff8a9b;
+    color: #ff8a9b;
+    background: rgba(255, 138, 155, 0.06);
+  }
+  .form-message--success {
+    border: 1px solid #99132F;
+    color: #fff;
+    background: rgba(153, 19, 47, 0.15);
+  }
+  .form-fieldset {
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    padding: 16px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+  .form-fieldset legend { padding: 0 6px; }
+  .form-static { margin: 0; font-size: 0.95rem; color: #fff; }
+  .prize-pick { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .prize-pick__image { width: 160px; height: 160px; object-fit: cover; border-radius: 4px; background: #263F44; flex-shrink: 0; }
+  .prize-pick__image[hidden] { display: none; }
+  .prize-pick__fields { flex: 1 1 240px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .form-select:disabled { opacity: 0.6; cursor: default; }
+  .claim-decline {
+    margin-top: 12px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.8);
+  }
+  .claim-decline__title { font-size: 1.4rem; margin: 0 0 8px; color: #fff; }
+  .claim-decline p { margin: 0 0 12px; }
+  .claim-decline [hidden] { display: none; }
+  .form-secondary {
+    padding: 10px 20px;
+    background: transparent;
+    color: #fff;
+    border: 2px solid #99132F;
+    border-radius: 2px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    margin: 0 8px 8px 0;
+  }
+  .form-secondary:hover { background: #99132F; }
+  .form-secondary--ghost { border-color: rgba(255,255,255,0.3); }
+  .form-secondary--ghost:hover { background: rgba(255,255,255,0.08); }
+  .form-secondary:disabled { opacity: 0.6; cursor: default; }
+  @media (max-width: 768px) {
+    .form-submit { width: 100%; }
+  }
+</style>
