@@ -1,0 +1,7 @@
+/* Fuglys site fonts (Bebas Neue, Barlow, Barlow Condensed; SIL OFL 1.1), bundled for the standalone build.
+   On thefuglys.com the page uses the site's own /fonts/fonts.css instead. */
+@font-face { font-family:'Bebas Neue'; font-weight:400; font-display:swap; src:url(bebas-neue-400-latin.woff2) format('woff2'); }
+@font-face { font-family:'Barlow Condensed'; font-weight:700; font-display:swap; src:url(barlow-condensed-700-latin.woff2) format('woff2'); }
+@font-face { font-family:'Barlow Condensed'; font-weight:900; font-display:swap; src:url(barlow-condensed-900-latin.woff2) format('woff2'); }
+@font-face { font-family:'Barlow'; font-weight:500; font-display:swap; src:url(barlow-500-latin.woff2) format('woff2'); }
+@font-face { font-family:'Barlow'; font-weight:600; font-display:swap; src:url(barlow-600-latin.woff2) format('woff2'); }
