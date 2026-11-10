@@ -59,29 +59,30 @@
   [headers.values]
     Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.sanity.io https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; font-src 'self'; connect-src 'self' blob: https://cdn.sanity.io https://*.api.sanity.io https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; media-src 'self' https://cdn.sanity.io; frame-src https://www.youtube-nocookie.com https://www.youtube.com https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-# Assets keep their filenames between releases (no content hash), so a week's
-# cache rather than "immutable"; index.html, game.js and game.css keep Netlify's
-# default (max-age=0, must-revalidate) so a new release is picked up at once.
+# Assets keep their filenames between releases (no content hash), so every
+# game file is revalidated on each visit (max-age=0, must-revalidate: the
+# browser sends its ETag and gets a 304 if nothing changed), and an updated
+# model, texture, track or font is picked up at once.
 [[headers]]
   for = "/games/junkyard-racers/models/*"
   [headers.values]
     Content-Type = "model/gltf-binary"
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/games/junkyard-racers/tex/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/games/junkyard-racers/audio/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/games/junkyard-racers/fonts/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # Scrap Dash (public/games/scrap-dash/): the same rules as Junkyard Racers above.
 # Its GLTFLoader also fetches textures from blob: URLs; the page calls the
@@ -98,19 +99,19 @@
   for = "/games/scrap-dash/models/*"
   [headers.values]
     Content-Type = "model/gltf-binary"
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/games/scrap-dash/tex/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/games/scrap-dash/audio/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/games/scrap-dash/fonts/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "public, max-age=0, must-revalidate"
