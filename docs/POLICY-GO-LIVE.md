@@ -90,7 +90,7 @@ Codes, for reference (no need to name them in the policy): friend codes start FU
 
 Added 2026-11-10 on branch `feature/scrap-dash`. **Nothing here is applied.** Publish it in the Studio (Legal Pages → Privacy Policy, document `legalPage.privacy-policy`) **before** Scrap Dash goes live on thefuglys.com, because the leaderboard starts collecting runs as soon as the game is public. Adapted from the Labrats privacy-policy section for Vent Runner, which runs the same leaderboard.
 
-⚠ Legal wording. Check it yourself before publishing. **[Alan to confirm]** the contact address `contact@thefuglys.com` (it is also where month-end summaries and prize claims are emailed).
+⚠ Legal wording. Check it yourself before publishing. The contact address is `contact@thefuglys.com` (confirmed; it is also where month-end summaries and prize claims are emailed).
 
 Add a new section (after "How long we keep it", or as the last numbered section) headed **"Games and the Scrap Dash leaderboard"**:
 
