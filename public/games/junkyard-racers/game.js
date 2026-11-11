@@ -43,7 +43,7 @@ const RACERS = [
   { id: 'scrap',     name: 'Scrap',     tag: 'Tech Prodigy',      color: '#f2c200', model: 'scrap',      front: '-x', stats: { speed: 0.98, accel: 1.08, handling: 1.06, weight: 0.85 }, shout: ['Calculated!', 'Physics says bye!'] },
   { id: 'clyde',     name: 'Clyde',     tag: 'Master Scavenger',  color: '#3d7bd8', model: 'clyde',      front: '+x', wheels: true, stats: { speed: 1.02, accel: 0.98, handling: 0.98, weight: 1.05 }, shout: ['Mine now!', 'Finders keepers!'] },
   { id: 'dixie',     name: 'Dixie',     tag: 'Sharp-Shooter',     color: '#e3a21a', model: 'dixie',      front: '+z', stats: { speed: 1.0, accel: 1.02, handling: 1.04, weight: 0.9 }, shout: ['Bullseye!', 'Right between the hubcaps!'] },
-  { id: 'jebediah',  name: 'Jebediah',  tag: 'Fallen Bodyguard',  color: '#6f8f55', model: 'jebediah',   front: '-x', wheels: true, stats: { speed: 1.05, accel: 0.92, handling: 0.94, weight: 1.25 }, shout: ['Out of my way.', 'Stand down!'] },
+  { id: 'jebediah',  name: 'Jebediah',  tag: 'Fallen Bodyguard',  color: '#6f8f55', model: 'jebediah',   front: '+z', wheels: true, stats: { speed: 1.05, accel: 0.92, handling: 0.94, weight: 1.25 }, shout: ['Out of my way.', 'Stand down!'] },
   { id: 'cletus',    name: 'Cletus',    tag: 'Fuel & Chemistry',  color: '#c0803a', model: 'cletus',     front: '+z', wheels: true, stats: { speed: 1.03, accel: 0.98, handling: 0.96, weight: 1.1 }, shout: ['Hoo-wee!', 'Smell that fuel!'] },
   { id: 'trixie',    name: 'Trixie',    tag: 'Acrobat Scout',     color: '#c2408f', model: 'trixie', front: '+x', wheels: true, stats: { speed: 0.99, accel: 1.06, handling: 1.1, weight: 0.8 }, unlock: 'boneyard', shout: ['Ta-da!', 'Watch this!'] },
   { id: 'bigma',     name: 'Big Ma',    tag: 'Matriarch Medic',   color: '#9b3b2b', model: 'bigma', front: '+x', wheels: true, stats: { speed: 1.04, accel: 0.95, handling: 0.95, weight: 1.3 }, unlock: 'chopshop', shout: ['Mind your manners!', 'Eat my dust, sugar.'] },
@@ -142,10 +142,28 @@ composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), LOW ? 0.35 : 0.5, 0.5, 0.92);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
-addEventListener('resize', () => {
+let selOffset = false;
+function selectFreeRect() {
+  if (innerWidth > 900 && !matchMedia('(pointer: coarse)').matches) return null;   // desktop keeps its framing
+  const q = id => { const e = document.getElementById(id); return e && e.offsetParent ? e.getBoundingClientRect() : null; };
+  const tp = q('trackPicker'), nm = q('racerName'), wt = q('st_weight'), go = q('goBtn'), pv = q('racerPrev');
+  if (!tp || !nm || !go) return null;
+  const W = innerWidth, H = innerHeight, land = W > H;
+  const panelTop = nm.top - 18, panelLeft = Math.min(nm.left, wt ? wt.left : nm.left) - 24;
+  let x0 = pv ? pv.right + 6 : 0, x1 = W, y0 = tp.bottom + 8, y1 = land ? go.top - 8 : Math.min(panelTop, go.top) - 8;
+  if (land) x1 = panelLeft;
+  if (x1 - x0 < 120 || y1 - y0 < 90) return null;
+  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
+}
+function fitView() {
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); drawMinimapBase();
-});
+}
+function fitSoon() { fitView(); setTimeout(fitView, 120); setTimeout(fitView, 400); setTimeout(fitView, 900); }   // phones report the new size late after rotating
+addEventListener('resize', fitSoon);
+addEventListener('orientationchange', fitSoon);
+if (window.visualViewport) visualViewport.addEventListener('resize', fitSoon);
+if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', fitSoon);
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 3); sun.castShadow = true;
@@ -1009,7 +1027,17 @@ function updateCamera(dt, t) {
     // in the select screen push the kart left of centre so the racer panel doesn't cover it
     const right = new THREE.Vector3().subVectors(c, wantPos).cross(new THREE.Vector3(0, 1, 0)).normalize();
     wantLook = c.clone().setY(0.7).addScaledVector(right, race.state === 'select' && innerWidth > 640 ? 1.5 : 0); k = 1 - Math.pow(0.05, dt);
+    const fr = race.state === 'select' && selectFreeRect();
+    if (fr) {   // phones: aim the kart into the clear gap between the panels, far enough back to fit whole
+      const W = innerWidth, H = innerHeight, r = 1.55, fv = THREE.MathUtils.degToRad(camera.fov) / 2;
+      const dv = r / Math.tan(fv * (fr.h / H) * 0.92), dh = r / Math.tan(Math.atan(Math.tan(fv) * W / H) * (fr.w / W) * 0.92);
+      const d = Math.max(R0, dv, dh);
+      wantPos = new THREE.Vector3(c.x + Math.sin(a) * d, 0.8 + d * 0.14, c.z + Math.cos(a) * d);
+      wantLook = c.clone().setY(0.55);
+      camera.setViewOffset(W, H, Math.round(W / 2 - fr.cx), Math.round(H / 2 - fr.cy), W, H); selOffset = true;
+    } else if (selOffset) { camera.clearViewOffset(); selOffset = false; }
   } else if (player) {
+    if (selOffset) { camera.clearViewOffset(); selOffset = false; }   // racing uses the full, centred view
     const f = player.fwd, sp = Math.abs(player.speed);
     const yawOff = player.drift ? -player.drift * 0.28 : 0;
     const fb = f.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yawOff);
