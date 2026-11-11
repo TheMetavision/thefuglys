@@ -153,3 +153,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* links back to the website (title and pause screens) */
 .sitelinks { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
 .sitelinks .btn.small { margin-top: 8px; }
+
+/* phones, portrait: track picker at the top, racer stats + RACE at the bottom, the racer itself in the clear middle (camera aims into the gap) */
+@media (orientation: portrait) and (max-width: 700px) {
+  #selectScreen.on { align-items: stretch; padding: max(10px, env(safe-area-inset-top)) 10px max(12px, env(safe-area-inset-bottom)); }
+  #selectScreen .sel-card { display: flex; flex-direction: column; min-height: 100%; width: 100%; box-sizing: border-box; }
+  #selectScreen .racer { flex: 1 1 auto; flex-wrap: wrap; align-items: flex-end; align-content: flex-end; justify-content: space-between; min-height: 0; margin: 0 0 8px; }
+  #selectScreen .racer .rinfo { order: 3; width: 100%; margin-top: 8px; }
+  #selectScreen #goBtn { align-self: center; }
+}
