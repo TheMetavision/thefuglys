@@ -37,17 +37,19 @@ const POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
 
 /* ---------------- racers ----------------
    model: GLB in models/ (kart and driver in one). front: which model axis the kart's nose points along.
-   wheels: add spinning tyres for models whose wheels came out as bare hubs. Racers without a model use
+   size: optional scale correction so drivers come out the same size (karts are fitted to KART_LEN, which over/under-scales unusually short or long karts).
+   tyre: optional size of the fitted tyres relative to the standard tyre (to match a model's own wheels).
+   wheels: add spinning tyres for models whose wheels came out as bare hubs ('front' = front pair only). Racers without a model use
    a hand-built stand-in kart in their colour until their Higgsfield model is made. */
 const RACERS = [
-  { id: 'scrap',     name: 'Scrap',     tag: 'Tech Prodigy',      color: '#f2c200', model: 'scrap',      front: '-x', stats: { speed: 0.98, accel: 1.08, handling: 1.06, weight: 0.85 }, shout: ['Calculated!', 'Physics says bye!'] },
-  { id: 'clyde',     name: 'Clyde',     tag: 'Master Scavenger',  color: '#3d7bd8', model: 'clyde',      front: '+x', wheels: true, stats: { speed: 1.02, accel: 0.98, handling: 0.98, weight: 1.05 }, shout: ['Mine now!', 'Finders keepers!'] },
-  { id: 'dixie',     name: 'Dixie',     tag: 'Sharp-Shooter',     color: '#e3a21a', model: 'dixie',      front: '+z', stats: { speed: 1.0, accel: 1.02, handling: 1.04, weight: 0.9 }, shout: ['Bullseye!', 'Right between the hubcaps!'] },
-  { id: 'jebediah',  name: 'Jebediah',  tag: 'Fallen Bodyguard',  color: '#6f8f55', model: 'jebediah',   front: '+z', wheels: true, stats: { speed: 1.05, accel: 0.92, handling: 0.94, weight: 1.25 }, shout: ['Out of my way.', 'Stand down!'] },
-  { id: 'cletus',    name: 'Cletus',    tag: 'Fuel & Chemistry',  color: '#c0803a', model: 'cletus',     front: '+z', wheels: true, stats: { speed: 1.03, accel: 0.98, handling: 0.96, weight: 1.1 }, shout: ['Hoo-wee!', 'Smell that fuel!'] },
-  { id: 'trixie',    name: 'Trixie',    tag: 'Acrobat Scout',     color: '#c2408f', model: 'trixie', front: '+x', wheels: true, stats: { speed: 0.99, accel: 1.06, handling: 1.1, weight: 0.8 }, unlock: 'boneyard', shout: ['Ta-da!', 'Watch this!'] },
-  { id: 'bigma',     name: 'Big Ma',    tag: 'Matriarch Medic',   color: '#9b3b2b', model: 'bigma', front: '+x', wheels: true, stats: { speed: 1.04, accel: 0.95, handling: 0.95, weight: 1.3 }, unlock: 'chopshop', shout: ['Mind your manners!', 'Eat my dust, sugar.'] },
-  { id: 'axel',      name: 'Axel',      tag: 'Pint-Sized Troublemaker', color: '#e2552a', model: 'axel', front: '+x', wheels: true, stats: { speed: 1.0, accel: 1.1, handling: 1.08, weight: 0.75 }, unlock: 'perimeter', shout: ['Hehehe!', 'Gotcha!'] },
+  { id: 'scrap',     name: 'Scrap',     tag: 'Tech Prodigy',      color: '#f2c200', model: 'scrap',      front: '-x', wheels: true, stats: { speed: 0.98, accel: 1.08, handling: 1.06, weight: 0.85 }, shout: ['Calculated!', 'Physics says bye!'] },
+  { id: 'clyde',     name: 'Clyde',     tag: 'Master Scavenger',  color: '#3d7bd8', model: 'clyde',      front: '+x', wheels: true, size: 1.25, stats: { speed: 1.02, accel: 0.98, handling: 0.98, weight: 1.05 }, shout: ['Mine now!', 'Finders keepers!'] },
+  { id: 'dixie',     name: 'Dixie',     tag: 'Sharp-Shooter',     color: '#e3a21a', model: 'dixie',      front: '+z', wheels: 'front', size: 0.75, tyre: 0.67, stats: { speed: 1.0, accel: 1.02, handling: 1.04, weight: 0.9 }, shout: ['Bullseye!', 'Right between the hubcaps!'] },
+  { id: 'jebediah',  name: 'Jebediah',  tag: 'Fallen Bodyguard',  color: '#6f8f55', model: 'jebediah',   front: '+z', wheels: true, size: 1.35, stats: { speed: 1.05, accel: 0.92, handling: 0.94, weight: 1.25 }, shout: ['Out of my way.', 'Stand down!'] },
+  { id: 'cletus',    name: 'Cletus',    tag: 'Fuel & Chemistry',  color: '#c0803a', model: 'cletus',     front: '+z', wheels: true, size: 1.1, stats: { speed: 1.03, accel: 0.98, handling: 0.96, weight: 1.1 }, shout: ['Hoo-wee!', 'Smell that fuel!'] },
+  { id: 'trixie',    name: 'Trixie',    tag: 'Acrobat Scout',     color: '#c2408f', model: 'trixie', front: '+x', wheels: true, size: 0.97, stats: { speed: 0.99, accel: 1.06, handling: 1.1, weight: 0.8 }, unlock: 'boneyard', shout: ['Ta-da!', 'Watch this!'] },
+  { id: 'bigma',     name: 'Big Ma',    tag: 'Matriarch Medic',   color: '#9b3b2b', model: 'bigma', front: '+x', wheels: true, size: 0.9, stats: { speed: 1.04, accel: 0.95, handling: 0.95, weight: 1.3 }, unlock: 'chopshop', shout: ['Mind your manners!', 'Eat my dust, sugar.'] },
+  { id: 'axel',      name: 'Axel',      tag: 'Pint-Sized Troublemaker', color: '#e2552a', model: 'axel', front: '+x', wheels: true, size: 0.62, stats: { speed: 1.0, accel: 1.1, handling: 1.08, weight: 0.75 }, unlock: 'perimeter', shout: ['Hehehe!', 'Gotcha!'] },
   { id: 'bristleback', name: 'Bristleback', tag: 'Leader of the Razor Boars', color: '#3f6b3a', model: 'bristleback', front: '+z', rival: true, stats: { speed: 1.05, accel: 0.95, handling: 0.95, weight: 1.35 }, shout: ['GRAAAH!', 'The Boars rule this yard!'] },
   { id: 'scorch',    name: 'Scorch',    tag: 'Leader of the Fever Foxes', color: '#ff6a1a', model: 'scorch', front: '+x', wheels: true, rival: true, stats: { speed: 1.04, accel: 1.03, handling: 1.02, weight: 0.95 }, shout: ['Too slow, scrap-heap!', 'Burn rubber!'] },
   { id: 'lurk',      name: 'Lurk',      tag: 'Shadow Bat Leader', color: '#5b3f8c', model: 'lurk', front: '+x', wheels: true, rival: true, stats: { speed: 1.06, accel: 0.98, handling: 1.04, weight: 0.9 }, shout: ['Skreeee!', 'From the shadows!'] },
@@ -144,7 +146,6 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 let selOffset = false;
 function selectFreeRect() {
-  if (innerWidth > 900 && !matchMedia('(pointer: coarse)').matches) return null;   // desktop keeps its framing
   const q = id => { const e = document.getElementById(id); return e && e.offsetParent ? e.getBoundingClientRect() : null; };
   const tp = q('trackPicker'), nm = q('racerName'), wt = q('st_weight'), go = q('goBtn'), pv = q('racerPrev');
   if (!tp || !nm || !go) return null;
@@ -494,16 +495,17 @@ class Kart {
       const m = src.clone(true);
       const box = new THREE.Box3().setFromObject(m), s = box.getSize(new THREE.Vector3());
       const lenAxis = (this.r.front === '+x' || this.r.front === '-x') ? s.x : s.z;
-      const k = KART_LEN / lenAxis; m.scale.setScalar(k);
+      const sz0 = this.r.size || 1, k = KART_LEN * sz0 / lenAxis; m.scale.setScalar(k);   // size: per-racer correction for unusually tall models
       const ctr = box.getCenter(new THREE.Vector3());
       const holder = new THREE.Group(); holder.rotation.y = FRONT_YAW[this.r.front] || 0;
       m.position.set(-ctr.x * k, -box.min.y * k, -ctr.z * k); holder.add(m);
       if (this.r.wheels) {   // bare hubs: fit spinning tyres at the four corners
         const W = ((this.r.front === '+x' || this.r.front === '-x') ? s.z : s.x) * k;
         for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-          const w = makeWheel(); w.position.set(sx * (W / 2 - 0.08), 0.32, sz * KART_LEN * 0.33); this.body.add(w); this.wheels.push(w);
+          if (this.r.wheels === 'front' && sz > 0) continue;   // model already has rear wheels
+          const ts = sz0 * (this.r.tyre || 1), w = makeWheel(); w.scale.setScalar(ts); w.position.set(sx * (W / 2 - 0.08 * ts), 0.32 * ts, sz * KART_LEN * sz0 * 0.33); this.body.add(w); this.wheels.push(w);
         }
-        m.position.y += 0.06;
+        m.position.y += 0.06 * sz0;
       }
       this.body.remove(this.stand); this.body.add(holder); this.model = holder; this.loaded = true;
     }).catch(e => { this.loaded = true; console.warn('kart model failed, keeping stand-in', this.r.id, e); });
@@ -1028,13 +1030,13 @@ function updateCamera(dt, t) {
     const right = new THREE.Vector3().subVectors(c, wantPos).cross(new THREE.Vector3(0, 1, 0)).normalize();
     wantLook = c.clone().setY(0.7).addScaledVector(right, race.state === 'select' && innerWidth > 640 ? 1.5 : 0); k = 1 - Math.pow(0.05, dt);
     const fr = race.state === 'select' && selectFreeRect();
-    if (fr) {   // phones: aim the kart into the clear gap between the panels, far enough back to fit whole
-      const W = innerWidth, H = innerHeight, r = 1.55, fv = THREE.MathUtils.degToRad(camera.fov) / 2;
-      const dv = r / Math.tan(fv * (fr.h / H) * 0.92), dh = r / Math.tan(Math.atan(Math.tan(fv) * W / H) * (fr.w / W) * 0.92);
-      const d = Math.max(R0, dv, dh);
-      wantPos = new THREE.Vector3(c.x + Math.sin(a) * d, 0.8 + d * 0.14, c.z + Math.cos(a) * d);
-      wantLook = c.clone().setY(0.55);
-      camera.setViewOffset(W, H, Math.round(W / 2 - fr.cx), Math.round(H / 2 - fr.cy), W, H); selOffset = true;
+    if (fr) {   // keep the camera close (nothing can come between it and the kart) and widen/shift the view so the kart lands in the clear gap between the panels
+      const W = innerWidth, H = innerHeight, r = 1.55, tv = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      wantLook = c.clone().setY(0.7);
+      const kH = (r / R0) / tv, kW = (r / R0) / (tv * W / H);   // kart half-size as a fraction of the half-screen at normal zoom
+      const z = Math.min(1, (fr.h / H) * 0.78 / kH, (fr.w / W) * 0.78 / kW), fw = W * z, fh = H * z;
+      if (!selOffset) k = 1;   // first select frame: start framed, rather than gliding in from the title camera with the wider view already applied
+      camera.setViewOffset(fw, fh, fw / 2 - fr.cx, fh / 2 - fr.cy, W, H); selOffset = true;
     } else if (selOffset) { camera.clearViewOffset(); selOffset = false; }
   } else if (player) {
     if (selOffset) { camera.clearViewOffset(); selOffset = false; }   // racing uses the full, centred view
