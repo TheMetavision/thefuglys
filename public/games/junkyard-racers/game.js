@@ -38,12 +38,13 @@ const POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
 /* ---------------- racers ----------------
    model: GLB in models/ (kart and driver in one). front: which model axis the kart's nose points along.
    size: optional scale correction so drivers come out the same size (karts are fitted to KART_LEN, which over/under-scales unusually short or long karts).
+   tyre: optional size of the fitted tyres relative to the standard tyre (to match a model's own wheels).
    wheels: add spinning tyres for models whose wheels came out as bare hubs ('front' = front pair only). Racers without a model use
    a hand-built stand-in kart in their colour until their Higgsfield model is made. */
 const RACERS = [
   { id: 'scrap',     name: 'Scrap',     tag: 'Tech Prodigy',      color: '#f2c200', model: 'scrap',      front: '-x', wheels: true, stats: { speed: 0.98, accel: 1.08, handling: 1.06, weight: 0.85 }, shout: ['Calculated!', 'Physics says bye!'] },
   { id: 'clyde',     name: 'Clyde',     tag: 'Master Scavenger',  color: '#3d7bd8', model: 'clyde',      front: '+x', wheels: true, size: 1.25, stats: { speed: 1.02, accel: 0.98, handling: 0.98, weight: 1.05 }, shout: ['Mine now!', 'Finders keepers!'] },
-  { id: 'dixie',     name: 'Dixie',     tag: 'Sharp-Shooter',     color: '#e3a21a', model: 'dixie',      front: '+z', wheels: 'front', size: 0.75, stats: { speed: 1.0, accel: 1.02, handling: 1.04, weight: 0.9 }, shout: ['Bullseye!', 'Right between the hubcaps!'] },
+  { id: 'dixie',     name: 'Dixie',     tag: 'Sharp-Shooter',     color: '#e3a21a', model: 'dixie',      front: '+z', wheels: 'front', size: 0.75, tyre: 0.67, stats: { speed: 1.0, accel: 1.02, handling: 1.04, weight: 0.9 }, shout: ['Bullseye!', 'Right between the hubcaps!'] },
   { id: 'jebediah',  name: 'Jebediah',  tag: 'Fallen Bodyguard',  color: '#6f8f55', model: 'jebediah',   front: '+z', wheels: true, size: 1.35, stats: { speed: 1.05, accel: 0.92, handling: 0.94, weight: 1.25 }, shout: ['Out of my way.', 'Stand down!'] },
   { id: 'cletus',    name: 'Cletus',    tag: 'Fuel & Chemistry',  color: '#c0803a', model: 'cletus',     front: '+z', wheels: true, size: 1.1, stats: { speed: 1.03, accel: 0.98, handling: 0.96, weight: 1.1 }, shout: ['Hoo-wee!', 'Smell that fuel!'] },
   { id: 'trixie',    name: 'Trixie',    tag: 'Acrobat Scout',     color: '#c2408f', model: 'trixie', front: '+x', wheels: true, size: 0.97, stats: { speed: 0.99, accel: 1.06, handling: 1.1, weight: 0.8 }, unlock: 'boneyard', shout: ['Ta-da!', 'Watch this!'] },
@@ -502,7 +503,7 @@ class Kart {
         const W = ((this.r.front === '+x' || this.r.front === '-x') ? s.z : s.x) * k;
         for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
           if (this.r.wheels === 'front' && sz > 0) continue;   // model already has rear wheels
-          const w = makeWheel(); w.scale.setScalar(sz0); w.position.set(sx * (W / 2 - 0.08 * sz0), 0.32 * sz0, sz * KART_LEN * sz0 * 0.33); this.body.add(w); this.wheels.push(w);
+          const ts = sz0 * (this.r.tyre || 1), w = makeWheel(); w.scale.setScalar(ts); w.position.set(sx * (W / 2 - 0.08 * ts), 0.32 * ts, sz * KART_LEN * sz0 * 0.33); this.body.add(w); this.wheels.push(w);
         }
         m.position.y += 0.06 * sz0;
       }
@@ -1034,6 +1035,7 @@ function updateCamera(dt, t) {
       wantLook = c.clone().setY(0.7);
       const kH = (r / R0) / tv, kW = (r / R0) / (tv * W / H);   // kart half-size as a fraction of the half-screen at normal zoom
       const z = Math.min(1, (fr.h / H) * 0.78 / kH, (fr.w / W) * 0.78 / kW), fw = W * z, fh = H * z;
+      if (!selOffset) k = 1;   // first select frame: start framed, rather than gliding in from the title camera with the wider view already applied
       camera.setViewOffset(fw, fh, fw / 2 - fr.cx, fh / 2 - fr.cy, W, H); selOffset = true;
     } else if (selOffset) { camera.clearViewOffset(); selOffset = false; }
   } else if (player) {
