@@ -284,6 +284,14 @@
   /* links back to the website (title and pause screens) */
   .sitelinks { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
   .sitelinks .btn { text-decoration: none; }
+  /* menu links under the main button: three equal columns, same height, text centred on the same line */
+  #titleScreen .sitelinks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 560px; margin-left: auto; margin-right: auto; }
+  .sitelinks .btn.small { width: 100%; height: 44px; min-height: 0; box-sizing: border-box; padding: 0 8px; font-size: 16px; letter-spacing: 1px;
+    display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1; white-space: nowrap; overflow: hidden; margin: 0; }
+  #titleScreen .sitelinks .btn.small { margin: 0; padding: 0 6px; letter-spacing: .6px; }
+  body.lb #titleScreen .sitelinks .lb-only, #titleScreen .sitelinks .btn.small { display: flex; }
+  #titleScreen .sitelinks #lbOpenTitle { margin-top: 0; }
+  @media (max-width: 560px) { #titleScreen .sitelinks { grid-template-columns: 1fr; max-width: 300px; } .sitelinks .btn.small { font-size: 18px; } }
 </style>
 </head>
 <body>
