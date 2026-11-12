@@ -190,3 +190,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titletracks .tcard.sel { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow); }
 .titletracks .tcard.locked { filter: grayscale(.9) brightness(.6); cursor: not-allowed; }
 @media (max-width: 560px) { .titletracks { gap: 6px; } .titletracks .tcard b { font-size: 13px; } .titletracks .tcard small { display: none; } }
+
+/* Title screen: open layout like Scrap Dash, no panel, so the track art shows through */
+#titleScreen .card { width: min(600px, 100%); background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+#titleScreen .brandlogo { width: min(200px, 50%); }
+#titleScreen .title { font-size: clamp(46px, 8vw, 78px); }
+#titleScreen .lede { max-width: 440px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.75); }
+#titleScreen .diffs { background: rgba(10,14,16,.55); }
+#titleScreen .controls { text-shadow: 0 1px 3px rgba(0,0,0,.95); }
+.titletracks .tcard { min-height: 96px; display: flex; flex-direction: column; justify-content: flex-end; padding: 8px 10px; background: #111; }
+.titletracks .tcard i { position: absolute; inset: 0; aspect-ratio: auto; }
+.titletracks .tcard::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(0,0,0,.02) 35%, rgba(0,0,0,.82)); }
+.titletracks .tcard b, .titletracks .tcard small { position: relative; z-index: 2; padding: 0; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+.titletracks .tcard b { font-size: 17px; line-height: 1.05; }
+@media (max-width: 560px) { .titletracks .tcard { min-height: 70px; padding: 6px 7px; } .titletracks .tcard b { font-size: 13px; } }
+@media (max-height: 420px) { .titletracks .tcard { min-height: 44px; } }
+.titletracks .tcard.locked { opacity: 1; filter: none; }
+.titletracks .tcard.locked i { filter: grayscale(1) brightness(.55); }
+.titletracks .tcard.locked b, .titletracks .tcard.locked small { opacity: .8; }
