@@ -1273,7 +1273,7 @@ function renderTitle() {
       b.onclick = () => { if (!ok) return; sfx.click(); race.track = t; enterShowroom(t); renderTitle(); };
       tt.appendChild(b); }); }
   const ts = $('titleScreen');
-  if (ts && race.track && race.track.card) { ts.style.backgroundImage = `radial-gradient(ellipse at center, rgba(10,14,16,.35) 0%, rgba(10,14,16,.88) 75%), url(${BASE}tex/${race.track.card}.jpg)`;
+  if (ts && race.track && race.track.card) { ts.style.backgroundImage = `radial-gradient(ellipse 55% 75% at center, rgba(10,14,16,.62) 0%, rgba(10,14,16,.3) 70%, rgba(10,14,16,.12) 100%), url(${BASE}tex/${race.track.card}.jpg)`;   // lighter, darker only behind the text, like Scrap Dash
     ts.style.backgroundSize = 'cover'; ts.style.backgroundPosition = 'center'; }
   $('controlsHelp').innerHTML = coarse
     ? '<b>Phone</b>: hold ◀ ▶ to steer, accelerate is automatic. Hold <b>DRIFT</b> into a corner and let go for a boost. Tap <b>ITEM</b> to use what you picked up.'
