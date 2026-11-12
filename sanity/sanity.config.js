@@ -27,6 +27,7 @@ export default defineConfig({
             S.documentTypeListItem('blogPost').title('Blog Posts'),
             S.divider(),
             S.documentTypeListItem('worldLocation').title('World Locations'),
+            S.documentTypeListItem('game').title('Games'),
             S.divider(),
             S.documentTypeListItem('product').title('Products'),
             S.documentTypeListItem('wallArt').title('Wall Art'),

@@ -22,6 +22,12 @@ import {PinIcon} from '@sanity/icons'
  * v4 (2026-10-21): referenceGallery — canon environment renders tagged by
  * view and time of day, for books, animation and games. Not rendered by the
  * site; `image` stays the homepage hero.
+ *
+ * v5 (2026-11-12): referenceGallery is the shared private gallery. New items
+ * are `galleryImage` (caption, kind, game...). The 71 renders already stored
+ * (written through the API, `_type: "image"` with view / timeOfDay / isMaster
+ * / label / higgsfieldJobId) stay valid as the "Canon render (legacy)" member;
+ * nothing was migrated or removed. Grouped under "Reference (private)".
  * ------------------------------------------------------------------
  */
 export default defineType({
@@ -29,6 +35,13 @@ export default defineType({
   title: 'World Location',
   type: 'document',
   icon: PinIcon,
+  fieldsets: [
+    {
+      name: 'reference',
+      title: 'Reference (private)',
+      options: {collapsible: true, collapsed: true},
+    },
+  ],
   fields: [
     defineField({
       name: 'title',
@@ -75,13 +88,17 @@ export default defineType({
     }),
     defineField({
       name: 'referenceGallery',
-      title: 'Reference gallery (canon renders)',
-      description: 'Approved environment renders: the official look of this location for books, animation and games. Not shown on the site.',
+      title: 'Reference gallery (private)',
+      description: 'Working and promo images for this location, including the canon environment renders. Not shown on the website.',
       type: 'array',
+      fieldset: 'reference',
       options: {layout: 'grid'},
       of: [
+        defineArrayMember({type: 'galleryImage'}),
+        // Legacy canon renders (v4). Keep: existing items are stored as _type "image".
         defineArrayMember({
           type: 'image',
+          title: 'Canon render (legacy)',
           options: {hotspot: true},
           fields: [
             defineField({

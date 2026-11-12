@@ -14,6 +14,7 @@
 // 2026-10-19: book.js created (mirrors the deployed type, adds buyUrl) and registered.
 // 2026-10-19: merchCategory.js restored from the deployed schema and registered; live
 // fields missing from other types added back (marked Legacy where the site doesn't read them).
+// 2026-11-12: galleryImage (object) and game (document) for the private reference galleries.
 import character from './character';
 import product from './product';
 import printfulVariant from './printfulVariant';
@@ -31,6 +32,8 @@ import faq from './faq';
 import legalPage from './legalPage';
 import siteSettings from './siteSettings';
 import contactSubmission from './contactSubmission';
+import galleryImage from './galleryImage';
+import game from './game';
 export const schemaTypes = [
   // Content types
   character,
@@ -54,4 +57,7 @@ export const schemaTypes = [
   siteSettings,
   // Form submissions
   contactSubmission,
+  // Private galleries (Studio and Social Content Studio only, never the website)
+  galleryImage,
+  game,
 ];
