@@ -1,5 +1,6 @@
 import {defineArrayMember, defineField, defineType} from 'sanity'
 import {PinIcon} from '@sanity/icons'
+import {GALLERY_IMAGE_KINDS} from './galleryImage'
 
 /**
  * worldLocation
@@ -122,6 +123,16 @@ export default defineType({
             defineField({name: 'isMaster', title: 'Master plate', type: 'boolean', initialValue: false}),
             defineField({name: 'label', title: 'Label', type: 'string'}),
             defineField({name: 'higgsfieldJobId', title: 'Higgsfield job ID', type: 'string', readOnly: true}),
+            // Optional, matching galleryImage, so canon renders can be captioned and
+            // found the same way. Optional because the existing renders have neither.
+            defineField({
+              name: 'caption',
+              title: 'Caption',
+              type: 'string',
+              description: 'What the image shows, e.g. "The Bone Yard entrance at golden hour, wrecks piled either side".',
+              validation: (rule) => rule.max(120),
+            }),
+            defineField({name: 'kind', title: 'Kind', type: 'string', options: {list: GALLERY_IMAGE_KINDS}}),
           ],
           preview: {
             select: {title: 'label', subtitle: 'timeOfDay', media: 'asset'},
