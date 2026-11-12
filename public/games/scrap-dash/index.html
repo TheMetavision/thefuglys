@@ -427,7 +427,7 @@
 <script src="vendor/meshopt_decoder.js"></script>
 
 <script>
-window.__TX={"fg_carcube": "/games/scrap-dash/tex/fg_carcube.webp", "fg_carcube_n": "/games/scrap-dash/tex/fg_carcube_n.webp", "fg_card": "/games/scrap-dash/tex/fg_card.jpg", "fg_corr": "/games/scrap-dash/tex/fg_corr.webp", "fg_corr_n": "/games/scrap-dash/tex/fg_corr_n.webp", "fg_ground": "/games/scrap-dash/tex/fg_ground.webp", "fg_ground_n": "/games/scrap-dash/tex/fg_ground_n.webp", "fg_heap_low": "/games/scrap-dash/tex/fg_heap_low.webp", "fg_heap_tall": "/games/scrap-dash/tex/fg_heap_tall.webp", "fg_paint": "/games/scrap-dash/tex/fg_paint.webp", "fg_paint_n": "/games/scrap-dash/tex/fg_paint_n.webp", "fg_pano_day": "/games/scrap-dash/tex/fg_pano_day.webp", "fg_pano_gold": "/games/scrap-dash/tex/fg_pano_gold.webp", "fg_pano_sunset": "/games/scrap-dash/tex/fg_pano_sunset.webp", "fg_sign0": "/games/scrap-dash/tex/fg_sign0.webp", "fg_sign1": "/games/scrap-dash/tex/fg_sign1.webp", "fg_sign2": "/games/scrap-dash/tex/fg_sign2.webp", "fg_sign3": "/games/scrap-dash/tex/fg_sign3.webp", "fg_sign4": "/games/scrap-dash/tex/fg_sign4.webp", "fg_sign5": "/games/scrap-dash/tex/fg_sign5.webp", "fg_track": "/games/scrap-dash/tex/fg_track.webp", "fg_track_n": "/games/scrap-dash/tex/fg_track_n.webp"};
+window.__TX={"sd_card_boneyard": "/games/scrap-dash/tex/sd_card_boneyard.jpg", "sd_card_chopshop": "/games/scrap-dash/tex/sd_card_chopshop.jpg", "sd_card_perimeter": "/games/scrap-dash/tex/sd_card_perimeter.jpg", "fg_carcube": "/games/scrap-dash/tex/fg_carcube.webp", "fg_carcube_n": "/games/scrap-dash/tex/fg_carcube_n.webp", "fg_card": "/games/scrap-dash/tex/fg_card.jpg", "fg_corr": "/games/scrap-dash/tex/fg_corr.webp", "fg_corr_n": "/games/scrap-dash/tex/fg_corr_n.webp", "fg_ground": "/games/scrap-dash/tex/fg_ground.webp", "fg_ground_n": "/games/scrap-dash/tex/fg_ground_n.webp", "fg_heap_low": "/games/scrap-dash/tex/fg_heap_low.webp", "fg_heap_tall": "/games/scrap-dash/tex/fg_heap_tall.webp", "fg_paint": "/games/scrap-dash/tex/fg_paint.webp", "fg_paint_n": "/games/scrap-dash/tex/fg_paint_n.webp", "fg_pano_day": "/games/scrap-dash/tex/fg_pano_day.webp", "fg_pano_gold": "/games/scrap-dash/tex/fg_pano_gold.webp", "fg_pano_sunset": "/games/scrap-dash/tex/fg_pano_sunset.webp", "fg_sign0": "/games/scrap-dash/tex/fg_sign0.webp", "fg_sign1": "/games/scrap-dash/tex/fg_sign1.webp", "fg_sign2": "/games/scrap-dash/tex/fg_sign2.webp", "fg_sign3": "/games/scrap-dash/tex/fg_sign3.webp", "fg_sign4": "/games/scrap-dash/tex/fg_sign4.webp", "fg_sign5": "/games/scrap-dash/tex/fg_sign5.webp", "fg_track": "/games/scrap-dash/tex/fg_track.webp", "fg_track_n": "/games/scrap-dash/tex/fg_track_n.webp"};
 /* Shared stand-in builders used by every brand kit.
    All characters face down the track (-z). Each returns { root, animate(dt, a) }. */
 window.RG = (() => {
@@ -746,21 +746,21 @@ const FG = window.KIT = {
   },
   board: { name: 'Bonnet Sled', short: 'Sled', css: '#ffb36b', hex: 0xffb36b, dur: 30, key: 'boardT', lift: 0.12 },
   stages: [
-    { id: 'boneyard', card: 'fg_card', name: 'The Bone Yard', blurb: 'Where everything that has been is still useful', goal: 1000, ground: 0xb8844e, track: 0xb07e50,
+    { id: 'boneyard', card: 'sd_card_boneyard', name: 'The Bone Yard', blurb: 'Where everything that has been is still useful', goal: 1000, ground: 0xb8844e, track: 0xb07e50,
       chaser: 'hounds', chaserName: 'The Blight Hounds', warn: 'The Blight Hounds are right behind you',
       crash: ['Ran into a crushed-car stack', 'Car stacks need a lane change, or Bedspring Boots to clear them.'],
       sections: [
         { name: 'The Bone Yard', light: [3, 2.2, 1.1], fog: 0xbfe0ea, sky: [0x1478c8, 0x9fe4ff, 0xd8b88a], hemi: [0xcfeeff, 0xc08a50, 1.05], sun: 0xfff0d6, sunI: 1.5, sunDisc: 0xfff6e0, sunDir: [-0.5, 0.75, -1], ui: '#3fc7c0' },
         { name: "Clyde's Sorting Rows", light: [3, 2.0, 0.8], fog: 0xf0b888, sky: [0x3462b0, 0xffc27a, 0xc8905a], hemi: [0xffd2a0, 0x8a5a30, 0.95], sun: 0xffc080, sunI: 1.4, sunDisc: 0xffd090, sunDir: [0.35, 0.22, -1], ui: '#ffb547' },
         { name: 'The Deep Pile', light: [3, 1.4, 0.7], fog: 0xd8607a, sky: [0x3a1a6a, 0xff6a4a, 0x8a4a40], hemi: [0xff9a8a, 0x5a2a30, 0.85], sun: 0xff8a50, sunI: 1.25, sunDisc: 0xff7a30, sunDir: [0.2, 0.06, -1], ui: '#ff5a6a' } ] },
-    { id: 'chopshop', artTint: 0xd8c4ae, name: 'The Chop Shop', blurb: "If it had wheels, it'll have wheels again", goal: 1250, ground: 0xb88a5a, track: 0xa47c58,
+    { id: 'chopshop', card: 'sd_card_chopshop', artTint: 0xd8c4ae, name: 'The Chop Shop', blurb: "If it had wheels, it'll have wheels again", goal: 1250, ground: 0xb88a5a, track: 0xa47c58,
       chaser: 'boar', chaserName: 'Bristleback', unlockNote: 'Clear The Chop Shop to unlock Scrap',
       crash: ['Ran into a drum stack', 'Drum stacks need a lane change, or Bedspring Boots to clear them.'],
       sections: [
         { name: 'The Chop Shop: Welding Bay', light: [3, 2.3, 1.2], fog: 0xffc890, sky: [0x2a6ab8, 0xffd29a, 0xb88a5a], hemi: [0xffe0b8, 0x7a5030, 1.0], sun: 0xffd6a0, sunI: 1.35, sunDisc: 0xffe0a0, sunDir: [-0.4, 0.3, -1], ui: '#ffb547' },
         { name: "Otis's Trailer Row", light: [3, 1.6, 0.9], fog: 0xe87a8a, sky: [0x4a2a8a, 0xff8a6a, 0x8a5a48], hemi: [0xffa898, 0x5a3038, 0.9], sun: 0xff9a70, sunI: 1.2, sunDisc: 0xff8a50, sunDir: [0.3, 0.08, -1], ui: '#ff5a6a' },
         { name: "Festus's Forge", light: [3, 1.8, 0.6], fog: 0x6a3a7a, sky: [0x1a1040, 0xb04a7a, 0x3a2030], hemi: [0xb08ad8, 0x3a1a20, 0.7], sun: 0xff9a60, sunI: 0.8, sunDisc: 0x000000, ui: '#ffb547' } ] },
-    { id: 'perimeter', name: 'The Perimeter', blurb: 'Last line of defence against the wasteland', goal: 1500, ground: 0xbe8a52, track: 0xb48654,
+    { id: 'perimeter', card: 'sd_card_perimeter', name: 'The Perimeter', blurb: 'Last line of defence against the wasteland', goal: 1500, ground: 0xbe8a52, track: 0xb48654,
       chaser: 'foxes', chaserName: 'Scorch and the Fever Foxes', warn: 'Scorch and the Fever Foxes are right behind you',
       crash: ['Ran into the barricade', 'Barricade panels need a lane change, or Bedspring Boots to clear them.'],
       sections: [
