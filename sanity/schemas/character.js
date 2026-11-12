@@ -2,6 +2,13 @@ export default {
   name: 'character',
   title: 'Character',
   type: 'document',
+  fieldsets: [
+    {
+      name: 'reference',
+      title: 'Reference (private)',
+      options: { collapsible: true, collapsed: true },
+    },
+  ],
   fields: [
     {
       name: 'name',
@@ -113,6 +120,15 @@ export default {
       title: 'Display Order',
       type: 'number',
       description: 'Lower numbers appear first on the Meet The Misfits page',
+    },
+    {
+      name: 'referenceGallery',
+      title: 'Reference gallery (private)',
+      description: 'Working and promo images for this character. Not shown on the website.',
+      type: 'array',
+      fieldset: 'reference',
+      options: { layout: 'grid' },
+      of: [{ type: 'galleryImage' }],
     },
     {
       name: 'seoTitle',
