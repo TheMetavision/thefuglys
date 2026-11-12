@@ -154,6 +154,8 @@ Do this **before** turning shipping on. Without it, every return request (and ev
 
 Nothing else on that webhook changes.
 
+Since sanity-galleries the filter also lists `game`: see `docs/REBUILD-WEBHOOK.md`, which holds the current filter.
+
 ### 4. Studio: schema + hosted Studio (two deploys)
 
 ```powershell
