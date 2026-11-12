@@ -55,6 +55,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #touch .tl button { font-size: 34px; }
 #touch button.sm { width: 64px; height: 64px; font-size: 13px; }
 #touch button.down { background: rgba(153,19,47,.75); border-color: var(--yellow); transform: scale(.96); }
+/* corner layout: steer left in the bottom-left corner, steer right in the bottom-right, actions beside each thumb */
+#touch { inset: 0; --pl: max(16px, env(safe-area-inset-left)); --pr: max(16px, env(safe-area-inset-right)); --pb: max(16px, env(safe-area-inset-bottom)); }
+#touch .tl, #touch .tr { display: contents; }
+#touch button { position: absolute; pointer-events: auto; margin: 0; }
+#touch #tLeft  { left: var(--pl);  bottom: var(--pb); width: 92px; height: 92px; }
+#touch #tRight { right: var(--pr); bottom: var(--pb); width: 92px; height: 92px; }
+#touch #tDrift { left: calc(var(--pl) + 10px); bottom: calc(var(--pb) + 106px); width: 72px; height: 72px; font-size: 14px; }
+#touch #tItem  { right: calc(var(--pr) + 6px); bottom: calc(var(--pb) + 106px); width: 80px; height: 80px; }
+#touch #tBrake { right: calc(var(--pr) + 106px); bottom: var(--pb); width: 64px; height: 64px; }
+@media (max-height: 360px) {
+  #touch #tLeft, #touch #tRight { width: 78px; height: 78px; }
+  #touch #tDrift { bottom: calc(var(--pb) + 88px); width: 62px; height: 62px; }
+  #touch #tItem  { bottom: calc(var(--pb) + 88px); width: 68px; height: 68px; }
+  #touch #tBrake { right: calc(var(--pr) + 90px); width: 58px; height: 58px; }
+}
 #tDrift { background: rgba(217,138,58,.45) !important; }
 
 /* ---------- overlays ---------- */
