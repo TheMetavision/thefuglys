@@ -180,3 +180,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
   #selectScreen .racer .rinfo { order: 3; width: 100%; margin-top: 8px; }
   #selectScreen #goBtn { align-self: center; }
 }
+
+/* title-screen track tiles (match the runner games' stage tiles) */
+.titletracks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 520px; margin: 4px auto 16px; }
+.titletracks .tcard { cursor: pointer; font: inherit; color: inherit; }
+.titletracks .tcard i { aspect-ratio: 16/9; }
+.titletracks .tcard b { font-size: 16px; padding: 6px 8px 0; }
+.titletracks .tcard small { padding: 0 8px; font-size: 11px; }
+.titletracks .tcard.sel { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow); }
+.titletracks .tcard.locked { filter: grayscale(.9) brightness(.6); cursor: not-allowed; }
+@media (max-width: 560px) { .titletracks { gap: 6px; } .titletracks .tcard b { font-size: 13px; } .titletracks .tcard small { display: none; } }
