@@ -10,6 +10,9 @@ import { defineArrayMember, defineField, defineType } from 'sanity';
  * "." (e.g. game.junkyard-racers) can only be read with a token, so create game
  * records through the API with a dotted id rather than from the Studio "+"
  * button, which makes a random undotted id.
+ *
+ * `game` must stay in the "Netlify rebuild" webhook's excluded types, or every
+ * game write rebuilds the site (docs/REBUILD-WEBHOOK.md).
  */
 export default defineType({
   name: 'game',
