@@ -1264,6 +1264,17 @@ function goTitle() {
 }
 function renderTitle() {
   document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('sel', b.dataset.diff === race.diff));
+  // track tiles on the title screen (like the runner games): pick a track, and its art becomes the menu backdrop
+  const tt = $('titleTracks');
+  if (tt) { tt.innerHTML = '';
+    TRACKS.forEach((t, i) => { const ok = unlockedTrack(t.id), b = document.createElement('button');
+      b.className = 'tcard' + (t === race.track ? ' sel' : '') + (ok ? '' : ' locked');
+      b.innerHTML = `<i style="background-image:url(${BASE}tex/${t.card}.jpg)"></i><b>${t.name}</b><small>${ok ? 'Rival: ' + R[t.rival].name : 'Finish top 3 on the ' + TRACKS[i - 1].name}</small>`;
+      b.onclick = () => { if (!ok) return; sfx.click(); race.track = t; enterShowroom(t); renderTitle(); };
+      tt.appendChild(b); }); }
+  const ts = $('titleScreen');
+  if (ts && race.track && race.track.card) { ts.style.backgroundImage = `radial-gradient(ellipse at center, rgba(10,14,16,.35) 0%, rgba(10,14,16,.88) 75%), url(${BASE}tex/${race.track.card}.jpg)`;
+    ts.style.backgroundSize = 'cover'; ts.style.backgroundPosition = 'center'; }
   $('controlsHelp').innerHTML = coarse
     ? '<b>Phone</b>: hold ◀ ▶ to steer, accelerate is automatic. Hold <b>DRIFT</b> into a corner and let go for a boost. Tap <b>ITEM</b> to use what you picked up.'
     : '<b>Steer</b> ← → or A D · <b>Accelerate</b> ↑ or W · <b>Brake</b> ↓ or S · <b>Drift</b> hold Space into a corner, let go to boost · <b>Item</b> Shift or E · <b>Pause</b> Esc';
