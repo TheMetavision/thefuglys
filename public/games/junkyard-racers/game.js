@@ -63,17 +63,17 @@ const TRACKS = [
   { id: 'boneyard', name: 'Bone Yard GP', blurb: 'Dust, car stacks and the crusher. Where everything that\'s been is still useful.',
     rival: 'bristleback', unlockRacer: 'trixie', width: 16, tex: 'by', card: 'track_boneyard',
     points: [[0, 0], [0, -120], [20, -170], [70, -186], [120, -162], [136, -112], [110, -72], [130, -30], [172, -12], [186, 40], [150, 82], [80, 92], [40, 62], [10, 40]],
-    theme: { sky: 'by_sky', skyTop: 0x8d5e86, fog: 0xd9845a, fogNear: 90, fogFar: 520, sun: 0xffc48a, sunI: 3.1, sunDir: [-0.55, 0.32, -0.75], hemiSky: 0xffb48a, hemiGround: 0x6b4a2e, hemiI: 1.05, exposure: 1.0, groundTint: 0xd8a070 },
+    theme: { sky: 'by_sky_boneyard', skyWrap: 0.235, skyTop: 0x896198, fog: 0xd9845a, fogNear: 90, fogFar: 520, sun: 0xffc48a, sunI: 3.1, sunDir: [-0.55, 0.32, -0.75], hemiSky: 0xffb48a, hemiGround: 0x6b4a2e, hemiI: 1.05, exposure: 1.0, groundTint: 0xd8a070 },
     crates: [0.16, 0.42, 0.66, 0.86], crane: 0.30, signs: ['byd0', 'byd1', 'byd2', 'byd3', 'byd4', 'byd5'] },
   { id: 'chopshop', name: 'Chop Shop Circuit', blurb: 'Tight and technical, through the workshop yard. If it had wheels, it\'ll have wheels again.',
     rival: 'scorch', unlockRacer: 'bigma', width: 13, tex: 'by', card: 'track_chopshop',
     points: [[0, 0], [0, -80], [-15, -112], [-50, -118], [-72, -92], [-62, -62], [-92, -42], [-114, -62], [-142, -52], [-148, -10], [-122, 16], [-82, 10], [-56, 36], [-30, 42], [-10, 26]],
-    theme: { sky: 'by_sky', skyTop: 0x8d5e86, fog: 0xc98a64, fogNear: 70, fogFar: 420, sun: 0xffd2a0, sunI: 2.8, sunDir: [0.5, 0.42, -0.6], hemiSky: 0xffc89a, hemiGround: 0x5a4030, hemiI: 1.0, exposure: 0.98, groundTint: 0xc89870 },
+    theme: { sky: 'by_sky_chopshop', skyWrap: 0.235, skyTop: 0x896198, fog: 0xc98a64, fogNear: 70, fogFar: 420, sun: 0xffd2a0, sunI: 2.8, sunDir: [0.5, 0.42, -0.6], hemiSky: 0xffc89a, hemiGround: 0x5a4030, hemiI: 1.0, exposure: 0.98, groundTint: 0xc89870 },
     crates: [0.2, 0.47, 0.72], crane: 0.55, signs: ['byd1', 'byd2', 'byd5', 'byd4'] },
   { id: 'perimeter', name: 'The Perimeter Run', blurb: 'Flat out along the camp fence, past the caravans of The Pits. Last line of defence against the wasteland.',
     rival: 'lurk', unlockRacer: 'axel', width: 18, tex: 'by', card: 'track_perimeter',
     points: [[0, 0], [0, -160], [30, -232], [110, -262], [200, -242], [252, -172], [242, -82], [202, -22], [212, 60], [170, 122], [80, 132], [20, 92]],
-    theme: { sky: 'by_sky', skyTop: 0x8d5e86, fog: 0xbfa98e, fogNear: 110, fogFar: 640, sun: 0xfff0d8, sunI: 3.4, sunDir: [0.3, 0.7, 0.4], hemiSky: 0xbfe3ff, hemiGround: 0x7a5a3a, hemiI: 1.2, exposure: 1.02, groundTint: 0xdcae7c, caravans: true },
+    theme: { sky: 'by_sky_perimeter', skyWrap: 0.235, skyTop: 0x896198, fog: 0xbfa98e, fogNear: 110, fogFar: 640, sun: 0xfff0d8, sunI: 3.4, sunDir: [0.3, 0.7, 0.4], hemiSky: 0xbfe3ff, hemiGround: 0x7a5a3a, hemiI: 1.2, exposure: 1.02, groundTint: 0xdcae7c, caravans: true },
     crates: [0.14, 0.38, 0.62, 0.84], crane: -1, signs: ['byd3', 'byd0', 'byd2', 'byd1'] },
 ];
 const T = Object.fromEntries(TRACKS.map(t => [t.id, t]));
@@ -226,16 +226,33 @@ function buildTrack(def) {
   track.sunDir = new THREE.Vector3(...th.sunDir).normalize();
   renderer.toneMappingExposure = th.exposure;
 
-  // ---- sky: panorama on a cylinder (mirrored so it wraps without a seam) ----
-  const skyT = tex(th.sky); skyT.wrapS = THREE.MirroredRepeatWrapping; skyT.repeat.set(3, 1);
-  const sky = new THREE.Mesh(new THREE.CylinderGeometry(900, 900, 520, 64, 1, true),
-    new THREE.MeshBasicMaterial({ map: skyT, side: THREE.BackSide, fog: false, depthWrite: false }));
-  sky.position.y = 150; sky.renderOrder = -1; g.add(sky); track.sky = sky;
+  // ---- sky ----
+  // New-style backdrops (th.skyWrap): a distance-only panorama whose ends join seamlessly, repeated 3 times round the
+  // circle (no mirroring, so no reflected scenery), sized from the image so it keeps its proportions, with the horizon
+  // at ground level and a haze band below it that matches the fog. Older art falls back to the mirrored panorama.
+  const SKY_R = 900, SKY_REP = 3;
+  const skyT = tex(th.sky);
+  let sky;
+  if (th.skyWrap) {
+    skyT.wrapS = THREE.RepeatWrapping; skyT.repeat.set(SKY_REP, 1);
+    sky = new THREE.Mesh(new THREE.CylinderGeometry(SKY_R, SKY_R, 1, 96, 1, true),
+      new THREE.MeshBasicMaterial({ map: skyT, side: THREE.BackSide, fog: false, depthWrite: false }));
+    const fit = () => { const im = skyT.image; if (!im || !im.width) return setTimeout(fit, 150);
+      const h = (2 * Math.PI * SKY_R / SKY_REP) * im.height / im.width;
+      sky.scale.y = h; sky.position.y = h / 2 - th.skyWrap * h; };
+    sky.scale.y = 1200; sky.position.y = 300; fit();
+  } else {
+    skyT.wrapS = THREE.MirroredRepeatWrapping; skyT.repeat.set(3, 1);
+    sky = new THREE.Mesh(new THREE.CylinderGeometry(SKY_R, SKY_R, 520, 64, 1, true),
+      new THREE.MeshBasicMaterial({ map: skyT, side: THREE.BackSide, fog: false, depthWrite: false }));
+    sky.position.y = 150;
+  }
+  const skyRig = new THREE.Group(); g.add(skyRig); sky.renderOrder = -1; skyRig.add(sky); track.sky = skyRig;
   const cap = new THREE.Mesh(new THREE.CircleGeometry(900, 48), new THREE.MeshBasicMaterial({ color: th.skyTop || th.fog, side: THREE.DoubleSide, fog: false, depthWrite: false }));
-  cap.rotation.x = Math.PI / 2; cap.position.y = 900; cap.renderOrder = -1; sky.add(cap);
+  cap.rotation.x = Math.PI / 2; cap.position.y = 1600; cap.renderOrder = -2; skyRig.add(cap);
   // above the panorama: a plain band in the sky's top colour, so the edge of the picture never shows
   const band = new THREE.Mesh(new THREE.CylinderGeometry(900, 900, 640, 48, 1, true), new THREE.MeshBasicMaterial({ color: th.skyTop || th.fog, side: THREE.BackSide, fog: false, depthWrite: false }));
-  band.position.y = 260 + 320 - 1; band.renderOrder = -1; sky.add(band);
+  band.position.y = th.skyWrap ? 1280 : 260 + 320 - 1 + 150; band.renderOrder = -2; skyRig.add(band);
 
   // ---- ground: big desert plane in the dirt texture, tinted ----
   const gT = tex(def.tex + '_road', { repeat: [90, 90] }), gN = tex(def.tex + '_roadN', { repeat: [90, 90], srgb: false });
@@ -1056,7 +1073,7 @@ function updateCamera(dt, t) {
   // shadows follow the camera target
   if (track) {
     const c = cam.look; sun.position.copy(c).addScaledVector(track.sunDir, 120); sun.target.position.copy(c);
-    if (track.sky) track.sky.position.set(camera.position.x, 150, camera.position.z);
+    if (track.sky) track.sky.position.set(camera.position.x, 0, camera.position.z);
   }
 }
 
