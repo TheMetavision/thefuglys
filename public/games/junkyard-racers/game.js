@@ -1081,20 +1081,21 @@ function updateCamera(dt, t) {
    AUDIO
    ============================================================ */
 let muted = store.get('fg_jr_mute', false);
+/* music through the shared Web Audio engine (game-audio.js), never an <audio> element:
+   on iPhone an <audio> element is paused as soon as Web Audio (the engine note) starts sounding */
 const music = (() => {
-  const a = new Audio(); a.loop = true; a.preload = 'auto';
-  a.src = BASE + 'audio/theme.' + (a.canPlayType('audio/webm; codecs="opus"') ? 'webm' : 'mp4');
-  let vol = 0.5, started = false;
+  const names = ['theme'];
+  GameAudio.setMusic(Object.fromEntries(names.map(n => [n, [BASE + 'audio/' + n + '.mp4', BASE + 'audio/' + n + '.webm']])), 1);
+  GameAudio.setMuted(muted);
   return {
-    play(v) { vol = v; a.volume = muted ? 0 : vol; if (!started) { started = true; } a.play().catch(() => {}); },
-    rate(r) { a.playbackRate = r; },
-    mute() { a.volume = muted ? 0 : vol; },
+    play(v, name = 'theme') { GameAudio.duck(v); GameAudio.play(name); },
+    rate(r) { GameAudio.rate(r); },
+    mute() { GameAudio.setMuted(muted); },
   };
 })();
 let actx = null, eng = null;
 function audioCtx() {
-  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
-  if (actx && actx.state === 'suspended') actx.resume();
+  if (!actx) actx = GameAudio.context();
   return actx;
 }
 function engineStart() {
@@ -1155,8 +1156,7 @@ function voice(id, kind, force) {
   if (!VOICED[id] || muted) return;
   const now = perfNow(); if (!force && now < voBusyUntil) return;
   const n = VO_VARIANTS[kind] ? 1 + Math.floor(Math.random() * VO_VARIANTS[kind]) : '';
-  const a = new Audio(BASE + 'audio/voice/' + id + '_' + kind + n + '.mp3'); a.volume = 0.95;
-  a.play().then(() => { voBusyUntil = perfNow() + 2600; }).catch(() => {});
+  GameAudio.voice(BASE + 'audio/voice/' + id + '_' + kind + n + '.mp3', 0.95).then(ok => { if (ok) voBusyUntil = perfNow() + 2600; });
 }
 function shout(k, prob = 1, kind = 'pass') {
   if (Math.random() > prob || race.clock - (k.lastShout || -99) < 6) return; k.lastShout = race.clock;
@@ -1234,7 +1234,14 @@ function bindTouch(id, prop) {
 bindTouch('tLeft', 'left'); bindTouch('tRight', 'right'); bindTouch('tDrift', 'drift'); bindTouch('tItem', 'item'); bindTouch('tBrake', 'down');
 $('stage').addEventListener('pointerdown', () => { if (race.state === 'intro') startCountdown(); });
 let gestured = false;
-function firstGesture() { if (gestured) return; gestured = true; audioCtx(); engineStart(); if (race.state === 'title' || race.state === 'select') music.play(0.5); }
+function preloadVoices() {
+  const urls = [];
+  Object.keys(VOICED).forEach(id => Object.entries(VO_VARIANTS).forEach(([kind, n]) => { if (!n) urls.push(BASE + 'audio/voice/' + id + '_' + kind + '.mp3'); else for (let i = 1; i <= n; i++) urls.push(BASE + 'audio/voice/' + id + '_' + kind + i + '.mp3'); }));
+  GameAudio.preloadVoices(urls);
+}
+addEventListener('pointerdown', () => firstGesture(), true);
+addEventListener('touchend', () => firstGesture(), true);
+function firstGesture() { GameAudio.unlock(); if (gestured) return; gestured = true; audioCtx(); preloadVoices(); engineStart(); if (race.state === 'title' || race.state === 'select') music.play(0.5); }
 function readInput() {
   const gp = (navigator.getGamepads ? [...navigator.getGamepads()] : []).find(g => g && g.connected);
   let steer = 0, thr = 0, brk = 0, drift = false, item = false;
@@ -1279,6 +1286,9 @@ function goTitle() {
   race.state = 'title'; race.paused = false; enterShowroom(race.track); showScreen('titleScreen'); renderTitle();
   if (gestured) music.play(0.5);
 }
+// phones held upright get the 9:16 version of the track card behind the menu
+const PORTRAIT = matchMedia('(orientation: portrait) and (max-aspect-ratio: 4/5)');
+(PORTRAIT.addEventListener ? PORTRAIT.addEventListener.bind(PORTRAIT, 'change') : PORTRAIT.addListener.bind(PORTRAIT))(() => { if (race.state === 'title') renderTitle(); });
 function renderTitle() {
   document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('sel', b.dataset.diff === race.diff));
   // track tiles on the title screen (like the runner games): pick a track, and its art becomes the menu backdrop
@@ -1290,7 +1300,7 @@ function renderTitle() {
       b.onclick = () => { if (!ok) return; sfx.click(); race.track = t; enterShowroom(t); renderTitle(); };
       tt.appendChild(b); }); }
   const ts = $('titleScreen');
-  if (ts && race.track && race.track.card) { ts.style.backgroundImage = `radial-gradient(ellipse 55% 75% at center, rgba(10,14,16,.62) 0%, rgba(10,14,16,.3) 70%, rgba(10,14,16,.12) 100%), url(${BASE}tex/${race.track.card}.jpg)`;   // lighter, darker only behind the text, like Scrap Dash
+  if (ts && race.track && race.track.card) { ts.style.backgroundImage = `radial-gradient(ellipse 55% 75% at center, rgba(10,14,16,.62) 0%, rgba(10,14,16,.3) 70%, rgba(10,14,16,.12) 100%), url(${BASE}tex/${race.track.card}${PORTRAIT.matches ? '_p' : ''}.jpg)`;   // lighter, darker only behind the text, like Scrap Dash
     ts.style.backgroundSize = 'cover'; ts.style.backgroundPosition = 'center'; }
   $('controlsHelp').innerHTML = coarse
     ? '<b>Phone</b>: hold ◀ ▶ to steer, accelerate is automatic. Hold <b>DRIFT</b> into a corner and let go for a boost. Tap <b>ITEM</b> to use what you picked up.'

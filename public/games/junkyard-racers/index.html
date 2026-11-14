@@ -8,12 +8,19 @@
 <link rel="canonical" href="https://thefuglys.com/games/junkyard-racers/">
 <meta property="og:title" content="Junkyard Racers | The Fuglys">
 <meta property="og:description" content="A free scrap-kart racing game from The Fuglys. Three tracks, eleven racers, drifting, items and Time Trial with your best-lap ghost.">
-<meta property="og:image" content="https://thefuglys.com/games/junkyard-racers/tex/title_card.jpg">
+<meta property="og:image" content="https://thefuglys.com/games/junkyard-racers/tex/title_card_v2.jpg">
 <meta name="theme-color" content="#1d1a16">
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="game.css">
 <script>window.JR_BASE = "/games/junkyard-racers/";</script>
+<script src="/games/junkyard-racers/game-audio.js"></script>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<style>
+  /* game title: its own display face, matched to the title card lettering (no brand logo, Nov 2026) */
+  @font-face { font-family: 'GameTitle'; src: url('fonts/rubik-dirt-title.woff2') format('woff2'); font-display: swap; }
+  h1.title, h1.title::before, h1.title span { font-family: 'GameTitle', var(--display), sans-serif; }
+  h1.title { font-size: clamp(36px, 7.6vw, 66px); letter-spacing: 1px; margin-top: 8px; text-transform: uppercase; }
+</style>
 </head>
 <body>
 <div id="stage" aria-label="Game view"></div>
@@ -48,7 +55,6 @@
 
 <div class="overlay on" id="titleScreen">
   <div class="card">
-    <img class="brandlogo" src="img/logo.webp" alt="The Fuglys" width="360" height="211">
     <h1 class="title" data-text="Junkyard Racers"><span>Junkyard Racers</span></h1>
     <p class="lede">Bolt something fast together from the scrap heap and race the crew round the yard. Drift for boosts, smash a crate for something nasty, and beat the Razor Boars to the line.</p>
     <div class="titletracks" id="titleTracks" role="group" aria-label="Tracks"></div>
