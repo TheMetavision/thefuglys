@@ -441,7 +441,7 @@
 <script src="vendor/meshopt_decoder.js"></script>
 
 <script>
-window.__TX={"sd_card_boneyard": "/games/scrap-dash/tex/sd_card_boneyard.jpg", "sd_card_chopshop": "/games/scrap-dash/tex/sd_card_chopshop.jpg", "sd_card_perimeter": "/games/scrap-dash/tex/sd_card_perimeter.jpg", "fg_carcube": "/games/scrap-dash/tex/fg_carcube.webp", "fg_carcube_n": "/games/scrap-dash/tex/fg_carcube_n.webp", "fg_card": "/games/scrap-dash/tex/fg_card.jpg", "fg_corr": "/games/scrap-dash/tex/fg_corr.webp", "fg_corr_n": "/games/scrap-dash/tex/fg_corr_n.webp", "fg_ground": "/games/scrap-dash/tex/fg_ground.webp", "fg_ground_n": "/games/scrap-dash/tex/fg_ground_n.webp", "fg_heap_low": "/games/scrap-dash/tex/fg_heap_low.webp", "fg_heap_tall": "/games/scrap-dash/tex/fg_heap_tall.webp", "fg_paint": "/games/scrap-dash/tex/fg_paint.webp", "fg_paint_n": "/games/scrap-dash/tex/fg_paint_n.webp", "fg_pano_day": "/games/scrap-dash/tex/fg_pano_day.webp", "fg_pano_gold": "/games/scrap-dash/tex/fg_pano_gold.webp", "fg_pano_sunset": "/games/scrap-dash/tex/fg_pano_sunset.webp", "fg_sign0": "/games/scrap-dash/tex/fg_sign0.webp", "fg_sign1": "/games/scrap-dash/tex/fg_sign1.webp", "fg_sign2": "/games/scrap-dash/tex/fg_sign2.webp", "fg_sign3": "/games/scrap-dash/tex/fg_sign3.webp", "fg_sign4": "/games/scrap-dash/tex/fg_sign4.webp", "fg_sign5": "/games/scrap-dash/tex/fg_sign5.webp", "fg_track": "/games/scrap-dash/tex/fg_track.webp", "fg_track_n": "/games/scrap-dash/tex/fg_track_n.webp", "sd_card_boneyard_p": "/games/scrap-dash/tex/sd_card_boneyard_p.jpg", "sd_card_chopshop_p": "/games/scrap-dash/tex/sd_card_chopshop_p.jpg", "sd_card_perimeter_p": "/games/scrap-dash/tex/sd_card_perimeter_p.jpg"};
+window.__TX={"sd_card_boneyard": "/games/scrap-dash/tex/sd_card_boneyard.jpg", "sd_card_chopshop": "/games/scrap-dash/tex/sd_card_chopshop.jpg", "sd_card_perimeter": "/games/scrap-dash/tex/sd_card_perimeter.jpg", "fg_carcube": "/games/scrap-dash/tex/fg_carcube.webp", "fg_carcube_n": "/games/scrap-dash/tex/fg_carcube_n.webp", "fg_card": "/games/scrap-dash/tex/fg_card.jpg", "fg_corr": "/games/scrap-dash/tex/fg_corr.webp", "fg_corr_n": "/games/scrap-dash/tex/fg_corr_n.webp", "fg_ground": "/games/scrap-dash/tex/fg_ground.webp", "fg_ground_n": "/games/scrap-dash/tex/fg_ground_n.webp", "fg_heap_low": "/games/scrap-dash/tex/fg_heap_low.webp", "fg_heap_tall": "/games/scrap-dash/tex/fg_heap_tall.webp", "fg_paint": "/games/scrap-dash/tex/fg_paint.webp", "fg_paint_n": "/games/scrap-dash/tex/fg_paint_n.webp", "fg_pano_day": "/games/scrap-dash/tex/fg_pano_day.webp", "fg_pano_gold": "/games/scrap-dash/tex/fg_pano_gold.webp", "fg_pano_sunset": "/games/scrap-dash/tex/fg_pano_sunset.webp", "fg_pano_cs_gold": "/games/scrap-dash/tex/fg_pano_cs_gold.webp", "fg_pano_cs_dusk": "/games/scrap-dash/tex/fg_pano_cs_dusk.webp", "fg_pano_cs_night": "/games/scrap-dash/tex/fg_pano_cs_night.webp", "fg_pano_pm_orange": "/games/scrap-dash/tex/fg_pano_pm_orange.webp", "fg_pano_pm_dusk": "/games/scrap-dash/tex/fg_pano_pm_dusk.webp", "fg_pano_pm_waste": "/games/scrap-dash/tex/fg_pano_pm_waste.webp", "fg_sign0": "/games/scrap-dash/tex/fg_sign0.webp", "fg_sign1": "/games/scrap-dash/tex/fg_sign1.webp", "fg_sign2": "/games/scrap-dash/tex/fg_sign2.webp", "fg_sign3": "/games/scrap-dash/tex/fg_sign3.webp", "fg_sign4": "/games/scrap-dash/tex/fg_sign4.webp", "fg_sign5": "/games/scrap-dash/tex/fg_sign5.webp", "fg_track": "/games/scrap-dash/tex/fg_track.webp", "fg_track_n": "/games/scrap-dash/tex/fg_track_n.webp", "sd_card_boneyard_p": "/games/scrap-dash/tex/sd_card_boneyard_p.jpg", "sd_card_chopshop_p": "/games/scrap-dash/tex/sd_card_chopshop_p.jpg", "sd_card_perimeter_p": "/games/scrap-dash/tex/sd_card_perimeter_p.jpg"};
 /* Shared stand-in builders used by every brand kit.
    All characters face down the track (-z). Each returns { root, animate(dt, a) }. */
 window.RG = (() => {
@@ -862,8 +862,8 @@ const FG = window.KIT = {
     FG._st = st;
     if (ART.on) {
       MT.track.color.set(st.artTint || 0xffffff); MT.ground.color.set(st.artTint || 0xffffff);
-      const by = st.id === 'boneyard';
-      ART.pano.visible = by; ART.heaps.forEach(h => h.m.visible = by); if (FG._far) FG._far.visible = !by;
+      const by = st.id === 'boneyard', painted = !!PANOS[st.id];
+      ART.pano.visible = painted; ART.heaps.forEach(h => h.m.visible = by); if (FG._far) FG._far.visible = !painted;
     } else { MT.track.color.set(st.track); MT.ground.color.set(st.ground); }
   },
   dressSegment(X, s, st, i) {
@@ -1092,9 +1092,18 @@ const FG = window.KIT = {
    PAINTED ART LAYER (Higgsfield renders, processed: seams, surface maps, keyed cutouts)
    ============================================================ */
 const ART = { on: false };
-const PANO = [ { k: 'fg_pano_day', hor: 0.37, fog: 0xd6c3a2, sky: [0x5b8dd8, 0x9cc4ee, 0xd8b88a] },
+// One painted horizon per section, per stage (sky, haze and light follow the painting)
+const PANOS = {
+  boneyard:  [ { k: 'fg_pano_day', hor: 0.37, fog: 0xd6c3a2, sky: [0x5b8dd8, 0x9cc4ee, 0xd8b88a] },
                { k: 'fg_pano_gold', hor: 0.47, fog: 0xdcae80, sky: [0x8d9ab8, 0xf0c690, 0xc8905a] },
-               { k: 'fg_pano_sunset', hor: 0.655, fog: 0x8a5040, sky: [0x5a3466, 0xe8884a, 0x5a3028] } ];
+               { k: 'fg_pano_sunset', hor: 0.655, fog: 0x8a5040, sky: [0x5a3466, 0xe8884a, 0x5a3028] } ],
+  chopshop:  [ { k: 'fg_pano_cs_gold', hor: 0.62, fog: 0xc98a64, sky: [0x856db1, 0xf0a878, 0xc98a64] },
+               { k: 'fg_pano_cs_dusk', hor: 0.62, fog: 0xc87a7a, sky: [0x5a3a88, 0xf08a80, 0xc87a7a] },
+               { k: 'fg_pano_cs_night', hor: 0.62, fog: 0x4a2c5a, sky: [0x1a1440, 0x8a3a7a, 0x4a2c5a] } ],
+  perimeter: [ { k: 'fg_pano_pm_orange', hor: 0.62, fog: 0xd0906a, sky: [0x6a3a8a, 0xf0a060, 0xd0906a] },
+               { k: 'fg_pano_pm_dusk', hor: 0.62, fog: 0xb89a8e, sky: [0x6d388a, 0xe87a7a, 0xb89a8e] },
+               { k: 'fg_pano_pm_waste', hor: 0.62, fog: 0xb8cdd0, sky: [0x2a6ac0, 0x9ad0ec, 0xb8cdd0] } ] };
+const PANO = PANOS.boneyard;
 const SIGN_ASPECT = [325, 287, 185, 224, 381, 508].map(h => h / 512);
 function artSign(x) {
   const i = Math.random() * 6 | 0, g = new THREE.Group();
@@ -1114,13 +1123,14 @@ function artInit(X) {
   MT.carcube = new THREE.MeshStandardMaterial({ map: T('fg_carcube', 1, 1), normalMap: T('fg_carcube_n', 1, 1), roughness: 0.72, metalness: 0.3 });
   ART.signs = [0, 1, 2, 3, 4, 5].map(i => new THREE.MeshStandardMaterial({ map: clampTex('fg_sign' + i), transparent: true, alphaTest: 0.4, roughness: 0.85, side: THREE.DoubleSide }));
   // Bone Yard sections take their sky, haze and light from the paintings
-  const by = FG.stages[0];
-  by.sections.forEach((s, i) => { s.fog = PANO[i].fog; s.sky = PANO[i].sky; s.hemi = [s.hemi[0], s.hemi[1], s.hemi[2] * 0.62]; s.sunI = s.sunI * 0.6; });
+  FG.stages.forEach(st => { const ps = PANOS[st.id]; if (!ps) return;
+    st.sections.forEach((s, i) => { s.fog = ps[i].fog; s.sky = ps[i].sky; s.hemi = [s.hemi[0], s.hemi[1], s.hemi[2] * 0.62]; s.sunI = s.sunI * 0.6; }); });
 
   /* --- the painted horizon: a 150-degree ring at infinity, cross-faded per section --- */
   const R = 150, SPAN = 2.75, ASPECT = 3168 / 1344, H = R * SPAN / ASPECT;
-  ART.panoTex = PANO.map(p => clampTex(p.k));
-  const u = { tA: { value: ART.panoTex[0] }, tB: { value: ART.panoTex[0] }, horA: { value: PANO[0].hor }, horB: { value: PANO[0].hor }, mixv: { value: 0 }, t: { value: 0 }, H: { value: H } };
+  ART.panoTexCache = {}; ART.panoTex = k => ART.panoTexCache[k] || (ART.panoTexCache[k] = clampTex(k));
+  const t0 = ART.panoTex(PANO[0].k);
+  const u = { tA: { value: t0 }, tB: { value: t0 }, horA: { value: PANO[0].hor }, horB: { value: PANO[0].hor }, mixv: { value: 0 }, t: { value: 0 }, H: { value: H } };
   const pm = new THREE.ShaderMaterial({ uniforms: u, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec2 vUv; varying float vY; void main(){ vUv = uv; vY = position.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: [
@@ -1177,12 +1187,12 @@ function artPlaceHeap(h, z) {
   h.m.rotation.y = side < 0 ? 0.55 : -0.55;
 }
 function artSection(sec, instant) {
-  const i = FG._st.sections.indexOf(sec); if (FG._st.id !== 'boneyard' || i < 0) return;
-  const u = ART.pu, p = PANO[i];
-  const tint = [new THREE.Color(1, 1, 1), new THREE.Color(1, 0.88, 0.74), new THREE.Color(0.72, 0.52, 0.5)][i];
-  for (const k in ART.heapMats) ART.heapMats[k].color.copy(tint);
-  if (instant) { u.tA.value = ART.panoTex[i]; u.horA.value = p.hor; u.mixv.value = 0; ART.fade = null; return; }
-  u.tB.value = ART.panoTex[i]; u.horB.value = p.hor; u.mixv.value = 0; ART.fade = 0;
+  const ps = PANOS[FG._st.id], i = FG._st.sections.indexOf(sec); if (!ps || i < 0) return;
+  const u = ART.pu, p = ps[i];
+  if (FG._st.id === 'boneyard') { const tint = [new THREE.Color(1, 1, 1), new THREE.Color(1, 0.88, 0.74), new THREE.Color(0.72, 0.52, 0.5)][i];
+    for (const k in ART.heapMats) ART.heapMats[k].color.copy(tint); }
+  if (instant) { u.tA.value = ART.panoTex(p.k); u.horA.value = p.hor; u.mixv.value = 0; ART.fade = null; return; }
+  u.tB.value = ART.panoTex(p.k); u.horB.value = p.hor; u.mixv.value = 0; ART.fade = 0;
 }
 function artUpdate(X, dt, t, move) {
   const cam = X.camera, by = FG._st && FG._st.id === 'boneyard';
@@ -2125,7 +2135,7 @@ $('playBtn').addEventListener('click', startRun);
 $('againBtn').addEventListener('click', startRun);
 $('overNextBtn').addEventListener('click', e => { e.stopPropagation(); $('overScreen').classList.remove('on'); applyStage(stageIdx + 1); startRun(); });
 lbInit();
-if (DEBUG) window.__sd = { get S() { return S; }, die: c => die(c), get state() { return state; }, chaser, GLB, applyStage: i => applyStage(i), selectRunner: i => { runnerIdx = i; syncRunner(); }, startRun: () => startRun(), music };   // test hook, ?debug only
+if (DEBUG) window.__sd = { get S() { return S; }, die: c => die(c), get state() { return state; }, chaser, GLB, applyStage: i => applyStage(i), selectRunner: i => { runnerIdx = i; syncRunner(); }, startRun: () => startRun(), setTheme: (i, inst) => setTheme(i, inst), music };   // test hook, ?debug only
 $('overMenuBtn').addEventListener('click', e => { e.stopPropagation(); $('overScreen').classList.remove('on'); toTitle(); });
 $('resumeBtn').addEventListener('click', resume);
 $('keepBtn').addEventListener('click', e => { e.stopPropagation(); resume(); });
