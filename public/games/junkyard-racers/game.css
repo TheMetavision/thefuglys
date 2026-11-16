@@ -208,3 +208,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .titletracks .tcard.locked { opacity: 1; filter: none; }
 .titletracks .tcard.locked i { filter: grayscale(1) brightness(.55); }
 .titletracks .tcard.locked b, .titletracks .tcard.locked small { opacity: .8; }
+
+#itemIcon { width: 88%; height: 88%; display: grid; place-items: center; }
+#itemIcon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0,0,0,.55)); pointer-events: none; }

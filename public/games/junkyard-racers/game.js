@@ -28,10 +28,11 @@ const BOOST_MULT = 1.38;
 const VERGE = 3.2;                            // sand verge between road edge and barrier (slow)
 const KART_R = 1.0;                           // collision radius
 const SAMPLE_STEP = 1.0;                      // metres between track samples
-const DIFFS = {
-  easy:   { label: 'Rust Bucket',  ai: 0.80, rubberBack: 1.05, rubberFront: 0.90, itemSkill: 0.4 },
-  normal: { label: 'Road Rash',    ai: 0.92, rubberBack: 1.08, rubberFront: 0.95, itemSkill: 0.7 },
-  hard:   { label: 'Full Throttle', ai: 1.01, rubberBack: 1.10, rubberFront: 0.99, itemSkill: 1.0 },
+const DIFFS = {   // ai: base pace; catchUp: extra pace when behind the player (scales with the gap); ease: how much they lift when ahead;
+                  // corner: how hard they push through bends; aggro: how often they gang up on a leading player
+  easy:   { label: 'Rust Bucket', ai: 0.86, catchUp: 0.10, ease: 0.06, itemSkill: 0.45, corner: 1.00, aggro: 0.00 },
+  normal: { label: 'Road Rash', ai: 0.96, catchUp: 0.18, ease: 0.03, itemSkill: 0.80, corner: 1.08, aggro: 0.55 },
+  hard:   { label: 'Full Throttle', ai: 0.97, catchUp: 0.20, ease: 0.00, itemSkill: 1.00, corner: 1.10, aggro: 0.70 },
 };
 const POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
 
@@ -81,11 +82,11 @@ const START_RACERS = ['scrap', 'clyde', 'dixie', 'jebediah', 'cletus'];
 
 /* ---------------- items ---------------- */
 const ITEMS = {
-  nitro:    { name: 'Nitro Can',          icon: '⚡', color: '#5fd3ff' },
-  slick:    { name: 'Bean Slick',         icon: '🫘', color: '#c47a3a' },
-  hubcap:   { name: 'Hubcap',             icon: '⭕', color: '#d9dde2' },
-  firework: { name: "Cletus's Firework",  icon: '🎆', color: '#ff5a3a' },
-  shield:   { name: 'Scrap Shield',       icon: '🛡️', color: '#ffd166' },
+  nitro:    { name: 'Nitro Can',          icon: '⚡', img: 'tex/items/nitro.webp', color: '#5fd3ff' },
+  slick:    { name: 'Bean Slick',         icon: '🫘', img: 'tex/items/slick.webp', color: '#c47a3a' },
+  hubcap:   { name: 'Hubcap',             icon: '⭕', img: 'tex/items/hubcap.webp', color: '#d9dde2' },
+  firework: { name: "Cletus's Firework",  icon: '🎆', img: 'tex/items/firework.webp', color: '#ff5a3a' },
+  shield:   { name: 'Scrap Shield',       icon: '🛡️', img: 'tex/items/shield.webp', color: '#ffd166' },
 };
 // weights by race position band: leaders get defensive items, the back of the pack gets catch-up items
 const ITEM_ODDS = [
@@ -663,14 +664,15 @@ function aiThink(k, dt) {
   k.input.steer = clamp(-diff * 2.4, -1, 1);
   // corner speed: how sharp is the road further ahead?
   const far = (k.sIdx + ahead * 2) % N, bend = Math.abs(wrapAngle(Math.atan2(tan[far].x, tan[far].z) - Math.atan2(tan[k.sIdx].x, tan[k.sIdx].z)));
-  const cornerMax = MAX_SPEED * (1.15 - clamp(bend, 0, 1.3) * 0.38);
-  k.input.throttle = sp < cornerMax ? 1 : 0.2; k.input.brake = sp > cornerMax * 1.15 && Math.abs(diff) > 0.3 ? 0.6 : 0;
+  const dd = DIFFS[race.diff], cornerMax = MAX_SPEED * (1.15 - clamp(bend, 0, 1.3) * 0.38) * dd.corner;
+  k.input.throttle = sp < cornerMax ? 1 : 0.2 + 0.3 * dd.aggro; k.input.brake = sp > cornerMax * 1.15 && Math.abs(diff) > 0.3 ? 0.6 : 0;
   // AI drift on long bends for its own mini-turbos (looks right and keeps the pack quick)
   if (!k.aiDrift && bend > 0.55 && sp > 18 && Math.random() < dt * 1.2) { k.aiDrift = 0.9 + Math.random() * 0.9; }
   if (k.aiDrift > 0) { k.aiDrift -= dt; k.input.drift = k.aiDrift > 0; if (k.aiDrift <= 0) k.aiDrift = 0; } else k.input.drift = false;
   // rubber band against the player so races stay close (gentle, and never on Time Trial)
   const d = DIFFS[race.diff];
-  k.skill = d.ai * (k.r.id === race.track.rival ? 1.03 : 1) * (k.prog > player.prog + 60 ? d.rubberFront : k.prog < player.prog - 60 ? d.rubberBack : 1) * k.aiBase;
+  const gap = player.prog - k.prog, band = gap > 0 ? 1 + d.catchUp * clamp(gap / 70, 0, 1) : 1 - d.ease * clamp(-gap / 70, 0, 1);
+  k.skill = d.ai * (k.r.id === race.track.rival ? 1.04 : 1) * band * k.aiBase;
   // items
   k.input.item = false;
   if (k.item && k.roulette <= 0) {
@@ -711,7 +713,9 @@ function buildCrates(g, def) {
 function rollItem(k) {
   if (race.mode === 'tt') return 'nitro';
   const band = k.place <= 1 ? 0 : k.place <= 3 ? 1 : k.place <= 5 ? 2 : 3;
-  const odds = ITEM_ODDS[band]; let tot = 0; for (const v of Object.values(odds)) tot += v;
+  let odds = ITEM_ODDS[band];
+  if (!k.isPlayer && player && player.place === 1 && k.place > 1) { const a = 1 + DIFFS[race.diff].aggro; odds = { ...odds }; for (const x of ['firework', 'hubcap', 'magnet']) if (x in odds) odds[x] *= a; }
+  let tot = 0; for (const v of Object.values(odds)) tot += v;
   let r = Math.random() * tot; for (const [id, v] of Object.entries(odds)) { if ((r -= v) < 0) return id; }
   return 'nitro';
 }
@@ -742,7 +746,8 @@ function useItem(k) {
   } else if (it === 'hubcap' || it === 'firework') {
     const p = k.pos.clone().addScaledVector(f, 2.0); p.y = 0.6;
     let target = null;
-    if (it === 'firework') { const ahead = karts.filter(o => o !== k && o.prog > k.prog).sort((a, b) => a.prog - b.prog); target = ahead[0] || null; }
+    if (it === 'firework') { const ahead = karts.filter(o => o !== k && o.prog > k.prog).sort((a, b) => a.prog - b.prog); target = ahead[0] || null;
+      if (!k.isPlayer && player.place === 1 && player.prog > k.prog && player.prog - k.prog < 250 && Math.random() < DIFFS[race.diff].aggro) target = player; }
     const mesh = it === 'hubcap' ? new THREE.Mesh(HUBCAP_GEO, HUBCAP_MAT) : fireworkMesh();
     mesh.castShadow = true; mesh.position.copy(p); world.add(mesh);
     shots.push({ type: it, pos: p, dir: f.clone(), speed: Math.max(k.speed, 0) + (it === 'hubcap' ? 22 : 16), life: it === 'hubcap' ? 4.5 : 7, owner: k, target, mesh, sIdx: k.sIdx, grace: 0.25 });
@@ -1164,12 +1169,19 @@ function shout(k, prob = 1, kind = 'pass') {
   const el = $('shout'); el.innerHTML = `<b style="color:${k.r.color}">${k.r.name}</b>${pick(k.r.shout)}`; el.classList.add('on'); shoutT = 1.8;
   // voice shouts from the character voice programme slot in here (audio/voice/<id>-<n>.mp4)
 }
+const ITEM_IMG = {};   // preload the item pictures so the roulette never flickers
+for (const [id, it] of Object.entries(ITEMS)) if (it.img) { const im = new Image(); im.src = it.img; im.alt = ''; im.draggable = false; ITEM_IMG[id] = im; }
+function setItemIcon(el, id) {
+  if (!id) { el.textContent = ''; return; }
+  const im = ITEM_IMG[id];
+  if (im && im.complete && im.naturalWidth) { if (el.firstChild !== im) el.replaceChildren(im); } else el.textContent = ITEMS[id].icon;   // emoji until the picture loads
+}
 function updateItemHud() {
   const box = $('itemBox'), ic = $('itemIcon');
   if (!player) return;
   if (player.roulette > 0) { box.classList.add('rolling'); return; }
   box.classList.remove('rolling');
-  ic.textContent = player.item ? ITEMS[player.item].icon : '';
+  setItemIcon(ic, player.item);
   box.classList.toggle('has', !!player.item);
   $('itemName').textContent = player.item ? ITEMS[player.item].name + (race.mode === 'tt' ? ' ×' + player.itemCharges : '') : '';
 }
@@ -1179,7 +1191,7 @@ function updateHud(dt = 0) {
   $('pos').innerHTML = race.mode === 'tt' ? '' : `${player.place}<sup>${ordinal(player.place).slice(-2)}</sup>`;
   $('lap').textContent = `Lap ${Math.min(LAPS, player.lap + 1)}/${LAPS}`;
   $('time').textContent = fmt(race.state === 'race' || race.state === 'finish' ? race.clock : 0);
-  if (player.roulette > 0 && perfNow() - lastRouletteIcon > 80) { lastRouletteIcon = perfNow(); const ks = Object.keys(ITEMS); $('itemIcon').textContent = ITEMS[pick(ks)].icon; }
+  if (player.roulette > 0 && perfNow() - lastRouletteIcon > 80) { lastRouletteIcon = perfNow(); const ks = Object.keys(ITEMS); setItemIcon($('itemIcon'), pick(ks)); }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   if (shoutT > 0) { shoutT -= dt; if (shoutT <= 0) $('shout').classList.remove('on'); }
   drawMinimap();
@@ -1435,7 +1447,20 @@ function stepVisualIdle(k, dt) {
 }
 
 // debug / test hooks (Playwright)
-window.__jr = { race, karts, get player() { return player; }, get track() { return track; }, startIntro, startCountdown, goSelect, goTitle, TRACKS, R, useItem, hitKart, showResults };
+// ?debug only: run the race simulation flat out (no rendering) to measure how close races are
+function fastSim(secs, pSkill) {
+  const out = []; let t = 0;
+  for (let n = 0; n < secs / STEP && race.state === 'race'; n++) {
+    t += STEP; race.clock += STEP;
+    for (const k of karts) { aiThink(k, STEP); if (k.isPlayer) k.skill = pSkill; if (k.input.item) useItem(k); stepKart(k, STEP); }
+    collideKarts(); updateCrates(STEP, race.clock); updateShots(STEP);
+    if (n % 1200 === 0) { const o = karts.filter(k => !k.isPlayer).sort((a, b) => b.prog - a.prog)[0]; out.push(Math.round(player.prog - o.prog)); }
+    if (karts.every(k => k.finished)) break;
+  }
+  const order = [...karts].sort((a, b) => (a.finished ? a.finishT ?? a.finishTime ?? 0 : 1e9 - a.prog) - (b.finished ? b.finishT ?? b.finishTime ?? 0 : 1e9 - b.prog));
+  return { gaps: out, place: order.indexOf(player) + 1, clock: Math.round(race.clock), finished: player.finished };
+}
+window.__jr = { fastSim: DEBUG ? fastSim : undefined, race, karts, get player() { return player; }, get track() { return track; }, startIntro, startCountdown, goSelect, goTitle, TRACKS, R, useItem, hitKart, showResults };
 
 goTitle();
 requestAnimationFrame(frame);
