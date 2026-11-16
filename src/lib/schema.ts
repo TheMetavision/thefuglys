@@ -17,7 +17,6 @@ export function organizationSchema() {
     sameAs: [
       'https://www.youtube.com/@TheFuglys',
       'https://www.instagram.com/the_fuglys',
-      'https://www.tiktok.com/@thefuglys',
       'https://x.com/TheFuglysMedia',
       'https://www.facebook.com/thefuglysmedia',
     ],

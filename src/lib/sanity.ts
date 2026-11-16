@@ -397,7 +397,7 @@ export async function hasPublishedEpisode(): Promise<boolean> {
 // ─── Social links (footer) ────────────────────────────────────
 // Platform values are stored in mixed case ("YouTube" / "youtube"), so they are
 // lower-cased here and returned in a fixed display order.
-export const SOCIAL_ORDER = ['youtube', 'tiktok', 'instagram', 'facebook', 'x'] as const;
+export const SOCIAL_ORDER = ['youtube', 'instagram', 'facebook', 'x'] as const;
 export type SocialPlatform = (typeof SOCIAL_ORDER)[number];
 
 let socialLinksPromise: Promise<{ platform: SocialPlatform; url: string }[]> | null = null;
