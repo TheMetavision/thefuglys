@@ -31,7 +31,7 @@ export default defineType({
       title: 'Caption',
       type: 'string',
       description: 'What the image shows, e.g. "Axel in his trolley kart with wheels, sunset junkyard"',
-      validation: (rule) => rule.required().max(120),
+      validation: (rule) => rule.required().max(500),
     }),
     defineField({
       name: 'kind',
