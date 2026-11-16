@@ -285,13 +285,13 @@
   .sitelinks { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
   .sitelinks .btn { text-decoration: none; }
   /* menu links under the main button: three equal columns, same height, text centred on the same line */
-  #titleScreen .sitelinks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 560px; margin-left: auto; margin-right: auto; }
+  #titleScreen .sitelinks { display: grid; grid-template-columns: repeat(3, minmax(max-content, 1fr)); gap: 10px; width: 100%; max-width: 640px; margin-left: auto; margin-right: auto; }
   .sitelinks .btn.small { width: 100%; height: 44px; min-height: 0; box-sizing: border-box; padding: 0 8px; font-size: 16px; letter-spacing: 1px;
     display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1; white-space: nowrap; overflow: hidden; margin: 0; }
-  #titleScreen .sitelinks .btn.small { margin: 0; padding: 0 6px; letter-spacing: .6px; }
+  #titleScreen .sitelinks .btn.small { margin: 0; padding: 0 16px; letter-spacing: .6px; }
   body.lb #titleScreen .sitelinks .lb-only, #titleScreen .sitelinks .btn.small { display: flex; }
   #titleScreen .sitelinks #lbOpenTitle { margin-top: 0; }
-  @media (max-width: 560px) { #titleScreen .sitelinks { grid-template-columns: 1fr; max-width: 300px; } .sitelinks .btn.small { font-size: 18px; } }
+  @media (max-width: 520px) { #titleScreen .sitelinks { grid-template-columns: 1fr; max-width: 300px; } .sitelinks .btn.small { font-size: 18px; } }
 </style>
 <style>
   /* game title: its own display face, matched to the title card lettering (no brand logo, Nov 2026) */
@@ -441,7 +441,7 @@
 <script src="vendor/meshopt_decoder.js"></script>
 
 <script>
-window.__TX={"sd_card_boneyard": "/games/scrap-dash/tex/sd_card_boneyard.jpg", "sd_card_chopshop": "/games/scrap-dash/tex/sd_card_chopshop.jpg", "sd_card_perimeter": "/games/scrap-dash/tex/sd_card_perimeter.jpg", "fg_carcube": "/games/scrap-dash/tex/fg_carcube.webp", "fg_carcube_n": "/games/scrap-dash/tex/fg_carcube_n.webp", "fg_card": "/games/scrap-dash/tex/fg_card.jpg", "fg_corr": "/games/scrap-dash/tex/fg_corr.webp", "fg_corr_n": "/games/scrap-dash/tex/fg_corr_n.webp", "fg_ground": "/games/scrap-dash/tex/fg_ground.webp", "fg_ground_n": "/games/scrap-dash/tex/fg_ground_n.webp", "fg_heap_low": "/games/scrap-dash/tex/fg_heap_low.webp", "fg_heap_tall": "/games/scrap-dash/tex/fg_heap_tall.webp", "fg_paint": "/games/scrap-dash/tex/fg_paint.webp", "fg_paint_n": "/games/scrap-dash/tex/fg_paint_n.webp", "fg_pano_day": "/games/scrap-dash/tex/fg_pano_day.webp", "fg_pano_gold": "/games/scrap-dash/tex/fg_pano_gold.webp", "fg_pano_sunset": "/games/scrap-dash/tex/fg_pano_sunset.webp", "fg_pano_cs_gold": "/games/scrap-dash/tex/fg_pano_cs_gold.webp", "fg_pano_cs_dusk": "/games/scrap-dash/tex/fg_pano_cs_dusk.webp", "fg_pano_cs_night": "/games/scrap-dash/tex/fg_pano_cs_night.webp", "fg_pano_pm_orange": "/games/scrap-dash/tex/fg_pano_pm_orange.webp", "fg_pano_pm_dusk": "/games/scrap-dash/tex/fg_pano_pm_dusk.webp", "fg_pano_pm_waste": "/games/scrap-dash/tex/fg_pano_pm_waste.webp", "fg_sign0": "/games/scrap-dash/tex/fg_sign0.webp", "fg_sign1": "/games/scrap-dash/tex/fg_sign1.webp", "fg_sign2": "/games/scrap-dash/tex/fg_sign2.webp", "fg_sign3": "/games/scrap-dash/tex/fg_sign3.webp", "fg_sign4": "/games/scrap-dash/tex/fg_sign4.webp", "fg_sign5": "/games/scrap-dash/tex/fg_sign5.webp", "fg_track": "/games/scrap-dash/tex/fg_track.webp", "fg_track_n": "/games/scrap-dash/tex/fg_track_n.webp", "sd_card_boneyard_p": "/games/scrap-dash/tex/sd_card_boneyard_p.jpg", "sd_card_chopshop_p": "/games/scrap-dash/tex/sd_card_chopshop_p.jpg", "sd_card_perimeter_p": "/games/scrap-dash/tex/sd_card_perimeter_p.jpg"};
+window.__TX={"sd_card_boneyard": "/games/scrap-dash/tex/sd_card_boneyard.jpg", "sd_card_chopshop": "/games/scrap-dash/tex/sd_card_chopshop.jpg", "sd_card_perimeter": "/games/scrap-dash/tex/sd_card_perimeter.jpg", "fg_carcube": "/games/scrap-dash/tex/fg_carcube.webp", "fg_carcube_n": "/games/scrap-dash/tex/fg_carcube_n.webp", "fg_card": "/games/scrap-dash/tex/fg_card.jpg", "fg_corr": "/games/scrap-dash/tex/fg_corr.webp", "fg_corr_n": "/games/scrap-dash/tex/fg_corr_n.webp", "fg_ground": "/games/scrap-dash/tex/fg_ground.webp", "fg_ground_n": "/games/scrap-dash/tex/fg_ground_n.webp", "fg_heap_low": "/games/scrap-dash/tex/fg_heap_low.webp", "fg_heap_tall": "/games/scrap-dash/tex/fg_heap_tall.webp", "fg_paint": "/games/scrap-dash/tex/fg_paint.webp", "fg_paint_n": "/games/scrap-dash/tex/fg_paint_n.webp", "fg_pano_by_day": "/games/scrap-dash/tex/fg_pano_by_day.webp", "fg_pano_by_gold": "/games/scrap-dash/tex/fg_pano_by_gold.webp", "fg_pano_by_sunset": "/games/scrap-dash/tex/fg_pano_by_sunset.webp", "fg_pano_cs_gold": "/games/scrap-dash/tex/fg_pano_cs_gold.webp", "fg_pano_cs_dusk": "/games/scrap-dash/tex/fg_pano_cs_dusk.webp", "fg_pano_cs_night": "/games/scrap-dash/tex/fg_pano_cs_night.webp", "fg_pano_pm_orange": "/games/scrap-dash/tex/fg_pano_pm_orange.webp", "fg_pano_pm_dusk": "/games/scrap-dash/tex/fg_pano_pm_dusk.webp", "fg_pano_pm_waste": "/games/scrap-dash/tex/fg_pano_pm_waste.webp", "fg_sign0": "/games/scrap-dash/tex/fg_sign0.webp", "fg_sign1": "/games/scrap-dash/tex/fg_sign1.webp", "fg_sign2": "/games/scrap-dash/tex/fg_sign2.webp", "fg_sign3": "/games/scrap-dash/tex/fg_sign3.webp", "fg_sign4": "/games/scrap-dash/tex/fg_sign4.webp", "fg_sign5": "/games/scrap-dash/tex/fg_sign5.webp", "fg_track": "/games/scrap-dash/tex/fg_track.webp", "fg_track_n": "/games/scrap-dash/tex/fg_track_n.webp", "sd_card_boneyard_p": "/games/scrap-dash/tex/sd_card_boneyard_p.jpg", "sd_card_chopshop_p": "/games/scrap-dash/tex/sd_card_chopshop_p.jpg", "sd_card_perimeter_p": "/games/scrap-dash/tex/sd_card_perimeter_p.jpg"};
 /* Shared stand-in builders used by every brand kit.
    All characters face down the track (-z). Each returns { root, animate(dt, a) }. */
 window.RG = (() => {
@@ -1097,9 +1097,9 @@ const FG = window.KIT = {
 const ART = { on: false };
 // One painted horizon per section, per stage (sky, haze and light follow the painting)
 const PANOS = {
-  boneyard:  [ { k: 'fg_pano_day', hor: 0.37, fog: 0xd6c3a2, sky: [0x5b8dd8, 0x9cc4ee, 0xd8b88a] },
-               { k: 'fg_pano_gold', hor: 0.47, fog: 0xdcae80, sky: [0x8d9ab8, 0xf0c690, 0xc8905a] },
-               { k: 'fg_pano_sunset', hor: 0.655, fog: 0x8a5040, sky: [0x5a3466, 0xe8884a, 0x5a3028] } ],
+  boneyard:  [ { k: 'fg_pano_by_day', hor: 0.62, fog: 0xe9c68a, sky: [0x376bb5, 0xb3cae1, 0xe9c68a] },
+               { k: 'fg_pano_by_gold', hor: 0.62, fog: 0xedb772, sky: [0xa3a2d6, 0xf0b07a, 0xedb772] },
+               { k: 'fg_pano_by_sunset', hor: 0.62, fog: 0x73372c, sky: [0x844f7a, 0xe8884a, 0x73372c] } ],
   chopshop:  [ { k: 'fg_pano_cs_gold', hor: 0.62, fog: 0xc98a64, sky: [0x856db1, 0xf0a878, 0xc98a64] },
                { k: 'fg_pano_cs_dusk', hor: 0.62, fog: 0xc87a7a, sky: [0x5a3a88, 0xf08a80, 0xc87a7a] },
                { k: 'fg_pano_cs_night', hor: 0.62, fog: 0x4a2c5a, sky: [0x1a1440, 0x8a3a7a, 0x4a2c5a] } ],
