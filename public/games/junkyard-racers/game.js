@@ -502,7 +502,7 @@ class Kart {
     this.sparks = [-1, 1].map(s => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0, toneMapped: false })); m.position.set(s * 0.55, 0.18, 0.95); this.root.add(m); return m; });
     this.flame = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 10), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0, toneMapped: false }));
     this.flame.rotation.x = -Math.PI / 2; this.flame.position.set(0, 0.5, 1.4); this.root.add(this.flame);
-    this.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.0, depthWrite: false, toneMapped: false }));
+    this.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 20), shieldMaterial());
     this.shieldMesh.position.y = 0.8; this.root.add(this.shieldMesh);
     this.loaded = !racer.model;
     if (racer.model) this.loadModel();
@@ -632,7 +632,7 @@ function stepKart(k, dt) {
   const sc = [0x5fd3ff, 0xffa03a, 0xd06bff][Math.max(0, tier)];
   k.sparks.forEach((m, i) => { m.material.color.setHex(sc); m.material.opacity = tier >= 0 ? 0.65 + 0.35 * Math.sin(perfNow() * 0.05 + i * 2) : 0; m.scale.setScalar(tier >= 0 ? 1 + tier * 0.5 + Math.random() * 0.6 : 1); });
   k.flame.material.opacity = k.boost > 0 ? 0.85 : 0; k.flame.scale.set(1, 0.7 + Math.random() * 0.6, 1);
-  k.shieldMesh.material.opacity = k.shield ? 0.16 + 0.06 * Math.sin(perfNow() * 0.008) : 0;
+  { const u = k.shieldMesh.material.uniforms; u.op.value += ((k.shield ? 1 : 0) - u.op.value) * Math.min(1, 0.016 * 12); u.t.value = perfNow() * 0.001; k.shieldMesh.visible = u.op.value > 0.01; }
 }
 const perfNow = () => performance.now();
 
@@ -748,7 +748,7 @@ function useItem(k) {
     let target = null;
     if (it === 'firework') { const ahead = karts.filter(o => o !== k && o.prog > k.prog).sort((a, b) => a.prog - b.prog); target = ahead[0] || null;
       if (!k.isPlayer && player.place === 1 && player.prog > k.prog && player.prog - k.prog < 250 && Math.random() < DIFFS[race.diff].aggro) target = player; }
-    const mesh = it === 'hubcap' ? new THREE.Mesh(HUBCAP_GEO, HUBCAP_MAT) : fireworkMesh();
+    const mesh = it === 'hubcap' ? itemModel('hubcap', () => new THREE.Mesh(HUBCAP_GEO, HUBCAP_MAT)) : itemModel('firework', fireworkMeshBasic, true);
     mesh.castShadow = true; mesh.position.copy(p); world.add(mesh);
     shots.push({ type: it, pos: p, dir: f.clone(), speed: Math.max(k.speed, 0) + (it === 'hubcap' ? 22 : 16), life: it === 'hubcap' ? 4.5 : 7, owner: k, target, mesh, sIdx: k.sIdx, grace: 0.25 });
     if (k.isPlayer) sfx.throw();
@@ -763,9 +763,46 @@ const SLICK_MAT = new THREE.MeshStandardMaterial({ roughness: 0.25, metalness: 0
     x.fillStyle = g; x.beginPath(); x.arc(w / 2, h / 2, w / 2, 0, 7); x.fill();
     for (let i = 0; i < 70; i++) { const a = Math.random() * 7, r = Math.random() * w * 0.36; x.fillStyle = Math.random() < 0.5 ? '#c26a2c' : '#a8521f'; x.beginPath(); x.ellipse(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r, 9, 6, Math.random() * 3, 0, 7); x.fill(); }
   }) });
+texLoader.load('tex/items/spill.webp', t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; SLICK_MAT.map = t; SLICK_MAT.alphaTest = 0.05; SLICK_MAT.needsUpdate = true; });
 const HUBCAP_GEO = (() => { const g = new THREE.CylinderGeometry(0.42, 0.42, 0.08, 20); return g; })();
 const HUBCAP_MAT = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 1, roughness: 0.22 });
-function fireworkMesh() {
+/* Item models made from the item-box art (models/items). Until one loads, the simple built-in shape is used. */
+const ITEM_MODELS = {};
+function loadItemModel(key, len, orient) {
+  gltfLoader.load('models/items/' + key + '.glb', g => {
+    const m = g.scene, inner = new THREE.Group(); inner.add(m); if (orient) orient(m);
+    m.traverse(o => { if (o.isMesh) { o.castShadow = true; const map = o.material && o.material.map;
+      if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();   // scanned meshes ship without normals   // painted look: the scanned PBR settings render near-black without reflections
+      o.material = new THREE.MeshStandardMaterial({ map, roughness: 0.5, metalness: 0.05, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.3 }); } });
+    inner.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(inner), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+    const k = len / Math.max(sz.x, sz.y, sz.z); inner.scale.setScalar(k); inner.position.copy(c).multiplyScalar(-k);
+    ITEM_MODELS[key] = inner;
+  }, undefined, () => {});
+}
+const ROCKET_FLAME = new THREE.MeshBasicMaterial({ color: 0xffb040, toneMapped: false, transparent: true, opacity: 0.9 });
+function itemModel(key, fallback, flame) {
+  const t = ITEM_MODELS[key]; if (!t) return fallback();
+  const g = new THREE.Group(); g.add(t.clone(true));
+  if (flame) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), ROCKET_FLAME); f.scale.set(1, 1, 1.8); f.position.z = 0.72; g.add(f); }
+  return g;
+}
+loadItemModel('firework', 1.25, m => { m.rotation.x = -Math.PI / 2; });
+loadItemModel('hubcap', 0.95);
+function shieldMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { op: { value: 0 }, t: { value: 0 }, col: { value: new THREE.Color(0xffd166) }, iri: { value: 0.0 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; varying vec3 vP; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); vP = position; gl_Position = projectionMatrix*mv; }',
+    fragmentShader: 'uniform float op; uniform float t; uniform vec3 col; uniform float iri; varying vec3 vN; varying vec3 vV; varying vec3 vP;' +
+      'void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);' +
+      ' float sh = 0.5 + 0.5*sin(t*3.0 + vP.y*5.0 + vP.x*3.0); float hex = step(0.92, fract(sin(dot(floor(vP*6.0), vec3(12.9,78.2,37.7)))*43758.5));' +
+      ' vec3 c = mix(col, 0.55 + 0.45*cos(6.2832*(f*1.4 + vec3(0.0,0.33,0.67) + t*0.15)), iri);' +
+      ' c = mix(c, vec3(1.0), f*0.55); float a = op * (0.10 + 1.6*f + 0.12*sh + 0.25*hex*sh);' +
+      ' gl_FragColor = vec4(c*(1.0 + 0.6*f), clamp(a, 0.0, 0.95)); }',
+    transparent: true, depthWrite: false, toneMapped: false, side: THREE.FrontSide,
+  });
+}
+function fireworkMeshBasic() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 10), new THREE.MeshStandardMaterial({ color: 0xc8261e, roughness: 0.5 })); body.rotation.x = Math.PI / 2; g.add(body);
   const tip = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.3, 10), new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.4 })); tip.rotation.x = -Math.PI / 2; tip.position.z = -0.55; g.add(tip);
@@ -1460,7 +1497,7 @@ function fastSim(secs, pSkill) {
   const order = [...karts].sort((a, b) => (a.finished ? a.finishT ?? a.finishTime ?? 0 : 1e9 - a.prog) - (b.finished ? b.finishT ?? b.finishTime ?? 0 : 1e9 - b.prog));
   return { gaps: out, place: order.indexOf(player) + 1, clock: Math.round(race.clock), finished: player.finished };
 }
-window.__jr = { fastSim: DEBUG ? fastSim : undefined, race, karts, get player() { return player; }, get track() { return track; }, startIntro, startCountdown, goSelect, goTitle, TRACKS, R, useItem, hitKart, showResults };
+window.__jr = { fastSim: DEBUG ? fastSim : undefined, get shots() { return DEBUG ? shots : null; }, get slicks() { return DEBUG ? slicks : null; }, race, karts, get player() { return player; }, get track() { return track; }, startIntro, startCountdown, goSelect, goTitle, TRACKS, R, useItem, hitKart, showResults };
 
 goTitle();
 requestAnimationFrame(frame);
