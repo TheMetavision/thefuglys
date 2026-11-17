@@ -195,6 +195,9 @@ const pitsCards = worldLocations.map((loc: any) => ({
                 <p class="series-body">
                   Series 1 is on the way — subscribe on YouTube and you'll be first in the queue when the chaos lands.
                 </p>
+                <p class="series-body">
+                  Until then, the trailer gives you under a minute in the Pits: one trailer park, one very questionable crew, and a whole lot of things going wrong at once. Shot vertical, so it plays best on your phone.
+                </p>
                 <div class="series-ctas">
                   <a href={`${youtubeChannelUrl}?sub_confirmation=1`} target="_blank" rel="noopener noreferrer" class="btn btn-primary-red">Subscribe</a>
                 </div>
@@ -1989,4 +1992,22 @@ const pitsCards = worldLocations.map((loc: any) => ({
     }
   }
 
+  /* The trailer is vertical (9:16): a narrow portrait player beside the copy. */
+  .series-teaser-grid {
+    grid-template-columns: minmax(240px, 340px) minmax(0, 560px);
+    justify-content: center;
+  }
+  .series-thumb-wrap {
+    padding-bottom: 0;
+    aspect-ratio: 9 / 16;
+  }
+  @media (max-width: 768px) {
+    .series-teaser-grid {
+      grid-template-columns: 1fr;
+    }
+    .series-thumb-col {
+      max-width: 300px;
+      margin: 0 auto;
+    }
+  }
 </style>
