@@ -199,11 +199,14 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
   const playBtn = document.getElementById('play-btn');
   const embedWrap = document.getElementById('trailer-embed');
 
+  // Trailers play with YouTube captions off: cc_load_policy=0 stops them auto-loading, and the captions module is unloaded once the player is ready (needs enablejsapi=1).
+  function ytCaptionsOff(f){if(!f)return;var s=function(){try{var w=f.contentWindow;w.postMessage('{"event":"listening","id":1}','*');w.postMessage('{"event":"command","func":"unloadModule","args":["captions"]}','*');w.postMessage('{"event":"command","func":"unloadModule","args":["cc"]}','*');}catch(e){}};f.addEventListener('load',function(){[600,1500,3000,6000].forEach(function(t){setTimeout(s,t)})});}
+
   function loadTrailer() {
     if (!embedWrap) return;
     const iframe = document.createElement('iframe');
     // Click-to-load: YouTube is only contacted after the visitor presses play.
-    iframe.src = 'https://www.youtube-nocookie.com/embed/XgwfSjIJre4?autoplay=1&rel=0';
+    iframe.src = 'https://www.youtube-nocookie.com/embed/XgwfSjIJre4?autoplay=1&rel=0&cc_load_policy=0&enablejsapi=1';
     iframe.title = 'The Fuglys Official Trailer';
     iframe.setAttribute('frameborder', '0');
     iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
@@ -211,6 +214,7 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
     iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
     iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
     embedWrap.innerHTML = '';
+    ytCaptionsOff(iframe);
     embedWrap.appendChild(iframe);
     iframe.focus();
   }
