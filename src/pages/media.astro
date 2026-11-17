@@ -57,11 +57,7 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
 
     <section class="section trailer-section">
       <div class="container">
-        <div class="trailer-header">
-          <div class="section-eyebrow">Official Trailer</div>
-          <h2 class="trailer-heading">Watch the Madness Begin</h2>
-          <div class="trailer-rule"></div>
-        </div>
+        <div class="trailer-layout">
         <div class="trailer-embed-wrap">
           <div class="trailer-embed" id="trailer-embed">
             <div class="trailer-thumbnail" id="trailer-thumbnail">
@@ -85,8 +81,21 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
             </div>
           </div>
           <div class="trailer-glow"></div>
+          <p class="video-note">Plays from YouTube, which may set cookies.</p>
         </div>
-        <p class="video-note">Plays from YouTube, which may set cookies.</p>
+        <div class="trailer-copy">
+          <div class="section-eyebrow">Official Trailer</div>
+          <h2 class="trailer-heading">Watch the Madness Begin</h2>
+          <div class="trailer-rule"></div>
+          <p class="trailer-text">
+            One trailer park. The last one left in the badlands. Under a minute in the Pits with Axel, Flint, Luna, Big Ma and the rest of the crew, and you'll see why nobody else wanted to live here.
+          </p>
+          <p class="trailer-text">
+            Shot vertical, so it plays best on your phone. Series 1 is on the way: subscribe on YouTube and you'll know the second the chaos lands.
+          </p>
+          <a href="https://www.youtube.com/@TheFuglys?sub_confirmation=1" target="_blank" rel="noopener noreferrer" class="trailer-cta">Subscribe on YouTube</a>
+        </div>
+        </div>
       </div>
     </section>
 
@@ -265,6 +274,64 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
     margin: 0 auto;
   }
 
+  /* The trailer is vertical (9:16): player on the left, copy beside it. */
+  .trailer-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 360px) minmax(0, 520px);
+    gap: 64px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .trailer-copy .trailer-rule {
+    margin: 0 0 24px;
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  .trailer-text {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin: 0 0 16px;
+  }
+
+  .trailer-cta {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 14px 28px;
+    background: #fff;
+    color: #99132F;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .trailer-cta:hover {
+    background: #f3e6e9;
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 820px) {
+    .trailer-layout {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .trailer-layout .trailer-embed-wrap {
+      width: 100%;
+      max-width: 320px;
+    }
+    .trailer-copy {
+      text-align: center;
+    }
+    .trailer-copy .trailer-rule {
+      margin: 0 auto 24px;
+    }
+  }
+
   .trailer-embed-wrap {
     position: relative;
     max-width: 800px;
@@ -286,7 +353,7 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
     border-radius: 4px;
     overflow: hidden;
     box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
-    aspect-ratio: 16/9;
+    aspect-ratio: 9/16;
     background: #000;
   }
 
