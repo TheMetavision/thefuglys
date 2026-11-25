@@ -4,6 +4,9 @@ import path from 'node:path';
 import { PortableText } from 'astro-portabletext';
 import { sanityDims, localImg, localSrcset } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
+import SceneHero from '../components/SceneHero.astro';
+import { socialImg } from '../lib/sanityImage';
+const HERO_IMG = '/images/heroes/home.webp';
 import { tvSeriesSchema } from '../lib/schema';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
@@ -73,16 +76,24 @@ const pitsCards = worldLocations.map((loc: any) => ({
 }));
 ---
 
-<Layout title="The Fuglys" description="Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild, post-apocalyptic adventures." jsonLd={tvSeriesSchema()}>
+<Layout title="The Fuglys" description="Wasteland Weirdos, Wild Adventures, Zero Regrets! Join The Fuglys on their wild, post-apocalyptic adventures." jsonLd={tvSeriesSchema()} ogImage={socialImg(HERO_IMG)}>
   <Nav />
 
   <main>
-    <section class="hero" id="hero">
-      <div class="hero-tagline-bar">
-        <h1 class="hero-tagline">WASTELAND WEIRDOS, <span class="hero-tagline-accent">WILD</span> ADVENTURES, ZERO REGRETS!</h1>
-        <p class="hero-positioning">{positioningLine}</p>
+    <section class="page-hero has-scene home-scene">
+      <SceneHero src={HERO_IMG} alt="Luna, Flint and Axel stride down a dusty lane of caravans in The Pits at sunset, with Omen the crow flying overhead" position="72% 30%" />
+      <div class="container">
+        <h1 class="home-scene__title">Wasteland weirdos, <span class="hero-tagline-accent">wild</span> adventures, zero regrets!</h1>
+        <div class="heading-rule"></div>
+        <p class="page-intro">{positioningLine}</p>
+        <div class="hero-ctas home-scene__ctas">
+          <a href="https://www.youtube.com/shorts/XgwfSjIJre4" target="_blank" rel="noopener noreferrer" class="hero-cta hero-cta--solid">WATCH OUR TRAILER</a>
+          <a href="/media" class="hero-cta hero-cta--outline">EXPLORE MEDIA</a>
+        </div>
       </div>
+    </section>
 
+    <section class="hero" id="hero" aria-label="Meet the crew">
       <div class="hero-body">
         <div class="hero-image-col">
           {carouselCharacters.map((char, i) => (
@@ -124,8 +135,7 @@ const pitsCards = worldLocations.map((loc: any) => ({
           </div>
 
           <div class="hero-ctas">
-            <a href="https://www.youtube.com/shorts/XgwfSjIJre4" target="_blank" rel="noopener noreferrer" class="hero-cta hero-cta--solid">WATCH OUR TRAILER</a>
-            <a href="/media" class="hero-cta hero-cta--outline">EXPLORE MEDIA</a>
+            <a href="/meet-the-misfits" class="hero-cta hero-cta--outline">MEET THE MISFITS</a>
           </div>
         </div>
       </div>
@@ -570,9 +580,14 @@ const pitsCards = worldLocations.map((loc: any) => ({
     padding-top: 0;
   }
 
+  .home-scene { margin-top: 100px; }
+  .home-scene .container > * { max-width: 540px; }
+  .home-scene__title { font-size: clamp(2.4rem, 4.6vw, 4.4rem); color: var(--color-text); margin-bottom: 20px; line-height: 1; }
+  .home-scene__ctas { margin-top: 28px; }
+
   .hero {
     position: relative;
-    margin-top: 100px;
+    margin-top: 0;
     height: calc(100vh - 100px);
     min-height: 600px;
     background-color: #263F44;

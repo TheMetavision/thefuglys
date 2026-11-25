@@ -1,4 +1,7 @@
 ---
+import SceneHero from '../components/SceneHero.astro';
+import { socialImg } from '../lib/sanityImage';
+const HERO_IMG = '/images/heroes/media.webp';
 import { localImg, localSrcset } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
@@ -31,11 +34,12 @@ const rawBooks = await getAllBooks();
 const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
 ---
 
-<Layout title="Media — The Fuglys" description="Chaos, Mayhem and Mutant Madness – Watch It All Unfold! Exclusive videos, behind-the-scenes chaos, and explosive action from The Fuglys.">
+<Layout title="Media — The Fuglys" description="Chaos, Mayhem and Mutant Madness – Watch It All Unfold! Exclusive videos, behind-the-scenes chaos, and explosive action from The Fuglys." ogImage={socialImg(HERO_IMG)}>
   <Nav />
 
   <main>
-    <section class="page-hero">
+    <section class="page-hero has-scene">
+      <SceneHero src={HERO_IMG} alt="The Fuglys crew settle in for an outdoor movie night at The Pits, a projector beam lighting a bedsheet screen between two caravans" position="68% 40%" />
       <div class="container">
         <div class="page-hero-grid">
           <div class="page-hero-text">
@@ -43,13 +47,6 @@ const books = (!rawBooks || rawBooks.length === 0) ? FALLBACK_BOOKS : rawBooks;
             <h1 class="page-title">Chaos, Mayhem &amp; Mutant Madness</h1>
             <div class="heading-rule"></div>
             <p class="page-intro">Step into the wild world of The Fuglys with exclusive videos, behind-the-scenes chaos, and explosive action.</p>
-          </div>
-          <div class="page-hero-visual">
-            <img
-              src={localImg('/images/fuglys-media-hero.webp', 800)} srcset={localSrcset('/images/fuglys-media-hero.webp', 600, 1200)} sizes="(min-width: 900px) 600px, 100vw" width="1200" height="669" fetchpriority="high"
-              alt="Behind the cameras at The Pits — the Fuglys crew filming a scene in the wasteland"
-              class="hero-media-img"
-            />
           </div>
         </div>
       </div>
