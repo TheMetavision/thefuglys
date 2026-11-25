@@ -1,4 +1,7 @@
 ---
+import SceneHero from '../../components/SceneHero.astro';
+import { socialImg } from '../../lib/sanityImage';
+const HERO_IMG = '/images/heroes/games.webp';
 import Layout from '../../layouts/Layout.astro';
 import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
@@ -24,11 +27,12 @@ const games = [
 ];
 ---
 
-<Layout title="Games — The Fuglys" description="Free games from The Fuglys. Race the crew round the Bone Yard in Junkyard Racers: free to play, no sign-up.">
+<Layout title="Games — The Fuglys" description="Free games from The Fuglys. Race the crew round the Bone Yard in Junkyard Racers: free to play, no sign-up." ogImage={socialImg(HERO_IMG)}>
   <Nav />
 
   <main>
-    <section class="page-hero">
+    <section class="page-hero has-scene">
+      <SceneHero src={HERO_IMG} alt="Dixie, Cletus, Clyde and Jebediah race their junkyard go-karts through the Bone Yard at sunset" position="70% 40%" />
       <div class="container">
         <div class="section-eyebrow">Games</div>
         <h1 class="page-title">Play in the Wasteland</h1>

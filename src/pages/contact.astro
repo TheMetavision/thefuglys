@@ -1,4 +1,7 @@
 ---
+import SceneHero from '../components/SceneHero.astro';
+import { socialImg } from '../lib/sanityImage';
+const HERO_IMG = '/images/heroes/contact.webp';
 import { localImg, localSrcset, sanityImg, sanitySrcset, sanityDims } from '../lib/sanityImage';
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
@@ -6,11 +9,12 @@ import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
 ---
 
-<Layout title="Get In Touch — The Fuglys" description="Get in touch with The Fuglys team. General enquiries, licensing, press, and collaboration opportunities.">
+<Layout title="Get In Touch — The Fuglys" description="Get in touch with The Fuglys team. General enquiries, licensing, press, and collaboration opportunities." ogImage={socialImg(HERO_IMG)}>
   <Nav />
 
   <main>
-    <section class="page-hero">
+    <section class="page-hero has-scene">
+      <SceneHero src={HERO_IMG} alt="Scrap sends a message over his homemade radio rig at The Lookout while Omen the crow perches on the dish" position="72% 40%" />
       <div class="container">
         <div class="page-hero-grid">
           <div class="page-hero-text">
@@ -18,13 +22,6 @@ import Newsletter from '../components/Newsletter.astro';
             <h1 class="page-title">Get In Touch</h1>
             <div class="heading-rule"></div>
             <p class="page-intro">Got questions, ideas, or just want to talk wasteland? We want to hear from you.</p>
-          </div>
-          <div class="page-hero-visual">
-            <img
-              src={localImg('/images/contact-hero.webp', 800)} srcset={localSrcset('/images/contact-hero.webp', 600, 1200)} sizes="(min-width: 900px) 600px, 100vw" width="1200" height="669" fetchpriority="high"
-              alt="Two Fuglys characters sitting in the dust at The Pits trailer park"
-              class="hero-contact-img"
-            />
           </div>
         </div>
       </div>

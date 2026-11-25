@@ -1,5 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SceneHero from '../components/SceneHero.astro';
+import { socialImg } from '../lib/sanityImage';
+const HERO_IMG = '/images/heroes/misfits.webp';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import Newsletter from '../components/Newsletter.astro';
@@ -25,14 +28,24 @@ function getCategoryLabel(char: any) {
 }
 ---
 
-<Layout title="Meet the Misfits — The Fuglys" description="Get to know The Fuglys—a wild bunch of outcasts, survivors, and schemers just trying to make it through the wasteland in one piece.">
+<Layout title="Meet the Misfits — The Fuglys" description="Get to know The Fuglys—a wild bunch of outcasts, survivors, and schemers just trying to make it through the wasteland in one piece." ogImage={socialImg(HERO_IMG)}>
   <Nav />
 
   <main>
+    <section class="page-hero has-scene">
+      <SceneHero src={HERO_IMG} alt="The Fuglys core six pose in front of the camp's scrap Perimeter wall at dusk: Big Ma, Billy Ray, Bud, Luna, Flint and Axel" position="72% 35%" />
+      <div class="container">
+        <div class="section-eyebrow">The Crew</div>
+        <h1 class="page-title">Meet the Misfits</h1>
+        <div class="heading-rule"></div>
+        <p class="page-intro">A wild bunch of outcasts, survivors and schemers, just trying to make it through the wasteland in one piece.</p>
+      </div>
+    </section>
+
     <section class="section core-six-section">
       <div class="container">
         <div class="section-label">The Core Six</div>
-        <h1 class="section-heading">The Heart of the Crew</h1>
+        <h2 class="section-heading">The Heart of the Crew</h2>
         <div class="heading-rule"></div>
         <div class="core-six-grid">
           {coreSix.map((char: any) => (

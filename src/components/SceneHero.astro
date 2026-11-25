@@ -1,0 +1,90 @@
+---
+// Full-bleed scene behind a page hero: copy on the left, scene on the right
+// (the same layout as the Labrats and Cats On Crack page heroes). Put it as the
+// first child of the hero <section> and add class="has-scene" to that section.
+// <main> is already padded for the fixed nav, so the scene starts at the top
+// of the section. Phones: the scene becomes a 3:2 band above the copy.
+import { localImg, localSrcset } from '../lib/sanityImage';
+
+interface Props {
+  src: string;        // /public path, e.g. /images/heroes/media.webp
+  alt: string;
+  width?: number;     // original pixel width of the file
+  height?: number;
+  position?: string;  // object-position on wide screens
+}
+const { src, alt, width = 2048, height = 1360, position = '70% 30%' } = Astro.props;
+---
+<img
+  class="scene-hero__img"
+  src={localImg(src, 1600)}
+  srcset={localSrcset(src, 1920, width)}
+  sizes="100vw"
+  width={width}
+  height={height}
+  alt={alt}
+  fetchpriority="high"
+  style={`--scene-pos:${position}`}
+/>
+<div class="scene-hero__shade" aria-hidden="true"></div>
+
+<style>
+  :global(section.has-scene) {
+    position: relative;
+    overflow: hidden;
+    /* height follows width so the 3:2 scene isn't cropped top and bottom on short windows */
+    min-height: clamp(420px, 40vw, 700px);
+    display: flex;
+    align-items: center;
+    padding: 56px 0 !important;
+    background: #1e3238;
+  }
+  :global(.has-scene > .container) { position: relative; z-index: 2; width: 100%; }
+  :global(.has-scene > .container > *) { max-width: 500px; }
+  :global(.has-scene .page-hero-grid) { display: block; }
+  :global(.has-scene .page-hero-visual) { display: none; }
+
+  .scene-hero__img {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 62%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: var(--scene-pos, 70% 30%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 20%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 20%);
+    z-index: 0;
+  }
+  .scene-hero__shade {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(30,50,56,0.96) 0%, rgba(30,50,56,0.7) 32%, rgba(30,50,56,0.08) 50%, transparent 100%),
+      linear-gradient(0deg, rgba(30,50,56,0.85) 0%, rgba(30,50,56,0) 26%);
+  }
+
+  @media (max-width: 1024px) {
+    .scene-hero__img { width: 100%; -webkit-mask-image: none; mask-image: none; }
+    .scene-hero__shade {
+      background:
+        linear-gradient(90deg, rgba(30,50,56,0.92) 0%, rgba(30,50,56,0.6) 55%, rgba(30,50,56,0.25) 100%),
+        linear-gradient(0deg, rgba(30,50,56,0.85) 0%, rgba(30,50,56,0) 35%);
+    }
+  }
+  @media (max-width: 768px) {
+    :global(section.has-scene) { display: block; min-height: 0; padding: 0 0 40px !important; }
+    .scene-hero__img {
+      position: relative;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 3 / 2;
+      display: block;
+      margin-bottom: 24px;
+    }
+    .scene-hero__shade { display: none; }
+  }
+</style>
