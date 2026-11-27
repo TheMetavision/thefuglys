@@ -1,3 +1,4 @@
+import { proportionsField } from './canon';
 export default {
   name: 'character',
   title: 'Character',
@@ -121,6 +122,7 @@ export default {
       type: 'number',
       description: 'Lower numbers appear first on the Meet The Misfits page',
     },
+    proportionsField,
     {
       name: 'referenceGallery',
       title: 'Reference gallery (private)',
