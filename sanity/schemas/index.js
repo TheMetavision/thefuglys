@@ -16,6 +16,7 @@
 // fields missing from other types added back (marked Legacy where the site doesn't read them).
 // 2026-11-12: galleryImage (object) and game (document) for the private reference galleries.
 import character from './character';
+import { brandCanon } from './canon';
 import product from './product';
 import printfulVariant from './printfulVariant';
 import order from './order';
@@ -35,6 +36,7 @@ import contactSubmission from './contactSubmission';
 import galleryImage from './galleryImage';
 import game from './game';
 export const schemaTypes = [
+  brandCanon,
   // Content types
   character,
   // Commerce
