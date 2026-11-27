@@ -124,6 +124,30 @@ export default {
     },
     proportionsField,
     {
+      name: 'voices',
+      title: 'Voice (canon)',
+      type: 'array',
+      description: 'The locked voice master(s) for this character, with how each was made. A character who never speaks gets one slot saying so and no audio. Not shown on the website.',
+      of: [
+        {
+          type: 'object',
+          name: 'voiceSlot',
+          title: 'Voice slot',
+          fields: [
+            { name: 'label', title: 'Label', type: 'string', description: 'e.g. "Main", or a member name for a group.' },
+            { name: 'audio', title: 'Voice master (WAV)', type: 'file', options: { accept: 'audio/*' } },
+            { name: 'direction', title: 'Direction', type: 'text', rows: 3 },
+            { name: 'voiceDesignPrompt', title: 'Voice Design prompt', type: 'text', rows: 4 },
+            { name: 'referenceRead', title: 'Reference read', type: 'text', rows: 4 },
+            { name: 'processing', title: 'Processing', type: 'string' },
+            { name: 'source', title: 'Source file', type: 'string' },
+            { name: 'lockedAt', title: 'Locked on', type: 'date' },
+          ],
+          preview: { select: { title: 'label', subtitle: 'direction' } },
+        },
+      ],
+    },
+    {
       name: 'referenceGallery',
       title: 'Reference gallery (private)',
       description: 'Working and promo images for this character. Not shown on the website.',
