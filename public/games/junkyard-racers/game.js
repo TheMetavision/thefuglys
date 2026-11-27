@@ -1191,7 +1191,7 @@ function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.
 let shoutT = 0;
 /* character voices (from the voice programme): <id>_<kind>[1|2].mp3 in audio/voice/.
    Only racers listed here have lines; anyone else just shows the text shout. */
-const VOICED = { cletus: 1, clyde: 1, dixie: 1, jebediah: 1 };
+const VOICED = { cletus: 1, clyde: 1, dixie: 1, jebediah: 1, scrap: 1 };
 const VO_VARIANTS = { hit: 2, item: 2, pass: 2, start: 0, win: 0 };
 let voBusyUntil = 0;
 function voice(id, kind, force) {
